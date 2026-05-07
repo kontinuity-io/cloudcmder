@@ -1,0 +1,50 @@
+version: 2
+
+project_name: cloudcmder
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: cloudcmder
+    main: ./cmd/cloudcmder
+    binary: cloudcmder
+    env:
+      # CGO must be off to produce static binaries without libc dependency.
+      # modernc.org/sqlite is a pure-Go SQLite transpilation, so this is safe.
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X cloudcmder.com/internal/version.Version={{.Version}}
+      - -X cloudcmder.com/internal/version.Commit={{.ShortCommit}}
+
+archives:
+  - id: cloudcmder
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"

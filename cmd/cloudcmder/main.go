@@ -188,6 +188,14 @@ func drainAndWrite(ctx context.Context, st *store.Store, runID int64, ch <-chan 
 				return flush()
 			}
 			if x.Err != nil {
+				if gcp.IsRecoverableScanErr(x.Err) {
+					// Architecture line 543: skip the kind, keep scanning.
+					// The most common trigger is a GCP API not being
+					// enabled on the target project.
+					slog.Warn("scan: kind enrichment skipped",
+						"error", x.Err)
+					continue
+				}
 				return x.Err
 			}
 			batch = append(batch, x.Resource)

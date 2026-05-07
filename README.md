@@ -57,6 +57,8 @@ curl -Lo cloudcmder https://github.com/kontinuity-io/cloudcmder/releases/latest/
 
 ```sh
 # Refresh data — re-run the scan whenever you want a fresh snapshot.
+# (Typically completes in ~5s; the 10 enrichment phases run concurrently
+#  with a 4-goroutine cap.)
 ./cloudcmder --scan my-project
 
 # Inspect the runs the store has (no GCP calls).
@@ -142,7 +144,7 @@ The interactive TUI is shipped — invoke `cloudcmder` with no flags.
 | M6 All resource kinds | ✅ |
 | M6.5 Commander layout (split-pane, live detail) | ✅ |
 | M7 Excel export | ✅ |
-| M8 Concurrency + polish | 🔲 |
+| M8 Concurrency + polish | ✅ |
 | M9 Release v1.0.0 | 🔲 |
 | v1.1 TUI Polish (lazydocker-rich) | 🔲 |
 

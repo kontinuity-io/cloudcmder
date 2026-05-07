@@ -13,16 +13,66 @@
 - Export a full assessment as a multi-tab Excel workbook.
 - Store every scan in a portable SQLite file you can copy out of CloudShell for offline analysis or audit.
 
-## Quickstart (GCP CloudShell)
+## Quickstart
+
+### Build from source
+
+The released binary ships with v1.0.0 (M9 milestone). Until then, build from source:
 
 ```sh
-# Download the latest binary for linux/amd64
-curl -Lo cloudcmder https://github.com/<org>/cloudcmder/releases/latest/download/cloudcmder_linux_amd64.tar.gz \
-  | tar -xzO cloudcmder > cloudcmder && chmod +x cloudcmder
+# Prereqs: Go 1.25+, gcloud CLI (for credentials)
+git clone https://github.com/kontinuity-io/cloudcmder
+cd cloudcmder
 
-# Run — uses your existing CloudShell credentials automatically
+# 1. Authenticate to GCP via Application Default Credentials.
+#    Skip this step inside CloudShell — ADC is already set up.
+gcloud auth application-default login
+
+# 2. Build a static binary (CGO_ENABLED=0 keeps modernc.org/sqlite happy
+#    and produces a portable binary you can copy anywhere).
+CGO_ENABLED=0 go build -o cloudcmder ./cmd/cloudcmder
+
+# 3. Verify auth — prints every project the credential can see, as JSON.
+./cloudcmder --list-scopes
+
+# 4. Scan a project (writes ~/.cloudcmder/cloudcmder.db).
+./cloudcmder --scan <your-project-id>
+
+# 5. Browse the scan in the commander TUI.
 ./cloudcmder
 ```
+
+### Release binary (post-v1.0.0)
+
+Once v1.0.0 ships you can skip the build step:
+
+```sh
+curl -Lo cloudcmder https://github.com/kontinuity-io/cloudcmder/releases/latest/download/cloudcmder_linux_amd64.tar.gz \
+  | tar -xzO cloudcmder > cloudcmder && chmod +x cloudcmder
+./cloudcmder --scan <your-project-id>
+./cloudcmder
+```
+
+### Day-to-day usage
+
+```sh
+# Refresh data — re-run the scan whenever you want a fresh snapshot.
+./cloudcmder --scan my-project
+
+# Inspect the runs the store has (no GCP calls).
+./cloudcmder --list-runs
+
+# See the kind/count breakdown for a specific run.
+./cloudcmder --show-run <uuid>
+
+# Open the TUI on a different db (e.g. one a teammate shared).
+./cloudcmder --db /path/to/their.db
+
+# Power-user: query the SQLite directly.
+sqlite3 ~/.cloudcmder/cloudcmder.db "SELECT kind, COUNT(*) FROM resources GROUP BY kind;"
+```
+
+> **First-run gotcha:** if your project has APIs disabled (e.g. Cloud Functions or GKE never used), the scan logs a warning per kind and skips it. The rest of the scan still completes. To enrich every kind, enable the corresponding API once via the Cloud Console or `gcloud services enable …`.
 
 ## Required IAM roles
 

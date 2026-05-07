@@ -76,7 +76,7 @@ Flags:
 | M2 SQLite store + headless scan | ✅ |
 | M3 Bubble Tea TUI shell | ✅ |
 | M4 Overview screen | ✅ |
-| M5 VM detail + interconnections | 🔲 |
+| M5 VM detail + interconnections | ✅ |
 | M6 All resource kinds | 🔲 |
 | M7 Excel export | 🔲 |
 | M8 Concurrency + polish | 🔲 |

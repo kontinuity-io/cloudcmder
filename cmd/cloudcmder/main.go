@@ -8,9 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -20,6 +23,7 @@ import (
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/providers/gcp"
 	"cloudcmder.com/internal/store"
+	"cloudcmder.com/internal/tui"
 	"cloudcmder.com/internal/version"
 )
 
@@ -58,6 +62,9 @@ your existing credentials automatically.
 Assessment data is stored in a local SQLite file so scans survive interruptions
 and the file can be exported for offline analysis.`,
 		SilenceUsage: true,
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			return setupLogging(logLevel)
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
 			case listScopes:
@@ -69,8 +76,7 @@ and the file can be exported for offline analysis.`,
 			case showRunUUID != "":
 				return runShowRun(cmd, dbPath, showRunUUID)
 			default:
-				fmt.Fprintln(os.Stderr, "TUI not yet implemented — use --help to see available flags")
-				return nil
+				return runTUI(cmd, dbPath)
 			}
 		},
 	}
@@ -250,6 +256,49 @@ func runShowRun(cmd *cobra.Command, dbPath, runUUID string) error {
 	return tw.Flush()
 }
 
+// runTUI opens the store and hands it to the Bubble Tea app. The TUI never
+// imports providers/* — it reads only from the store, per architecture.md.
+func runTUI(cmd *cobra.Command, dbPath string) error {
+	st, err := store.Open(dbPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+	return tui.Run(cmd.Context(), st)
+}
+
+// setupLogging routes slog to ~/.cloudcmder/cloudcmder.log so debug output
+// never corrupts the alt-screen TUI. Falls back to stderr only if the file
+// cannot be opened (e.g., read-only home directory).
+func setupLogging(level string) error {
+	lvl := parseLevel(level)
+	logPath := defaultLogPath()
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return fmt.Errorf("create log dir: %w", err)
+	}
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		// Last-resort fallback so a disk-full doesn't break --version etc.
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl})))
+		return nil
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: lvl})))
+	return nil
+}
+
+func parseLevel(s string) slog.Level {
+	switch strings.ToLower(s) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
 // defaultDBPath returns the default location for the SQLite assessment database.
 func defaultDBPath() string {
 	home, err := os.UserHomeDir()
@@ -257,4 +306,12 @@ func defaultDBPath() string {
 		return ".cloudcmder/cloudcmder.db"
 	}
 	return home + "/.cloudcmder/cloudcmder.db"
+}
+
+func defaultLogPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".cloudcmder/cloudcmder.log"
+	}
+	return home + "/.cloudcmder/cloudcmder.log"
 }

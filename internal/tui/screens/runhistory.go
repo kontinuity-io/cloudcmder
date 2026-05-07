@@ -11,6 +11,7 @@ import (
 
 	"cloudcmder.com/internal/store"
 	"cloudcmder.com/internal/tui/core"
+	"cloudcmder.com/internal/tui/style"
 )
 
 type runsLoadedMsg struct {
@@ -79,14 +80,14 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		r.tbl.SetRows(runRows(m.rows))
 		return r, nil
 	case tea.WindowSizeMsg:
-		r.tbl.SetHeight(max(5, m.Height-4))
+		r.tbl.SetHeight(max(5, m.Height-6))
 		return r, nil
 	case tea.KeyMsg:
 		if key.Matches(m, r.open) && len(r.rows) > 0 {
 			cur := r.tbl.Cursor()
 			if cur >= 0 && cur < len(r.rows) {
 				row := r.rows[cur]
-				return r, core.PushScreenCmd(NewOverviewStub(row.ScopeID, row.UUID))
+				return r, core.PushScreenCmd(NewOverview(r.ctx, r.st, row.ScopeID, row.UUID))
 			}
 		}
 	}
@@ -99,15 +100,14 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 func (r *RunHistory) View() string {
 	switch {
 	case !r.loaded:
-		return "loading runs…"
+		return style.Dim.Render("loading runs…")
 	case r.loadErr != nil:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#e74c3c")).
+		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading runs: " + r.loadErr.Error())
 	case len(r.rows) == 0:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).
-			Render("no runs found for this scope")
+		return style.Dim.Render("no runs found for this scope")
 	default:
-		return r.tbl.View()
+		return style.BorderActive.Render(r.tbl.View())
 	}
 }
 
@@ -122,7 +122,7 @@ func runRows(in []store.RunSummary) []table.Row {
 			short(run.UUID),
 			run.StartedAt.Local().Format(time.RFC3339),
 			finished,
-			run.Status,
+			style.Status(run.Status).Render(run.Status),
 			truncate(run.Notes, 25),
 		}
 	}

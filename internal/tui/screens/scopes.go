@@ -14,6 +14,7 @@ import (
 
 	"cloudcmder.com/internal/store"
 	"cloudcmder.com/internal/tui/core"
+	"cloudcmder.com/internal/tui/style"
 )
 
 // ScopeSummary is one row in the ScopeList screen.
@@ -99,7 +100,7 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		return s, nil
 	case tea.WindowSizeMsg:
 		s.width = m.Width
-		s.tbl.SetHeight(max(5, m.Height-4))
+		s.tbl.SetHeight(max(5, m.Height-6))
 		return s, nil
 	case tea.KeyMsg:
 		switch {
@@ -110,7 +111,7 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			cur := s.tbl.Cursor()
 			if cur >= 0 && cur < len(s.rows) {
 				row := s.rows[cur]
-				return s, core.PushScreenCmd(NewOverviewStub(row.ScopeID, row.LatestUUID))
+				return s, core.PushScreenCmd(NewOverview(s.ctx, s.st, row.ScopeID, row.LatestUUID))
 			}
 		case key.Matches(m, s.keymap.History):
 			if len(s.rows) == 0 {
@@ -136,15 +137,15 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 func (s *Scopes) View() string {
 	switch {
 	case !s.loaded:
-		return "loading scopes…"
+		return style.Dim.Render("loading scopes…")
 	case s.loadErr != nil:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#e74c3c")).
+		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading scopes: " + s.loadErr.Error())
 	case len(s.rows) == 0:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).
-			Render("\n  no scans yet — quit (q) and run:\n    cloudcmder --scan <project-id>\n")
+		return style.Dim.Render(
+			"\n  no scans yet — quit (q) and run:\n    cloudcmder --scan <project-id>\n")
 	default:
-		return s.tbl.View()
+		return style.BorderActive.Render(s.tbl.View())
 	}
 }
 
@@ -176,7 +177,7 @@ func toTableRows(in []ScopeSummary) []table.Row {
 			truncate(s.ScopeID, 30),
 			short(s.LatestUUID),
 			s.LatestStartedAt.Local().Format(time.RFC3339),
-			s.LatestStatus,
+			style.Status(s.LatestStatus).Render(s.LatestStatus),
 		}
 	}
 	return out

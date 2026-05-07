@@ -28,6 +28,7 @@ type RunHistory struct {
 	rows    []store.RunSummary
 	loaded  bool
 	loadErr error
+	height  int
 	open    key.Binding
 }
 
@@ -78,9 +79,13 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		r.loadErr = m.err
 		r.rows = m.rows
 		r.tbl.SetRows(runRows(m.rows))
+		if r.height > 0 {
+			r.tbl.SetHeight(tableHeight(len(r.rows), r.height))
+		}
 		return r, nil
 	case tea.WindowSizeMsg:
-		r.tbl.SetHeight(max(5, m.Height-6))
+		r.height = m.Height
+		r.tbl.SetHeight(tableHeight(len(r.rows), m.Height))
 		return r, nil
 	case tea.KeyMsg:
 		if key.Matches(m, r.open) && len(r.rows) > 0 {
@@ -118,11 +123,13 @@ func runRows(in []store.RunSummary) []table.Row {
 		if run.FinishedAt != nil {
 			finished = run.FinishedAt.Local().Format(time.RFC3339)
 		}
+		// Status stays plain — bubbles/table v1's selected-row style strips
+		// embedded ANSI. See note in scopes.go::toTableRows.
 		out[i] = table.Row{
 			short(run.UUID),
 			run.StartedAt.Local().Format(time.RFC3339),
 			finished,
-			style.Status(run.Status).Render(run.Status),
+			run.Status,
 			truncate(run.Notes, 25),
 		}
 	}

@@ -31,10 +31,12 @@ func (r *ResourceListStub) Init() tea.Cmd { return nil }
 // Update ignores everything; the App's global keys handle Esc/q.
 func (r *ResourceListStub) Update(msg tea.Msg) (core.Screen, tea.Cmd) { return r, nil }
 
-// View renders an explanatory placeholder.
+// View renders an explanatory placeholder inside the same border the real
+// screens use, so the visual hierarchy stays consistent while M5 is pending.
 func (r *ResourceListStub) View() string {
-	return style.Dim.Render(
-		"\n  M5 lists " + string(r.kind) + " resources for run " + short(r.run.UUID) + " here.\n" +
+	body := style.Dim.Render(
+		"  M5 lists " + string(r.kind) + " resources for run " + short(r.run.UUID) + " here.\n" +
 			"  scope: " + r.run.ScopeID + "\n",
 	)
+	return style.BorderActive.Render(body)
 }

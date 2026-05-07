@@ -40,6 +40,7 @@ type Scopes struct {
 	loaded  bool
 	loadErr error
 	width   int
+	height  int
 	keymap  scopesKeymap
 }
 
@@ -97,10 +98,13 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		s.loadErr = m.err
 		s.rows = m.rows
 		s.tbl.SetRows(toTableRows(m.rows))
+		if s.height > 0 {
+			s.tbl.SetHeight(tableHeight(len(s.rows), s.height))
+		}
 		return s, nil
 	case tea.WindowSizeMsg:
-		s.width = m.Width
-		s.tbl.SetHeight(max(5, m.Height-6))
+		s.width, s.height = m.Width, m.Height
+		s.tbl.SetHeight(tableHeight(len(s.rows), m.Height))
 		return s, nil
 	case tea.KeyMsg:
 		switch {
@@ -173,11 +177,15 @@ func uniqueScopes(runs []store.RunSummary) []ScopeSummary {
 func toTableRows(in []ScopeSummary) []table.Row {
 	out := make([]table.Row, len(in))
 	for i, s := range in {
+		// Status stays plain: bubbles/table v1's selected-row style swallows
+		// embedded ANSI and erases the cell content. Status colour still
+		// shows in the Overview run header where the badge sits outside any
+		// table.
 		out[i] = table.Row{
 			truncate(s.ScopeID, 30),
 			short(s.LatestUUID),
 			s.LatestStartedAt.Local().Format(time.RFC3339),
-			style.Status(s.LatestStatus).Render(s.LatestStatus),
+			s.LatestStatus,
 		}
 	}
 	return out
@@ -205,4 +213,22 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// tableHeight returns the desired bubbles/table height: just enough to fit
+// the rows, but never more than the terminal can actually show. Floor at 3
+// (header + at least one row) so the table is still recognisable when empty.
+func tableHeight(rowCount, termHeight int) int {
+	natural := rowCount + 1 // header
+	if natural < 3 {
+		natural = 3
+	}
+	cap := termHeight - 6 // breadcrumb + footer + outer border
+	if cap < 3 {
+		cap = 3
+	}
+	if natural > cap {
+		return cap
+	}
+	return natural
 }

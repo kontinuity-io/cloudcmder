@@ -20,6 +20,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"cloudcmder.com/internal/export"
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/providers/gcp"
 	"cloudcmder.com/internal/store"
@@ -50,6 +51,8 @@ func newRootCmd() *cobra.Command {
 		scanProject  string
 		listRunsFlag bool
 		showRunUUID  string
+		exportPath   string
+		exportRunID  string
 	)
 
 	root := &cobra.Command{
@@ -75,6 +78,8 @@ and the file can be exported for offline analysis.`,
 				return runListRuns(cmd, dbPath)
 			case showRunUUID != "":
 				return runShowRun(cmd, dbPath, showRunUUID)
+			case exportPath != "":
+				return runExport(cmd, dbPath, exportPath, exportRunID)
 			default:
 				return runTUI(cmd, dbPath)
 			}
@@ -94,6 +99,10 @@ and the file can be exported for offline analysis.`,
 		"list every run recorded in the store as a table")
 	root.Flags().StringVar(&showRunUUID, "show-run", "",
 		"print resource counts grouped by kind for the run with the given uuid")
+	root.Flags().StringVar(&exportPath, "export", "",
+		"write a multi-tab Excel workbook for a stored run to the given path")
+	root.Flags().StringVar(&exportRunID, "run", "",
+		"run uuid to export (with --export); defaults to the most recent run")
 
 	root.Version = version.String()
 	root.SetVersionTemplate("{{.Version}}\n")
@@ -262,6 +271,47 @@ func runShowRun(cmd *cobra.Command, dbPath, runUUID string) error {
 		fmt.Fprintf(tw, "%s\t%d\n", k, counts[inventory.Kind(k)])
 	}
 	return tw.Flush()
+}
+
+// runExport writes a multi-tab Excel workbook for a run from the store.
+// If runUUID is empty, the most recent run across all scopes is used.
+func runExport(cmd *cobra.Command, dbPath, outPath, runUUID string) error {
+	ctx := cmd.Context()
+
+	st, err := store.Open(dbPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+
+	var run *store.RunSummary
+	if runUUID != "" {
+		run, err = st.FindRunByUUID(ctx, runUUID)
+		if err != nil {
+			return err
+		}
+		if run == nil {
+			return fmt.Errorf("no run found with uuid %s", runUUID)
+		}
+	} else {
+		runs, err := st.ListRuns(ctx)
+		if err != nil {
+			return err
+		}
+		if len(runs) == 0 {
+			return errors.New("no runs in store — run --scan first")
+		}
+		run = &runs[0] // ListRuns is newest-first.
+	}
+
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		return fmt.Errorf("export: create parent dir: %w", err)
+	}
+	if err := export.WriteWorkbook(ctx, st, *run, outPath); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "wrote %s\n", outPath)
+	return nil
 }
 
 // runTUI opens the store and hands it to the Bubble Tea app. The TUI never

@@ -92,7 +92,14 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			cur := r.tbl.Cursor()
 			if cur >= 0 && cur < len(r.rows) {
 				row := r.rows[cur]
-				return r, core.PushScreenCmd(NewFrame(r.ctx, r.st, row))
+				// If a Frame is already on the stack (RunHistory was pushed
+				// over it), pop the modal and ask the Frame to switch runs
+				// in place. Otherwise (RunHistory pushed straight from
+				// ScopeList), push a new Frame.
+				return r, tea.Sequence(
+					core.PopScreenCmd(),
+					core.SwitchRunCmd(row),
+				)
 			}
 		}
 	}

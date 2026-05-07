@@ -43,10 +43,11 @@ type Frame struct {
 	zoomed bool
 
 	// keys
-	tabKey   key.Binding
-	enterKey key.Binding
-	escKey   key.Binding
-	graphKey key.Binding
+	tabKey     key.Binding
+	enterKey   key.Binding
+	escKey     key.Binding
+	graphKey   key.Binding
+	historyKey key.Binding
 }
 
 // NewFrame builds a Frame for the given run with Overview as the default
@@ -54,11 +55,12 @@ type Frame struct {
 func NewFrame(ctx context.Context, st *store.Store, run store.RunSummary) *Frame {
 	f := &Frame{
 		ctx: ctx, st: st, run: run,
-		focus:    focusLeft,
-		tabKey:   key.NewBinding(key.WithKeys("tab")),
-		enterKey: key.NewBinding(key.WithKeys("enter")),
-		escKey:   key.NewBinding(key.WithKeys("esc")),
-		graphKey: key.NewBinding(key.WithKeys("g")),
+		focus:      focusLeft,
+		tabKey:     key.NewBinding(key.WithKeys("tab")),
+		enterKey:   key.NewBinding(key.WithKeys("enter")),
+		escKey:     key.NewBinding(key.WithKeys("esc")),
+		graphKey:   key.NewBinding(key.WithKeys("g")),
+		historyKey: key.NewBinding(key.WithKeys("H")),
 	}
 	f.left = NewOverview(ctx, st, run.ScopeID, run.UUID)
 	return f
@@ -99,6 +101,15 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		return f, f.left.Init()
 	case tea.WindowSizeMsg:
 		f.width, f.height = m.Width, m.Height
+		// Broadcast to both panes so each can size its internal table/text.
+		var lc, rc tea.Cmd
+		f.left, lc = f.left.Update(msg)
+		if f.right != nil {
+			updated, c := f.right.Update(msg)
+			f.right = updated.(*Detail)
+			rc = c
+		}
+		return f, tea.Batch(lc, rc)
 	}
 
 	// While the left pane absorbs keys (e.g., active filter input), don't let
@@ -125,6 +136,8 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			if f.right != nil {
 				return f, core.PushScreenCmd(NewGraphView(f.right.res, f.right.edges))
 			}
+		case key.Matches(k, f.historyKey):
+			return f, core.PushScreenCmd(NewRunHistory(f.ctx, f.st, f.run.ScopeID))
 		}
 	}
 
@@ -231,13 +244,19 @@ func (f *Frame) bodyView() string {
 		return style.BorderActive.Render(f.right.View())
 	}
 	leftBox := f.borderFor(focusLeft).Render(f.left.View())
+	var rightBox string
 	if f.right == nil {
-		hint := style.Dim.Render("\n  (move cursor onto a resource row to see details)\n")
-		rightBox := style.BorderInactive.Render(hint)
+		rightBox = style.BorderInactive.Render(
+			style.Dim.Render("\n  (move cursor onto a resource row to see details)\n"))
+	} else {
+		rightBox = f.borderFor(focusRight).Render(f.right.View())
+	}
+	// Side-by-side at ≥120 cols; stacked vertically below that so CloudShell
+	// at 80 cols still shows both panes without overflow.
+	if f.width >= 120 {
 		return lipgloss.JoinHorizontal(lipgloss.Top, leftBox, " ", rightBox)
 	}
-	rightBox := f.borderFor(focusRight).Render(f.right.View())
-	return lipgloss.JoinHorizontal(lipgloss.Top, leftBox, " ", rightBox)
+	return lipgloss.JoinVertical(lipgloss.Left, leftBox, rightBox)
 }
 
 func (f *Frame) borderFor(p PaneFocus) lipgloss.Style {

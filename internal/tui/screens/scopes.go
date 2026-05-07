@@ -96,6 +96,11 @@ func (s *Scopes) loadCmd() tea.Cmd {
 // Update handles loading completion, resize, and key navigation.
 func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	switch m := msg.(type) {
+	case core.SwitchRunMsg:
+		// RunHistory was pushed straight from Scopes (no Frame below). After
+		// the modal pops, the SwitchRunMsg lands here — open a Frame for
+		// the picked run.
+		return s, core.PushScreenCmd(NewFrame(s.ctx, s.st, m.Run))
 	case scopesLoadedMsg:
 		s.loaded = true
 		s.loadErr = m.err

@@ -18,6 +18,7 @@ const providerName = "gcp"
 // GCPProvider implements inventory.Provider for Google Cloud.
 type GCPProvider struct {
 	projects *resourcemanager.ProjectsClient
+	assetState
 }
 
 // New constructs a GCPProvider using Application Default Credentials.
@@ -38,24 +39,22 @@ func New(ctx context.Context, opts ...option.ClientOption) (*GCPProvider, error)
 	return &GCPProvider{projects: pc}, nil
 }
 
-// Close releases the underlying REST client.
+// Close releases the underlying clients.
 func (p *GCPProvider) Close() error {
-	if p.projects == nil {
-		return nil
+	var errs []error
+	if p.projects != nil {
+		if err := p.projects.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	return p.projects.Close()
+	if err := p.closeAssetClient(); err != nil {
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
 }
 
 // Name returns the provider's short name.
 func (p *GCPProvider) Name() string { return providerName }
-
-// ListResources is implemented in M2; the channel is pre-closed so any caller
-// that ranges over it terminates instead of deadlocking on a nil channel.
-func (p *GCPProvider) ListResources(ctx context.Context, _ inventory.Scope, _ []inventory.Kind) (<-chan inventory.ResourceOrErr, error) {
-	ch := make(chan inventory.ResourceOrErr)
-	close(ch)
-	return ch, errors.New("gcp: ListResources not implemented in M1")
-}
 
 // GetDetail is implemented in M5+ when per-kind enrichment lands.
 func (p *GCPProvider) GetDetail(ctx context.Context, _ inventory.ResourceRef) (inventory.Resource, error) {

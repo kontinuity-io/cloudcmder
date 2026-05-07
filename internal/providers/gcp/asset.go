@@ -1,0 +1,218 @@
+package gcp
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+
+	asset "cloud.google.com/go/asset/apiv1"
+	"cloud.google.com/go/asset/apiv1/assetpb"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+
+	"cloudcmder.com/internal/inventory"
+)
+
+// assetTypeToKind maps GCP asset type strings to cloudcmder Kinds, per
+// architecture.md §"Discovery (asset.go)". Both Cloud Run Services and Cloud
+// Functions normalize to KindFunction; GCP uses the same backend for both.
+var assetTypeToKind = map[string]inventory.Kind{
+	"compute.googleapis.com/Instance":         inventory.KindVM,
+	"compute.googleapis.com/Disk":             inventory.KindDisk,
+	"compute.googleapis.com/Network":          inventory.KindNetwork,
+	"compute.googleapis.com/Subnetwork":       inventory.KindSubnet,
+	"compute.googleapis.com/Firewall":         inventory.KindFirewall,
+	"compute.googleapis.com/ForwardingRule":   inventory.KindLoadBalancer,
+	"sqladmin.googleapis.com/Instance":        inventory.KindDatabase,
+	"storage.googleapis.com/Bucket":           inventory.KindBucket,
+	"container.googleapis.com/Cluster":        inventory.KindCluster,
+	"run.googleapis.com/Service":              inventory.KindFunction,
+	"cloudfunctions.googleapis.com/Function":  inventory.KindFunction,
+}
+
+// assetTypesForKinds returns the asset.googleapis.com filter strings for the
+// requested Kinds. An empty kinds slice means "all known kinds".
+func assetTypesForKinds(kinds []inventory.Kind) []string {
+	if len(kinds) == 0 {
+		out := make([]string, 0, len(assetTypeToKind))
+		for at := range assetTypeToKind {
+			out = append(out, at)
+		}
+		return out
+	}
+	want := make(map[inventory.Kind]struct{}, len(kinds))
+	for _, k := range kinds {
+		want[k] = struct{}{}
+	}
+	out := make([]string, 0)
+	for at, k := range assetTypeToKind {
+		if _, ok := want[k]; ok {
+			out = append(out, at)
+		}
+	}
+	return out
+}
+
+// assetClientFactory lets tests substitute a fake constructor without needing
+// gRPC plumbing. Production paths leave it nil; the receiver lazily creates a
+// real client via cloud.google.com/go/asset/apiv1.NewClient.
+type assetClientFactory func(ctx context.Context, opts ...option.ClientOption) (assetSearcher, error)
+
+// assetSearcher is the subset of *asset.Client we actually use. Defining it
+// as an interface keeps ListResources testable without touching real gRPC.
+type assetSearcher interface {
+	SearchAllResources(ctx context.Context, req *assetpb.SearchAllResourcesRequest, opts ...gaxCallOption) resourceIterator
+	Close() error
+}
+
+// resourceIterator is the iterator subset returned by SearchAllResources;
+// matches both the real *asset.ResourceSearchResultIterator and a fake.
+type resourceIterator interface {
+	Next() (*assetpb.ResourceSearchResult, error)
+}
+
+// gaxCallOption is a marker alias so the assetSearcher interface signature
+// stays type-clean across gax versions; we never pass any in M2.
+type gaxCallOption any
+
+// realAssetClient adapts *asset.Client to the assetSearcher interface.
+type realAssetClient struct {
+	c *asset.Client
+}
+
+func (r *realAssetClient) SearchAllResources(ctx context.Context, req *assetpb.SearchAllResourcesRequest, _ ...gaxCallOption) resourceIterator {
+	return r.c.SearchAllResources(ctx, req)
+}
+
+func (r *realAssetClient) Close() error { return r.c.Close() }
+
+// ListResources streams stub resources discovered via Cloud Asset Inventory.
+// The returned channel is closed when listing completes or ctx is cancelled.
+// Per-row enrichment (CPU/RAM/OS, edges) lands in M5+; M2 ships only stubs.
+func (p *GCPProvider) ListResources(ctx context.Context, scope inventory.Scope, kinds []inventory.Kind) (<-chan inventory.ResourceOrErr, error) {
+	if scope.ID == "" {
+		return nil, errors.New("gcp: ListResources: scope.ID is required")
+	}
+	cli, err := p.assetClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan inventory.ResourceOrErr, 64)
+	go func() {
+		defer close(ch)
+
+		req := &assetpb.SearchAllResourcesRequest{
+			Scope:      "projects/" + scope.ID,
+			AssetTypes: assetTypesForKinds(kinds),
+		}
+		it := cli.SearchAllResources(ctx, req)
+		for {
+			res, err := it.Next()
+			if errors.Is(err, iterator.Done) {
+				return
+			}
+			if err != nil {
+				select {
+				case ch <- inventory.ResourceOrErr{Err: fmt.Errorf("gcp: search-all-resources: %w", err)}:
+				case <-ctx.Done():
+				}
+				return
+			}
+			r, ok := translateResult(scope.ID, res)
+			if !ok {
+				continue
+			}
+			select {
+			case ch <- inventory.ResourceOrErr{Resource: r}:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return ch, nil
+}
+
+// translateResult maps one *assetpb.ResourceSearchResult to a stub Resource.
+// Returns (zero, false) for asset types we do not recognise.
+func translateResult(scopeID string, res *assetpb.ResourceSearchResult) (inventory.Resource, bool) {
+	kind, ok := assetTypeToKind[res.GetAssetType()]
+	if !ok {
+		return inventory.Resource{}, false
+	}
+	id := lastSegment(res.GetName())
+	return inventory.Resource{
+		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: kind, ID: id},
+		Kind:   kind,
+		Name:   nonEmpty(res.GetDisplayName(), id),
+		Region: res.GetLocation(),
+		Status: res.GetState(),
+		Labels: res.GetLabels(),
+	}, true
+}
+
+// lastSegment returns the substring after the final slash, the GCP
+// "full resource name" convention (e.g. //compute.../projects/p/zones/z/instances/foo → foo).
+func lastSegment(s string) string {
+	if i := strings.LastIndex(s, "/"); i >= 0 {
+		return s[i+1:]
+	}
+	return s
+}
+
+func nonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+// --- asset client lifecycle -------------------------------------------------
+
+// assetClient returns the cached asset searcher, building one on first use.
+// We construct lazily because most invocations (e.g. --list-scopes) never
+// touch Asset Inventory and therefore should not pay its setup cost.
+func (p *GCPProvider) assetClient(ctx context.Context) (assetSearcher, error) {
+	p.assetOnce.Do(func() {
+		if p.assetFactory != nil {
+			p.assetCli, p.assetErr = p.assetFactory(ctx)
+			return
+		}
+		creds, err := NewCredentials(ctx)
+		if err != nil {
+			p.assetErr = fmt.Errorf("gcp: resolve ADC for asset client: %w", err)
+			return
+		}
+		c, err := asset.NewClient(ctx, option.WithCredentials(creds))
+		if err != nil {
+			p.assetErr = fmt.Errorf("gcp: new asset client: %w", err)
+			return
+		}
+		p.assetCli = &realAssetClient{c: c}
+	})
+	if p.assetErr != nil {
+		return nil, p.assetErr
+	}
+	return p.assetCli, nil
+}
+
+// closeAssetClient releases the asset client if it was created. Called from
+// (*GCPProvider).Close.
+func (p *GCPProvider) closeAssetClient() error {
+	if p.assetCli == nil {
+		return nil
+	}
+	return p.assetCli.Close()
+}
+
+// assetState bundles the receiver fields used by assetClient. Embedded into
+// GCPProvider via a struct literal — keeps provider.go's struct lean while
+// the asset wiring lives next to its consumers.
+type assetState struct {
+	assetOnce    sync.Once
+	assetCli     assetSearcher
+	assetErr     error
+	assetFactory assetClientFactory
+}

@@ -136,7 +136,7 @@ func (a App) View() string {
 	case a.toast != "":
 		footer = StyleToast.Render(a.toast)
 	default:
-		footer = StyleDim.Render("? help · q quit · cloudcmder " + a.version)
+		footer = StyleDim.Render("? help · q quit · " + a.version)
 	}
 
 	return strings.Join([]string{crumbs, body, footer}, "\n")

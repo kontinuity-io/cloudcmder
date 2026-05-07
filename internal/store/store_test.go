@@ -152,6 +152,75 @@ func TestCancelledContextWritesNothing(t *testing.T) {
 	}
 }
 
+func TestWriteBatchPersistsEdges(t *testing.T) {
+	ctx := context.Background()
+	s := openMemory(t)
+
+	runID, _, err := s.OpenRun(ctx, "gcp", "p1", "P1", "test")
+	if err != nil {
+		t.Fatalf("OpenRun: %v", err)
+	}
+
+	vmRef := inventory.ResourceRef{Provider: "gcp", ScopeID: "p1", Kind: inventory.KindVM, ID: "vm-a"}
+	subnetRef := inventory.ResourceRef{Provider: "gcp", ScopeID: "p1", Kind: inventory.KindSubnet, ID: "default-uc1"}
+	diskRef := inventory.ResourceRef{Provider: "gcp", ScopeID: "p1", Kind: inventory.KindDisk, ID: "vm-boot-pd"}
+
+	batch := []inventory.Resource{
+		{
+			Ref: vmRef, Kind: inventory.KindVM, Name: "vm-a",
+			Refs: map[inventory.RefKind][]inventory.ResourceRef{
+				inventory.RefRoutesFrom: {subnetRef},
+			},
+		},
+		{
+			Ref: diskRef, Kind: inventory.KindDisk, Name: "vm-boot-pd",
+			Refs: map[inventory.RefKind][]inventory.ResourceRef{
+				inventory.RefAttachedTo: {vmRef},
+			},
+		},
+		{Ref: subnetRef, Kind: inventory.KindSubnet, Name: "default-uc1"},
+	}
+	if err := s.WriteBatch(ctx, runID, batch); err != nil {
+		t.Fatalf("WriteBatch: %v", err)
+	}
+
+	edges, err := s.LoadEdges(ctx, runID)
+	if err != nil {
+		t.Fatalf("LoadEdges: %v", err)
+	}
+	if len(edges) != 2 {
+		t.Fatalf("got %d edges, want 2: %+v", len(edges), edges)
+	}
+
+	want := map[string]inventory.RefKind{
+		"gcp:p1:VM:vm-a -> gcp:p1:Subnet:default-uc1":  inventory.RefRoutesFrom,
+		"gcp:p1:Disk:vm-boot-pd -> gcp:p1:VM:vm-a":     inventory.RefAttachedTo,
+	}
+	for _, e := range edges {
+		key := e.FromRef + " -> " + e.ToRef
+		k, ok := want[key]
+		if !ok {
+			t.Errorf("unexpected edge %s (%s)", key, e.RefKind)
+			continue
+		}
+		if e.RefKind != k {
+			t.Errorf("edge %s kind=%s, want %s", key, e.RefKind, k)
+		}
+	}
+
+	// Re-writing the same batch must be idempotent (INSERT OR IGNORE).
+	if err := s.WriteBatch(ctx, runID, batch); err != nil {
+		t.Fatalf("re-WriteBatch: %v", err)
+	}
+	edges2, err := s.LoadEdges(ctx, runID)
+	if err != nil {
+		t.Fatalf("LoadEdges 2: %v", err)
+	}
+	if len(edges2) != 2 {
+		t.Errorf("after re-write got %d edges, want 2 (idempotent)", len(edges2))
+	}
+}
+
 func TestRunWithoutFinishStaysRunning(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "cc.db")
 	s, err := Open(dbPath)

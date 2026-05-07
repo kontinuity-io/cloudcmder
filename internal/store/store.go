@@ -138,14 +138,24 @@ func (s *Store) writeChunk(ctx context.Context, runID int64, chunk []inventory.R
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	stmt, err := tx.PrepareContext(ctx,
+	resStmt, err := tx.PrepareContext(ctx,
 		`INSERT OR REPLACE INTO resources
 		 (run_id, ref, kind, scope_id, name, region, status, labels_json, detail_json, native_json)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("store: prepare insert: %w", err)
 	}
-	defer func() { _ = stmt.Close() }()
+	defer func() { _ = resStmt.Close() }()
+
+	// edges go through their own prepared statement; INSERT OR IGNORE so that
+	// re-emitting the same Resource with the same Refs is idempotent within a
+	// run (the composite PK on edges is run_id+from_ref+ref_kind+to_ref).
+	edgeStmt, err := tx.PrepareContext(ctx,
+		`INSERT OR IGNORE INTO edges (run_id, from_ref, ref_kind, to_ref) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		return fmt.Errorf("store: prepare edge insert: %w", err)
+	}
+	defer func() { _ = edgeStmt.Close() }()
 
 	for i := range chunk {
 		r := &chunk[i]
@@ -162,7 +172,7 @@ func (s *Store) writeChunk(ctx context.Context, runID int64, chunk []inventory.R
 			return fmt.Errorf("store: marshal native for %s: %w", r.Ref.String(), err)
 		}
 
-		if _, err := stmt.ExecContext(ctx,
+		if _, err := resStmt.ExecContext(ctx,
 			runID,
 			r.Ref.String(),
 			string(r.Kind),
@@ -175,6 +185,18 @@ func (s *Store) writeChunk(ctx context.Context, runID int64, chunk []inventory.R
 			nativeJSON,
 		); err != nil {
 			return fmt.Errorf("store: insert resource %s: %w", r.Ref.String(), err)
+		}
+
+		from := r.Ref.String()
+		for refKind, targets := range r.Refs {
+			for _, t := range targets {
+				if _, err := edgeStmt.ExecContext(ctx,
+					runID, from, string(refKind), t.String(),
+				); err != nil {
+					return fmt.Errorf("store: insert edge %s -%s-> %s: %w",
+						from, refKind, t.String(), err)
+				}
+			}
 		}
 	}
 	if err := tx.Commit(); err != nil {

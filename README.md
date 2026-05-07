@@ -84,6 +84,7 @@ Flags:
 | M7 Excel export | 🔲 |
 | M8 Concurrency + polish | 🔲 |
 | M9 Release v1.0.0 | 🔲 |
+| v1.1 TUI Polish (lazydocker-rich) | 🔲 |
 
 See `plan.md` for full milestone details and acceptance criteria.
 

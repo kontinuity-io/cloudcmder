@@ -78,6 +78,7 @@ Flags:
 | M4 Overview screen | ✅ |
 | M5 VM detail + interconnections | ✅ |
 | M6 All resource kinds | ✅ |
+| M6.5 Commander layout (split-pane, live detail) | 🔲 |
 | M7 Excel export | 🔲 |
 | M8 Concurrency + polish | 🔲 |
 | M9 Release v1.0.0 | 🔲 |

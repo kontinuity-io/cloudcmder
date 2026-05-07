@@ -167,6 +167,38 @@ func (s *Store) LoadEdges(ctx context.Context, runID int64) ([]Edge, error) {
 	return out, rows.Err()
 }
 
+// LoadScopes returns every scope row recorded for the given run. Used by the
+// export package to drive the Scopes sheet — v1 always has a single scope
+// per run, but the schema and reader allow multi-scope runs (v2 territory).
+func (s *Store) LoadScopes(ctx context.Context, runID int64) ([]inventory.Scope, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT scope_id, COALESCE(display_name, ''), COALESCE(parent, ''), labels_json
+		 FROM scopes WHERE run_id = ? ORDER BY scope_id`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("store: load scopes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []inventory.Scope
+	for rows.Next() {
+		var (
+			id, name, parent string
+			labelsJSON       sql.NullString
+		)
+		if err := rows.Scan(&id, &name, &parent, &labelsJSON); err != nil {
+			return nil, fmt.Errorf("store: scan scope: %w", err)
+		}
+		labels, err := unmarshalLabels(labelsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("store: parse scope labels for %s: %w", id, err)
+		}
+		out = append(out, inventory.Scope{
+			ID: id, DisplayName: name, Parent: parent, Labels: labels,
+		})
+	}
+	return out, rows.Err()
+}
+
 // CountResourcesByKind returns kind→count for the run, in descending count order.
 func (s *Store) CountResourcesByKind(ctx context.Context, runID int64) (map[inventory.Kind]int, error) {
 	rows, err := s.db.QueryContext(ctx,

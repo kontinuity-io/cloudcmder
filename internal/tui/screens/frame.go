@@ -141,21 +141,39 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		}
 	}
 
-	// Dispatch to the appropriate pane.
-	var cmd tea.Cmd
-	switch f.focus {
-	case focusLeft:
-		f.left, cmd = f.left.Update(msg)
-	case focusRight:
+	// Dispatch the message:
+	//   - tea.KeyMsg → focused pane only (so cursor moves don't double-trigger)
+	//   - everything else (load events, etc.) → both panes so async load
+	//     results from Init() reach their owner regardless of focus.
+	var cmds []tea.Cmd
+	if _, isKey := msg.(tea.KeyMsg); isKey {
+		switch f.focus {
+		case focusLeft:
+			var c tea.Cmd
+			f.left, c = f.left.Update(msg)
+			cmds = append(cmds, c)
+		case focusRight:
+			if f.right != nil {
+				updated, c := f.right.Update(msg)
+				f.right = updated.(*Detail)
+				cmds = append(cmds, c)
+			}
+		}
+	} else {
+		var lc tea.Cmd
+		f.left, lc = f.left.Update(msg)
+		cmds = append(cmds, lc)
 		if f.right != nil {
-			updated, c := f.right.Update(msg)
-			f.right = updated.(*Detail)
-			cmd = c
+			u, rc := f.right.Update(msg)
+			f.right = u.(*Detail)
+			cmds = append(cmds, rc)
 		}
 	}
 
-	f.syncRightWithSelection()
-	return f, cmd
+	if c := f.syncRightWithSelection(); c != nil {
+		cmds = append(cmds, c)
+	}
+	return f, tea.Batch(cmds...)
 }
 
 // handleEnter reacts to Enter based on what the left pane is selecting.
@@ -179,31 +197,23 @@ func (f *Frame) handleEnter() tea.Cmd {
 }
 
 // syncRightWithSelection rebuilds the right-pane Detail if the left pane's
-// SelectedResource has changed since the last render.
-func (f *Frame) syncRightWithSelection() {
+// SelectedResource has changed since the last render. Returns Detail.Init()'s
+// load Cmd so Bubble Tea can run it and route the result back to the right
+// pane via the non-key broadcast path in Update.
+func (f *Frame) syncRightWithSelection() tea.Cmd {
 	r := f.left.SelectedResource()
 	if r == nil {
 		f.right = nil
 		f.rightFor = ""
-		return
+		return nil
 	}
 	currentRef := r.res.Ref.String()
 	if currentRef == f.rightFor && f.right != nil {
-		return
+		return nil
 	}
 	f.right = NewDetail(f.ctx, f.st, f.run, r.res, r.detail)
 	f.rightFor = currentRef
-	// Kick off the edges load — its result will arrive as edgesLoadedMsg
-	// routed to the focused pane. When focus is on the right, Update will
-	// catch it; otherwise the load message is lost (we rebuild every
-	// selection so a stale message wouldn't help anyway).
-	if cmd := f.right.Init(); cmd != nil {
-		// Best-effort: invoke the cmd synchronously so the goroutine starts.
-		// The result still flows through tea.Msg; we just don't wait.
-		go func() {
-			_ = cmd()
-		}()
-	}
+	return f.right.Init()
 }
 
 func (f *Frame) toggleFocus() {
@@ -251,9 +261,11 @@ func (f *Frame) bodyView() string {
 	} else {
 		rightBox = f.borderFor(focusRight).Render(f.right.View())
 	}
-	// Side-by-side at ≥120 cols; stacked vertically below that so CloudShell
-	// at 80 cols still shows both panes without overflow.
-	if f.width >= 120 {
+	// Side-by-side at ≥100 cols; stacked vertically below that so CloudShell
+	// at 80 cols still shows both panes without horizontal overflow. The
+	// list table may be wider than its half of the screen at 100–119 cols —
+	// the bordered box clips columns rather than wrapping awkwardly.
+	if f.width >= 100 {
 		return lipgloss.JoinHorizontal(lipgloss.Top, leftBox, " ", rightBox)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, leftBox, rightBox)

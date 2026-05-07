@@ -7,6 +7,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
 	"cloudcmder.com/internal/store"
 	"cloudcmder.com/internal/tui/components"
@@ -36,6 +38,13 @@ type App struct {
 
 // Run launches the TUI with the given store. Blocks until the user quits.
 func Run(ctx context.Context, st *store.Store) error {
+	// Force lipgloss to render hex colours as 24-bit truecolor regardless of
+	// what termenv auto-detects from the terminal profile. Without this,
+	// terminals with custom 256-colour palettes can quantise our Tokyo-Night
+	// hex tokens to washed-out approximations of whatever the user's theme
+	// maps them to.
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
+
 	app := newApp(ctx, st)
 	prog := tea.NewProgram(app, tea.WithAltScreen(), tea.WithContext(ctx))
 	_, err := prog.Run()

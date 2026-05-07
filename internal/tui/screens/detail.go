@@ -84,8 +84,9 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 // belongs to.
 func (d *Detail) CurrentRun() *store.RunSummary { return &d.run }
 
-// View renders detail (left pane) + connections (right pane) side-by-side at
-// ≥100 cols, stacked vertically below 100.
+// View renders Detail content as a single vertical stream: kind-specific
+// fields, a separator, then the connections list. Frame controls the
+// surrounding border and layout.
 func (d *Detail) View() string {
 	if !d.loaded {
 		return style.Dim.Render("loading detail…")
@@ -94,17 +95,14 @@ func (d *Detail) View() string {
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading edges: " + d.loadErr.Error())
 	}
-
-	leftBody := d.detailPane()
-	rightBody := d.connectionsPane()
-
-	left := style.BorderActive.Render(leftBody)
-	right := style.BorderActive.Render(rightBody)
-
-	if d.width >= 100 {
-		return lipgloss.JoinHorizontal(lipgloss.Top, left, " ", right)
-	}
-	return lipgloss.JoinVertical(lipgloss.Left, left, right)
+	body := lipgloss.JoinVertical(lipgloss.Left,
+		d.detailPane(),
+		"",
+		style.Separator(40),
+		"",
+		d.connectionsPane(),
+	)
+	return body
 }
 
 func (d *Detail) detailPane() string {

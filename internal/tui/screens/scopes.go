@@ -24,6 +24,9 @@ type ScopeSummary struct {
 	LatestUUID      string
 	LatestStartedAt time.Time
 	LatestStatus    string
+	// LatestRun carries the full RunSummary so Frame can be opened directly
+	// without an extra FindRunByUUID call.
+	LatestRun store.RunSummary
 }
 
 type scopesLoadedMsg struct {
@@ -115,7 +118,7 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			cur := s.tbl.Cursor()
 			if cur >= 0 && cur < len(s.rows) {
 				row := s.rows[cur]
-				return s, core.PushScreenCmd(NewOverview(s.ctx, s.st, row.ScopeID, row.LatestUUID))
+				return s, core.PushScreenCmd(NewFrame(s.ctx, s.st, row.LatestRun))
 			}
 		case key.Matches(m, s.keymap.History):
 			if len(s.rows) == 0 {
@@ -169,6 +172,7 @@ func uniqueScopes(runs []store.RunSummary) []ScopeSummary {
 			LatestUUID:      r.UUID,
 			LatestStartedAt: r.StartedAt,
 			LatestStatus:    r.Status,
+			LatestRun:       r,
 		})
 	}
 	return out

@@ -14,7 +14,6 @@ import (
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
-	"cloudcmder.com/internal/tui/core"
 	"cloudcmder.com/internal/tui/style"
 )
 
@@ -31,12 +30,12 @@ type resourcesLoadedMsg struct {
 }
 
 type resourcesKeymap struct {
-	Open   key.Binding
 	Filter key.Binding
 }
 
-// ResourceList is a kind-parameterised table screen. Generic over Kind so M6
-// can register more column sets without rewriting the screen.
+// ResourceList is a kind-parameterised list pane. As of M6.5 it is a LeftPane
+// component owned by Frame; Frame draws the surrounding border and is the
+// host for Enter (Frame zooms the right-pane Detail to full width).
 type ResourceList struct {
 	ctx     context.Context
 	st      *store.Store
@@ -80,17 +79,33 @@ func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary,
 		filterIn:   in,
 		regexCache: map[string]*regexp.Regexp{},
 		keymap: resourcesKeymap{
-			Open:   key.NewBinding(key.WithKeys("enter")),
 			Filter: key.NewBinding(key.WithKeys("/")),
 		},
 	}
 }
 
-// Title satisfies core.Screen.
-func (s *ResourceList) Title() string { return "Resources: " + string(s.kind) }
+// Title satisfies LeftPane.
+func (s *ResourceList) Title() string { return string(s.kind) }
 
-// CurrentRun lets the App's :alias palette discover the run this list is on.
-func (s *ResourceList) CurrentRun() *store.RunSummary { return &s.run }
+// AbsorbingKeys reports true while the filter input is active so Frame stops
+// eating Tab/Enter/Esc and lets the user type into the filter.
+func (s *ResourceList) AbsorbingKeys() bool { return s.filterOn }
+
+// SelectedResource returns the currently-highlighted row's resource+detail
+// pair. Frame uses this to drive its right-pane Detail re-render.
+func (s *ResourceList) SelectedResource() *rowData {
+	if !s.loaded || len(s.visible) == 0 {
+		return nil
+	}
+	cur := s.tbl.Cursor()
+	if cur < 0 || cur >= len(s.visible) {
+		return nil
+	}
+	return &s.visible[cur]
+}
+
+// SelectedKind is nil — ResourceList's selection is a Resource, not a Kind.
+func (s *ResourceList) SelectedKind() *inventory.Kind { return nil }
 
 // Init loads the kind-filtered resource set.
 func (s *ResourceList) Init() tea.Cmd {
@@ -109,7 +124,9 @@ func (s *ResourceList) Init() tea.Cmd {
 }
 
 // Update routes messages either to the filter input (when open) or the table.
-func (s *ResourceList) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
+// Frame intercepts Enter at a higher level — ResourceList no longer pushes a
+// Detail screen on its own.
+func (s *ResourceList) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 	switch m := msg.(type) {
 	case resourcesLoadedMsg:
 		s.loaded = true
@@ -131,19 +148,11 @@ func (s *ResourceList) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	}
 
 	if k, ok := msg.(tea.KeyMsg); ok {
-		switch {
-		case key.Matches(k, s.keymap.Filter):
+		if key.Matches(k, s.keymap.Filter) {
 			s.filterOn = true
 			s.filterIn.SetValue("")
 			s.filterIn.Focus()
 			return s, nil
-		case key.Matches(k, s.keymap.Open):
-			cur := s.tbl.Cursor()
-			if cur < 0 || cur >= len(s.visible) {
-				return s, nil
-			}
-			row := s.visible[cur]
-			return s, core.PushScreenCmd(NewDetail(s.ctx, s.st, s.run, row.res, row.detail))
 		}
 	}
 
@@ -152,7 +161,7 @@ func (s *ResourceList) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	return s, cmd
 }
 
-func (s *ResourceList) updateFilter(msg tea.Msg) (core.Screen, tea.Cmd) {
+func (s *ResourceList) updateFilter(msg tea.Msg) (LeftPane, tea.Cmd) {
 	if k, ok := msg.(tea.KeyMsg); ok {
 		switch k.String() {
 		case "esc":
@@ -229,7 +238,8 @@ func (s *ResourceList) toTableRows(in []rowData) []table.Row {
 	return out
 }
 
-// View renders the bordered table; appends the filter overlay when active.
+// View renders the table; appends the filter overlay when active. Frame draws
+// the outer border around this content.
 func (s *ResourceList) View() string {
 	switch {
 	case !s.loaded:
@@ -241,7 +251,7 @@ func (s *ResourceList) View() string {
 		return style.Dim.Render("no resources of kind " + string(s.kind) + " in this run")
 	}
 
-	body := style.BorderActive.Render(s.tbl.View())
+	body := s.tbl.View()
 	if s.filterOn {
 		body = lipgloss.JoinVertical(lipgloss.Left, body,
 			style.Accent.Render(s.filterIn.View()))

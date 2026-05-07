@@ -92,7 +92,7 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			cur := r.tbl.Cursor()
 			if cur >= 0 && cur < len(r.rows) {
 				row := r.rows[cur]
-				return r, core.PushScreenCmd(NewOverview(r.ctx, r.st, row.ScopeID, row.UUID))
+				return r, core.PushScreenCmd(NewFrame(r.ctx, r.st, row))
 			}
 		}
 	}

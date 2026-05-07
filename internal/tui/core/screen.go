@@ -6,6 +6,7 @@ package core
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
 )
 
@@ -47,4 +48,24 @@ func PopScreenCmd() tea.Cmd {
 // ToastCmd is the conventional helper for one-shot user-facing messages.
 func ToastCmd(text string) tea.Cmd {
 	return func() tea.Msg { return ToastMsg{Text: text} }
+}
+
+// SwapLeftPaneMsg asks any Frame on the stack to replace its left pane with
+// the kind-specific resource list. Emitted by the App when the user types a
+// `:alias` command in the cmdbar.
+type SwapLeftPaneMsg struct{ Kind inventory.Kind }
+
+// SwitchRunMsg asks any Frame on the stack to load a different run. Emitted
+// by RunHistory when the user picks a run while a Frame is already on the
+// stack — replaces the Frame's run in place instead of pushing a new Frame.
+type SwitchRunMsg struct{ Run store.RunSummary }
+
+// SwapLeftPaneCmd is the conventional helper.
+func SwapLeftPaneCmd(kind inventory.Kind) tea.Cmd {
+	return func() tea.Msg { return SwapLeftPaneMsg{Kind: kind} }
+}
+
+// SwitchRunCmd is the conventional helper.
+func SwitchRunCmd(run store.RunSummary) tea.Cmd {
+	return func() tea.Msg { return SwitchRunMsg{Run: run} }
 }

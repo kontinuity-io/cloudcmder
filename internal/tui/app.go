@@ -86,11 +86,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !ok {
 			return a, core.ToastCmd("unknown alias: " + m.Alias)
 		}
-		run := a.findCurrentRun()
-		if run == nil {
+		if a.findCurrentRun() == nil {
 			return a, core.ToastCmd("no current run — open a scope first (got :" + m.Alias + ")")
 		}
-		return a, core.PushScreenCmd(screens.NewResourceList(a.ctx, a.st, *run, kind))
+		// Frame on the stack will catch this and swap its left pane in place.
+		return a, core.SwapLeftPaneCmd(kind)
 	}
 
 	if a.cmdbar.IsOpen() {

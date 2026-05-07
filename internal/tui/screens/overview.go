@@ -6,14 +6,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
-	"cloudcmder.com/internal/tui/core"
 	"cloudcmder.com/internal/tui/style"
 )
 
@@ -30,24 +28,26 @@ type overviewLoadedMsg struct {
 }
 
 // Overview shows run metadata and a per-Kind count breakdown for one run.
+// As of M6.5 it is a LeftPane component owned by Frame; Frame draws the
+// surrounding border and is the host for Enter (Frame inspects SelectedKind
+// and swaps the left pane to a ResourceList).
 type Overview struct {
 	ctx     context.Context
 	st      *store.Store
 	scopeID string
 	runUUID string
 
-	tbl     table.Model
-	width   int
-	height  int
+	tbl    table.Model
+	width  int
+	height int
 
 	loaded  bool
 	loadErr error
 	run     *store.RunSummary
 	rows    []KindCount
-	open    key.Binding
 }
 
-// NewOverview builds an Overview screen for the given run UUID.
+// NewOverview builds an Overview pane for the given run UUID.
 func NewOverview(ctx context.Context, st *store.Store, scopeID, runUUID string) *Overview {
 	tbl := table.New(
 		table.WithColumns([]table.Column{
@@ -59,15 +59,30 @@ func NewOverview(ctx context.Context, st *store.Store, scopeID, runUUID string) 
 	)
 	return &Overview{
 		ctx: ctx, st: st, scopeID: scopeID, runUUID: runUUID, tbl: tbl,
-		open: key.NewBinding(key.WithKeys("enter")),
 	}
 }
 
-// Title satisfies core.Screen.
-func (o *Overview) Title() string { return "Overview: " + o.scopeID }
+// Title satisfies LeftPane.
+func (o *Overview) Title() string { return "Overview" }
 
-// CurrentRun lets the App's :alias palette discover the active run.
-func (o *Overview) CurrentRun() *store.RunSummary { return o.run }
+// AbsorbingKeys reports false — Overview has no input field.
+func (o *Overview) AbsorbingKeys() bool { return false }
+
+// SelectedResource is always nil — Overview operates on Kinds, not resources.
+func (o *Overview) SelectedResource() *rowData { return nil }
+
+// SelectedKind returns the highlighted Kind, or nil if no rows.
+func (o *Overview) SelectedKind() *inventory.Kind {
+	if len(o.rows) == 0 {
+		return nil
+	}
+	cur := o.tbl.Cursor()
+	if cur < 0 || cur >= len(o.rows) {
+		return nil
+	}
+	k := o.rows[cur].Kind
+	return &k
+}
 
 // Init loads run metadata + counts in a single goroutine round trip.
 func (o *Overview) Init() tea.Cmd {
@@ -87,8 +102,9 @@ func (o *Overview) Init() tea.Cmd {
 	}
 }
 
-// Update handles load completion, resize, and kind drill-down.
-func (o *Overview) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
+// Update handles load completion, resize, and table cursor moves. Frame
+// intercepts Enter — Overview no longer pushes a screen on its own.
+func (o *Overview) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 	switch m := msg.(type) {
 	case overviewLoadedMsg:
 		o.loaded = true
@@ -102,20 +118,14 @@ func (o *Overview) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		o.height = m.Height
 		o.tbl.SetHeight(max(5, m.Height-12))
 		return o, nil
-	case tea.KeyMsg:
-		if key.Matches(m, o.open) && len(o.rows) > 0 && o.run != nil {
-			cur := o.tbl.Cursor()
-			if cur >= 0 && cur < len(o.rows) {
-				return o, core.PushScreenCmd(NewResourceList(o.ctx, o.st, *o.run, o.rows[cur].Kind))
-			}
-		}
 	}
 	var cmd tea.Cmd
 	o.tbl, cmd = o.tbl.Update(msg)
 	return o, cmd
 }
 
-// View renders the run header, count table, and totals inside a single rounded border.
+// View renders the count table plus run metadata header. Frame draws the
+// outer border around this content.
 func (o *Overview) View() string {
 	switch {
 	case !o.loaded:
@@ -125,58 +135,43 @@ func (o *Overview) View() string {
 			Render("error loading overview: " + o.loadErr.Error())
 	}
 
-	innerWidth := o.contentWidth()
-	header := o.headerView(innerWidth)
-
+	header := o.headerView()
+	sep := style.Separator(40)
 	var body, total string
 	if len(o.rows) == 0 {
 		body = style.Dim.Render("  no resources captured yet for this run")
-		total = ""
 	} else {
 		body = o.tbl.View()
 		total = style.Dim.Render(
 			fmt.Sprintf("Total: %d resources across %d kinds",
 				totalResources(o.rows), len(o.rows)))
 	}
-
-	sep := style.Separator(innerWidth)
 	parts := []string{header, sep, body}
 	if total != "" {
 		parts = append(parts, sep, total)
 	}
-	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
-	return style.BorderActive.Width(innerWidth).Render(content)
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
-func (o *Overview) headerView(innerWidth int) string {
+func (o *Overview) headerView() string {
+	if o.run == nil {
+		return ""
+	}
 	r := o.run
-	statusBadge := style.Status(r.Status).Render(r.Status)
-	line1 := lipgloss.JoinHorizontal(lipgloss.Top,
-		style.Accent.Render("Run "+short(r.UUID)),
-		style.Dim.Render(" · "),
-		statusBadge,
-	)
-	line2 := style.Dim.Render("scope: " + r.ScopeID)
 	finished := "—"
 	if r.FinishedAt != nil {
 		finished = r.FinishedAt.Local().Format("15:04:05")
 	}
-	line3 := style.Dim.Render(fmt.Sprintf(
+	line1 := lipgloss.JoinHorizontal(lipgloss.Top,
+		style.Accent.Render("Run "+short(r.UUID)),
+		style.Dim.Render(" · "),
+		style.Status(r.Status).Render(r.Status),
+	)
+	line2 := style.Dim.Render(fmt.Sprintf(
 		"started: %s   finished: %s",
 		r.StartedAt.Local().Format(time.RFC3339), finished,
 	))
-	return lipgloss.JoinVertical(lipgloss.Left, line1, line2, line3)
-}
-
-func (o *Overview) contentWidth() int {
-	w := o.width
-	if w <= 0 {
-		w = 100
-	}
-	if w > 120 {
-		w = 120
-	}
-	return w - 2 // leave room for the outer rounded border
+	return lipgloss.JoinVertical(lipgloss.Left, line1, line2)
 }
 
 // sortKindCounts converts the map returned by store.CountResourcesByKind into

@@ -88,9 +88,11 @@ func (r *realAssetClient) SearchAllResources(ctx context.Context, req *assetpb.S
 
 func (r *realAssetClient) Close() error { return r.c.Close() }
 
-// ListResources streams stub resources discovered via Cloud Asset Inventory.
-// The returned channel is closed when listing completes or ctx is cancelled.
-// Per-row enrichment (CPU/RAM/OS, edges) lands in M5+; M2 ships only stubs.
+// ListResources streams resources for the scope. Phase 1 emits stubs from
+// Cloud Asset Inventory for every supported kind. Phase 2 then enriches VMs
+// inline via the Compute API — emitting full VMDetail rows that overwrite the
+// stubs (INSERT OR REPLACE) and disk-side stubs carrying the VM↔Disk edges.
+// The channel closes when both phases complete or ctx is cancelled.
 func (p *GCPProvider) ListResources(ctx context.Context, scope inventory.Scope, kinds []inventory.Kind) (<-chan inventory.ResourceOrErr, error) {
 	if scope.ID == "" {
 		return nil, errors.New("gcp: ListResources: scope.ID is required")
@@ -103,36 +105,56 @@ func (p *GCPProvider) ListResources(ctx context.Context, scope inventory.Scope, 
 	ch := make(chan inventory.ResourceOrErr, 64)
 	go func() {
 		defer close(ch)
-
-		req := &assetpb.SearchAllResourcesRequest{
-			Scope:      "projects/" + scope.ID,
-			AssetTypes: assetTypesForKinds(kinds),
+		streamAssetStubs(ctx, cli, scope, kinds, ch)
+		if ctx.Err() != nil {
+			return
 		}
-		it := cli.SearchAllResources(ctx, req)
-		for {
-			res, err := it.Next()
-			if errors.Is(err, iterator.Done) {
-				return
-			}
-			if err != nil {
-				select {
-				case ch <- inventory.ResourceOrErr{Err: fmt.Errorf("gcp: search-all-resources: %w", err)}:
-				case <-ctx.Done():
-				}
-				return
-			}
-			r, ok := translateResult(scope.ID, res)
-			if !ok {
-				continue
-			}
-			select {
-			case ch <- inventory.ResourceOrErr{Resource: r}:
-			case <-ctx.Done():
-				return
-			}
+		if wantsKind(kinds, inventory.KindVM) {
+			enrichVMs(ctx, p, scope, ch)
 		}
 	}()
 	return ch, nil
+}
+
+// streamAssetStubs runs Phase 1 — the Cloud Asset Inventory listing — and
+// emits one stub Resource per supported asset type encountered.
+func streamAssetStubs(ctx context.Context, cli assetSearcher, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr) {
+	req := &assetpb.SearchAllResourcesRequest{
+		Scope:      "projects/" + scope.ID,
+		AssetTypes: assetTypesForKinds(kinds),
+	}
+	it := cli.SearchAllResources(ctx, req)
+	for {
+		res, err := it.Next()
+		if errors.Is(err, iterator.Done) {
+			return
+		}
+		if err != nil {
+			sendOrCancel(ctx, ch, inventory.ResourceOrErr{
+				Err: fmt.Errorf("gcp: search-all-resources: %w", err),
+			})
+			return
+		}
+		r, ok := translateResult(scope.ID, res)
+		if !ok {
+			continue
+		}
+		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: r})
+	}
+}
+
+// wantsKind reports whether the caller asked for the given Kind. An empty
+// kinds slice is treated as "all supported kinds".
+func wantsKind(kinds []inventory.Kind, k inventory.Kind) bool {
+	if len(kinds) == 0 {
+		return true
+	}
+	for _, want := range kinds {
+		if want == k {
+			return true
+		}
+	}
+	return false
 }
 
 // translateResult maps one *assetpb.ResourceSearchResult to a stub Resource.

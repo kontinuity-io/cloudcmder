@@ -221,7 +221,9 @@ func (it *fakeIter) Next() (*assetpb.ResourceSearchResult, error) {
 
 // newProviderWithFakeAsset returns a GCPProvider whose asset client is the
 // supplied fake. The resourcemanager client is created against an unreachable
-// endpoint — fine because tests in this file never call ListScopes.
+// endpoint — fine because tests in this file never call ListScopes. After M5
+// the instances client is also stubbed with an empty fake so the new VM
+// enrichment phase does not try to reach the real Compute API.
 func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	t.Helper()
 	p, err := New(context.Background(),
@@ -233,6 +235,9 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	}
 	p.assetFactory = func(_ context.Context, _ ...option.ClientOption) (assetSearcher, error) {
 		return fake, nil
+	}
+	p.instancesFact = func(_ context.Context, _ ...option.ClientOption) (instancesAPI, error) {
+		return &fakeInstancesClient{}, nil
 	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p

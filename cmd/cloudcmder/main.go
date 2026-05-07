@@ -53,6 +53,7 @@ func newRootCmd() *cobra.Command {
 		showRunUUID  string
 		exportPath   string
 		exportRunID  string
+		dumpNative   bool
 	)
 
 	root := &cobra.Command{
@@ -73,7 +74,7 @@ and the file can be exported for offline analysis.`,
 			case listScopes:
 				return runListScopes(cmd)
 			case scanProject != "":
-				return runScan(cmd, dbPath, scanProject)
+				return runScan(cmd, dbPath, scanProject, dumpNative)
 			case listRunsFlag:
 				return runListRuns(cmd, dbPath)
 			case showRunUUID != "":
@@ -103,6 +104,8 @@ and the file can be exported for offline analysis.`,
 		"write a multi-tab Excel workbook for a stored run to the given path")
 	root.Flags().StringVar(&exportRunID, "run", "",
 		"run uuid to export (with --export); defaults to the most recent run")
+	root.Flags().BoolVar(&dumpNative, "dump-native", false,
+		"store raw GCP API payloads in native_json (off by default; roughly doubles DB size)")
 
 	root.Version = version.String()
 	root.SetVersionTemplate("{{.Version}}\n")
@@ -133,7 +136,7 @@ func runListScopes(cmd *cobra.Command) error {
 // into 200-row WriteBatch calls. On Ctrl-C the run row stays at status='running'
 // with whatever rows the chunked transactions had committed; that's the
 // crash-safety contract from architecture.md.
-func runScan(cmd *cobra.Command, dbPath, projectID string) error {
+func runScan(cmd *cobra.Command, dbPath, projectID string, dumpNative bool) error {
 	ctx := cmd.Context()
 
 	st, err := store.Open(dbPath)
@@ -147,6 +150,7 @@ func runScan(cmd *cobra.Command, dbPath, projectID string) error {
 		return err
 	}
 	defer func() { _ = p.Close() }()
+	p.SetDumpNative(dumpNative)
 
 	runID, runUUID, err := st.OpenRun(ctx, "gcp", projectID, projectID, version.Version)
 	if err != nil {

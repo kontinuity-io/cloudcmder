@@ -161,7 +161,7 @@ func enrichFunctions(ctx context.Context, p *GCPProvider, scope inventory.Scope,
 				sendOrCancel(ctx, ch, inventory.ResourceOrErr{Err: fmt.Errorf("gcp: list run services: %w", err)})
 				break
 			}
-			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildRunServiceResource(scope.ID, s)})
+			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildRunServiceResource(scope.ID, s, p.dumpNative)})
 		}
 	}
 	if ctx.Err() != nil {
@@ -181,12 +181,12 @@ func enrichFunctions(ctx context.Context, p *GCPProvider, scope inventory.Scope,
 				sendOrCancel(ctx, ch, inventory.ResourceOrErr{Err: fmt.Errorf("gcp: list cloud functions: %w", err)})
 				return
 			}
-			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildCloudFunctionResource(scope.ID, f)})
+			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildCloudFunctionResource(scope.ID, f, p.dumpNative)})
 		}
 	}
 }
 
-func buildRunServiceResource(scopeID string, s *runpb.Service) inventory.Resource {
+func buildRunServiceResource(scopeID string, s *runpb.Service, dumpNative bool) inventory.Resource {
 	name := lastSegment(s.GetName())
 	region := regionFromResourceName(s.GetName())
 
@@ -219,10 +219,11 @@ func buildRunServiceResource(scopeID string, s *runpb.Service) inventory.Resourc
 		Status: "RUNNING",
 		Labels: s.GetLabels(),
 		Detail: &detail,
+		Native: nativeFrom(dumpNative, s),
 	}
 }
 
-func buildCloudFunctionResource(scopeID string, f *functionspb.Function) inventory.Resource {
+func buildCloudFunctionResource(scopeID string, f *functionspb.Function, dumpNative bool) inventory.Resource {
 	name := lastSegment(f.GetName())
 	region := regionFromResourceName(f.GetName())
 
@@ -251,6 +252,7 @@ func buildCloudFunctionResource(scopeID string, f *functionspb.Function) invento
 		Status: f.GetState().String(),
 		Labels: f.GetLabels(),
 		Detail: &detail,
+		Native: nativeFrom(dumpNative, f),
 	}
 }
 

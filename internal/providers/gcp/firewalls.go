@@ -91,11 +91,11 @@ func enrichFirewalls(ctx context.Context, p *GCPProvider, scope inventory.Scope,
 			})
 			return
 		}
-		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildFirewallResource(scope.ID, f)})
+		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildFirewallResource(scope.ID, f, p.dumpNative)})
 	}
 }
 
-func buildFirewallResource(scopeID string, f *computepb.Firewall) inventory.Resource {
+func buildFirewallResource(scopeID string, f *computepb.Firewall, dumpNative bool) inventory.Resource {
 	allowed := make([]inventory.FirewallRule, 0, len(f.GetAllowed()))
 	for _, a := range f.GetAllowed() {
 		allowed = append(allowed, inventory.FirewallRule{
@@ -117,5 +117,6 @@ func buildFirewallResource(scopeID string, f *computepb.Firewall) inventory.Reso
 		Region: "global",
 		Status: "",
 		Detail: &detail,
+		Native: nativeFrom(dumpNative, f),
 	}
 }

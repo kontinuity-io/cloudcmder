@@ -19,7 +19,7 @@ func TestBuildLBResourceFromGlobalRule(t *testing.T) {
 		LoadBalancingScheme:  ptr("EXTERNAL_MANAGED"),
 		PortRange:            ptr("443"),
 	}
-	r := buildLBResource("p1", fr, "global")
+	r := buildLBResource("p1", fr, "global", false)
 	if r.Ref.String() != "gcp:p1:LoadBalancer:lb-frontend" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}

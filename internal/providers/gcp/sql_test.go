@@ -42,7 +42,7 @@ func TestBuildDatabaseResource(t *testing.T) {
 			AvailabilityType: "REGIONAL",
 		},
 	}
-	r := buildDatabaseResource("p1", inst)
+	r := buildDatabaseResource("p1", inst, false)
 	if r.Ref.String() != "gcp:p1:Database:my-db" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}

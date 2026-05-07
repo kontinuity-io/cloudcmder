@@ -100,12 +100,12 @@ func enrichDisks(ctx context.Context, p *GCPProvider, scope inventory.Scope, ch 
 			continue
 		}
 		for _, d := range pair.Value.Disks {
-			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildDiskResource(scope.ID, d)})
+			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildDiskResource(scope.ID, d, p.dumpNative)})
 		}
 	}
 }
 
-func buildDiskResource(scopeID string, d *computepb.Disk) inventory.Resource {
+func buildDiskResource(scopeID string, d *computepb.Disk, dumpNative bool) inventory.Resource {
 	zone := lastSegment(d.GetZone())
 	users := make([]inventory.ResourceRef, 0, len(d.GetUsers()))
 	for _, u := range d.GetUsers() {
@@ -140,5 +140,6 @@ func buildDiskResource(scopeID string, d *computepb.Disk) inventory.Resource {
 		Labels: d.GetLabels(),
 		Detail: &detail,
 		Refs:   refs,
+		Native: nativeFrom(dumpNative, d),
 	}
 }

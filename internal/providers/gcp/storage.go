@@ -121,12 +121,12 @@ func enrichBuckets(ctx context.Context, p *GCPProvider, scope inventory.Scope, c
 			publicIAM = false
 		}
 		sendOrCancel(ctx, ch, inventory.ResourceOrErr{
-			Resource: buildBucketResource(scope.ID, attrs, publicIAM),
+			Resource: buildBucketResource(scope.ID, attrs, publicIAM, p.dumpNative),
 		})
 	}
 }
 
-func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool) inventory.Resource {
+func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool, dumpNative bool) inventory.Resource {
 	// A bucket is reachable from the public internet iff the IAM policy has
 	// an `allUsers`/`allAuthenticatedUsers` binding AND PublicAccessPrevention
 	// is not enforced (because enforcement overrides any IAM binding). Match
@@ -147,5 +147,6 @@ func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool)
 		Status: "",
 		Labels: b.Labels,
 		Detail: &detail,
+		Native: nativeFrom(dumpNative, b),
 	}
 }

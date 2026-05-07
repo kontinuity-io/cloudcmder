@@ -21,7 +21,7 @@ func TestBuildFirewallResource(t *testing.T) {
 			{IPProtocol: ptr("tcp"), Ports: []string{"22"}},
 		},
 	}
-	r := buildFirewallResource("p1", f)
+	r := buildFirewallResource("p1", f, false)
 	if r.Ref.String() != "gcp:p1:Firewall:allow-ssh" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}

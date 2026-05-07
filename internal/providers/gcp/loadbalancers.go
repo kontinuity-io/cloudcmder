@@ -167,7 +167,7 @@ func emitGlobalLBs(ctx context.Context, p *GCPProvider, scope inventory.Scope, c
 		if err != nil {
 			return fmt.Errorf("gcp: list global forwarding rules: %w", err)
 		}
-		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildLBResource(scope.ID, fr, "global")})
+		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildLBResource(scope.ID, fr, "global", p.dumpNative)})
 	}
 }
 
@@ -193,12 +193,12 @@ func emitRegionalLBs(ctx context.Context, p *GCPProvider, scope inventory.Scope,
 			region = region[i+1:]
 		}
 		for _, fr := range pair.Value.ForwardingRules {
-			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildLBResource(scope.ID, fr, region)})
+			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildLBResource(scope.ID, fr, region, p.dumpNative)})
 		}
 	}
 }
 
-func buildLBResource(scopeID string, fr *computepb.ForwardingRule, region string) inventory.Resource {
+func buildLBResource(scopeID string, fr *computepb.ForwardingRule, region string, dumpNative bool) inventory.Resource {
 	ports := fr.GetPorts()
 	if len(ports) == 0 && fr.GetPortRange() != "" {
 		ports = []string{fr.GetPortRange()}
@@ -217,5 +217,6 @@ func buildLBResource(scopeID string, fr *computepb.ForwardingRule, region string
 		Region: region,
 		Status: "",
 		Detail: &detail,
+		Native: nativeFrom(dumpNative, fr),
 	}
 }

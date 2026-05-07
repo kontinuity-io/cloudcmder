@@ -24,7 +24,7 @@ func TestBuildDiskResource(t *testing.T) {
 		},
 		Labels: map[string]string{"env": "prod"},
 	}
-	r := buildDiskResource("p1", d)
+	r := buildDiskResource("p1", d, false)
 	if r.Ref.String() != "gcp:p1:Disk:disk-a" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}

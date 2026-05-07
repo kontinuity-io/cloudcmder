@@ -35,7 +35,15 @@ type GCPProvider struct {
 	buckets   bucketsClientState
 	runsvc    runClientState
 	funcs     functionsClientState
+
+	// dumpNative controls whether raw provider API payloads are stored in
+	// resources.native_json. Off by default — roughly doubles DB size.
+	dumpNative bool
 }
+
+// SetDumpNative enables or disables raw native payload capture.
+// Must be called before the first ListResources call.
+func (p *GCPProvider) SetDumpNative(v bool) { p.dumpNative = v }
 
 // New constructs a GCPProvider using Application Default Credentials.
 // Pass option.ClientOption values to override the endpoint or auth — used by

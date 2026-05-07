@@ -17,7 +17,7 @@ func TestBuildNetworkResource(t *testing.T) {
 		Name:                  ptr("default"),
 		AutoCreateSubnetworks: ptr(true),
 	}
-	r := buildNetworkResource("p1", n)
+	r := buildNetworkResource("p1", n, false)
 	if r.Ref.String() != "gcp:p1:Network:default" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}
@@ -38,7 +38,7 @@ func TestBuildSubnetResource(t *testing.T) {
 		IpCidrRange:           ptr("10.128.0.0/20"),
 		PrivateIpGoogleAccess: ptr(true),
 	}
-	r := buildSubnetResource("p1", s)
+	r := buildSubnetResource("p1", s, false)
 	sd := r.Detail.(*inventory.SubnetDetail)
 	if sd.CIDR != "10.128.0.0/20" || sd.Region != "us-central1" || sd.Network != "default" || !sd.Private {
 		t.Errorf("detail = %+v", sd)

@@ -84,11 +84,11 @@ func enrichClusters(ctx context.Context, p *GCPProvider, scope inventory.Scope, 
 		return
 	}
 	for _, c := range clusters {
-		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildClusterResource(scope.ID, c)})
+		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildClusterResource(scope.ID, c, p.dumpNative)})
 	}
 }
 
-func buildClusterResource(scopeID string, c *containerpb.Cluster) inventory.Resource {
+func buildClusterResource(scopeID string, c *containerpb.Cluster, dumpNative bool) inventory.Resource {
 	detail := inventory.ClusterDetail{
 		Version:   c.GetCurrentMasterVersion(),
 		NodeCount: c.GetCurrentNodeCount(),
@@ -109,5 +109,6 @@ func buildClusterResource(scopeID string, c *containerpb.Cluster) inventory.Reso
 		Status: c.GetStatus().String(),
 		Labels: c.GetResourceLabels(),
 		Detail: &detail,
+		Native: nativeFrom(dumpNative, c),
 	}
 }

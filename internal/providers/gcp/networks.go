@@ -159,11 +159,11 @@ func enrichNetworks(ctx context.Context, p *GCPProvider, scope inventory.Scope, 
 			})
 			return
 		}
-		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildNetworkResource(scope.ID, n)})
+		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildNetworkResource(scope.ID, n, p.dumpNative)})
 	}
 }
 
-func buildNetworkResource(scopeID string, n *computepb.Network) inventory.Resource {
+func buildNetworkResource(scopeID string, n *computepb.Network, dumpNative bool) inventory.Resource {
 	detail := inventory.NetworkDetail{
 		AutoSubnet: n.GetAutoCreateSubnetworks(),
 		IPv4Range:  n.GetIPv4Range(),
@@ -176,6 +176,7 @@ func buildNetworkResource(scopeID string, n *computepb.Network) inventory.Resour
 		Region: "global",
 		Status: "",
 		Detail: &detail,
+		Native: nativeFrom(dumpNative, n),
 	}
 }
 
@@ -203,12 +204,12 @@ func enrichSubnets(ctx context.Context, p *GCPProvider, scope inventory.Scope, c
 			continue
 		}
 		for _, s := range pair.Value.Subnetworks {
-			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildSubnetResource(scope.ID, s)})
+			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildSubnetResource(scope.ID, s, p.dumpNative)})
 		}
 	}
 }
 
-func buildSubnetResource(scopeID string, s *computepb.Subnetwork) inventory.Resource {
+func buildSubnetResource(scopeID string, s *computepb.Subnetwork, dumpNative bool) inventory.Resource {
 	region := lastSegment(s.GetRegion())
 	networkName := lastSegment(s.GetNetwork())
 	detail := inventory.SubnetDetail{
@@ -230,5 +231,6 @@ func buildSubnetResource(scopeID string, s *computepb.Subnetwork) inventory.Reso
 		Region: region,
 		Detail: &detail,
 		Refs:   refs,
+		Native: nativeFrom(dumpNative, s),
 	}
 }

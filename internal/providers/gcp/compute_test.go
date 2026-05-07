@@ -66,7 +66,7 @@ func TestBuildVMResourceShape(t *testing.T) {
 		return resolveCustom(ctx, zone, mt)
 	}
 
-	r := buildVMResource(context.Background(), "p1", inst, resolve)
+	r := buildVMResource(context.Background(), "p1", inst, resolve, false)
 
 	if r.Ref.String() != "gcp:p1:VM:vm-a" {
 		t.Errorf("ref = %s", r.Ref.String())

@@ -162,7 +162,7 @@ func enrichVMs(ctx context.Context, p *GCPProvider, scope inventory.Scope, ch ch
 			continue
 		}
 		for _, inst := range pair.Value.Instances {
-			vmRes := buildVMResource(ctx, scope.ID, inst, resolveMT)
+			vmRes := buildVMResource(ctx, scope.ID, inst, resolveMT, p.dumpNative)
 			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: vmRes})
 
 			for _, ad := range inst.GetDisks() {
@@ -188,7 +188,7 @@ func enrichVMs(ctx context.Context, p *GCPProvider, scope inventory.Scope, ch ch
 // buildVMResource is a pure mapper from one *Instance to a Resource. Exported
 // (lowercase but referenced by the test file in the same package) so the
 // happy-path can be unit-tested without spinning up an iterator fake.
-func buildVMResource(ctx context.Context, scopeID string, inst *computepb.Instance, resolveMT machineTypeResolver) inventory.Resource {
+func buildVMResource(ctx context.Context, scopeID string, inst *computepb.Instance, resolveMT machineTypeResolver, dumpNative bool) inventory.Resource {
 	name := inst.GetName()
 	zone := lastSegment(inst.GetZone())
 	mt := lastSegment(inst.GetMachineType())
@@ -257,6 +257,7 @@ func buildVMResource(ctx context.Context, scopeID string, inst *computepb.Instan
 		Labels: inst.GetLabels(),
 		Detail: &detail,
 		Refs:   refs,
+		Native: nativeFrom(dumpNative, inst),
 	}
 }
 

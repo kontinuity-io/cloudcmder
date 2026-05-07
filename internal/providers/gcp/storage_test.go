@@ -30,7 +30,7 @@ func TestBuildBucketResourcePublicAccessTruthTable(t *testing.T) {
 				Location:               "US",
 				PublicAccessPrevention: tc.pap,
 			}
-			r := buildBucketResource("p1", b, tc.publicIAM)
+			r := buildBucketResource("p1", b, tc.publicIAM, false)
 			d := r.Detail.(*inventory.BucketDetail)
 			if d.PublicAccess != tc.want {
 				t.Errorf("PublicAccess = %v, want %v", d.PublicAccess, tc.want)
@@ -46,7 +46,7 @@ func TestBuildBucketResourceFields(t *testing.T) {
 		StorageClass:      "STANDARD",
 		VersioningEnabled: true,
 	}
-	r := buildBucketResource("p1", b, false)
+	r := buildBucketResource("p1", b, false, false)
 	if r.Ref.String() != "gcp:p1:Bucket:my-bucket" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}

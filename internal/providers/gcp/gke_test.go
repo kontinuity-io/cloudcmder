@@ -27,7 +27,7 @@ func TestBuildClusterResource(t *testing.T) {
 			},
 		},
 	}
-	r := buildClusterResource("p1", c)
+	r := buildClusterResource("p1", c, false)
 	if r.Ref.String() != "gcp:p1:Cluster:my-cluster" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}

@@ -88,11 +88,11 @@ func enrichDatabases(ctx context.Context, p *GCPProvider, scope inventory.Scope,
 		return
 	}
 	for _, inst := range insts {
-		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildDatabaseResource(scope.ID, inst)})
+		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildDatabaseResource(scope.ID, inst, p.dumpNative)})
 	}
 }
 
-func buildDatabaseResource(scopeID string, inst *sqladmin.DatabaseInstance) inventory.Resource {
+func buildDatabaseResource(scopeID string, inst *sqladmin.DatabaseInstance, dumpNative bool) inventory.Resource {
 	settings := inst.Settings
 	detail := inventory.DatabaseDetail{
 		Engine: normaliseEngine(inst.DatabaseVersion),
@@ -117,6 +117,7 @@ func buildDatabaseResource(scopeID string, inst *sqladmin.DatabaseInstance) inve
 		Region: region,
 		Status: inst.State,
 		Detail: &detail,
+		Native: nativeFrom(dumpNative, inst),
 	}
 }
 

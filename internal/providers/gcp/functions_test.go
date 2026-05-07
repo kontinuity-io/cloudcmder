@@ -72,7 +72,7 @@ func TestBuildRunServiceResource(t *testing.T) {
 			},
 		},
 	}
-	r := buildRunServiceResource("p1", s)
+	r := buildRunServiceResource("p1", s, false)
 	d := r.Detail.(*inventory.FunctionDetail)
 	if d.MemoryMiB != 512 || d.CPUs != 1.0 || d.MaxInst != 100 {
 		t.Errorf("detail = %+v", d)
@@ -94,7 +94,7 @@ func TestBuildCloudFunctionResource(t *testing.T) {
 			MaxInstanceCount: 50,
 		},
 	}
-	r := buildCloudFunctionResource("p1", f)
+	r := buildCloudFunctionResource("p1", f, false)
 	d := r.Detail.(*inventory.FunctionDetail)
 	if d.Runtime != "go122" || d.MemoryMiB != 256 || d.CPUs != 0.5 || d.MaxInst != 50 {
 		t.Errorf("detail = %+v", d)

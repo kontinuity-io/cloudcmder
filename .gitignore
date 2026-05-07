@@ -1,0 +1,25 @@
+# Build output
+cloudcmder
+cloudcmder_ci
+dist/
+
+# SQLite assessment databases — these are operator artefacts, not source
+*.db
+*.db-shm
+*.db-wal
+
+# macOS
+.DS_Store
+
+# Go
+*.test
+*.out
+vendor/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# GoReleaser

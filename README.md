@@ -7,6 +7,7 @@
 
 ## What it does
 
+- **Commander dashboard** — k9s/lazygit-style two-pane layout. Cursor in the resource list drives a live detail pane next to it; `:disk` / `:db` / etc. swap the list in place; `Enter` zooms detail to full width.
 - Navigate your GCP projects → resource overview → drill into VMs, disks, databases, networks, load balancers, GKE clusters, and more.
 - See interconnections: which VM is on which subnet, behind which load balancer, attached to which disks — all on one screen.
 - Export a full assessment as a multi-tab Excel workbook.
@@ -39,14 +40,15 @@ Assign these roles to the account you use with `gcloud auth application-default 
 
 | Key | Action |
 |---|---|
-| `Enter` | Drill into selected item |
-| `Esc` | Go back |
+| `Enter` | On a kind row: open that kind's resource list in the left pane. On a resource row: zoom Detail to full width. |
+| `Esc` | Unzoom Detail; or go back one screen |
+| `Tab` | Cycle focus between the list (left) and detail (right) panes |
 | `q` | Quit |
 | `?` | Toggle contextual help |
 | `/` | Filter list by regex (case-insensitive; substring fallback if invalid) |
-| `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | Jump to a resource list (requires a current run in scope) |
-| `g` | Open ASCII connection-graph view *(on Detail screen)* |
-| `H` | Run history for the current scope |
+| `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | Swap the left pane to that kind's resource list |
+| `g` | Open the ASCII connection-graph view for the focused resource |
+| `H` | Run history modal — pick a different run for this scope |
 | `e` | Export current run to Excel *(M7)* |
 | `R` | Start a new scan from inside the TUI *(M8 — use `--scan` from CLI for now)* |
 
@@ -78,7 +80,7 @@ Flags:
 | M4 Overview screen | ✅ |
 | M5 VM detail + interconnections | ✅ |
 | M6 All resource kinds | ✅ |
-| M6.5 Commander layout (split-pane, live detail) | 🔲 |
+| M6.5 Commander layout (split-pane, live detail) | ✅ |
 | M7 Excel export | 🔲 |
 | M8 Concurrency + polish | 🔲 |
 | M9 Release v1.0.0 | 🔲 |

@@ -1,6 +1,6 @@
-# Build output
-cloudcmder
-cloudcmder_ci
+# Build output (root-anchored so cmd/cloudcmder/ directory is not excluded)
+/cloudcmder
+/cloudcmder_ci
 dist/
 
 # SQLite assessment databases — these are operator artefacts, not source

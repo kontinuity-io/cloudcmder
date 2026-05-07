@@ -19,6 +19,7 @@ const providerName = "gcp"
 type GCPProvider struct {
 	projects *resourcemanager.ProjectsClient
 	assetState
+	computeState
 }
 
 // New constructs a GCPProvider using Application Default Credentials.
@@ -50,15 +51,23 @@ func (p *GCPProvider) Close() error {
 	if err := p.closeAssetClient(); err != nil {
 		errs = append(errs, err)
 	}
+	if err := p.closeInstancesClient(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := p.closeMachineTypesClient(); err != nil {
+		errs = append(errs, err)
+	}
 	return errors.Join(errs...)
 }
 
 // Name returns the provider's short name.
 func (p *GCPProvider) Name() string { return providerName }
 
-// GetDetail is implemented in M5+ when per-kind enrichment lands.
+// GetDetail is reserved for on-demand re-enrichment (post-M5 polish). Today
+// every scan writes the full Detail inline, so the TUI never needs to call
+// back into the provider — it reads from the store.
 func (p *GCPProvider) GetDetail(ctx context.Context, _ inventory.ResourceRef) (inventory.Resource, error) {
-	return inventory.Resource{}, errors.New("gcp: GetDetail not implemented in M1")
+	return inventory.Resource{}, errors.New("gcp: GetDetail not implemented; re-run --scan instead")
 }
 
 // Telemetry returns nil in v1; v1.1 adds Cloud Monitoring overlays.

@@ -151,7 +151,10 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 				f.rightFor = ""
 				return f, nil
 			}
-			return f, core.PopScreenCmd()
+			// Empty history at the root pane: stay put. Esc never exits
+			// the Frame in commander mode — `q` quits the program; that's
+			// the only way back to a fresh scope picker for v1.0.
+			return f, nil
 		case key.Matches(k, f.graphKey):
 			if f.right != nil {
 				return f, core.PushScreenCmd(NewGraphView(f.right.res, f.right.edges))
@@ -337,18 +340,15 @@ func (f *Frame) footerView() string {
 	if f.focus == focusRight {
 		focusStr = "right"
 	}
-	escHint := "esc=exit"
-	if len(f.leftHistory) > 0 {
-		escHint = "esc=back"
-	}
 	hints := []string{
 		"focus: " + focusStr,
 		"tab=swap",
 		"enter=zoom/drill",
+		"esc=back",
 		":alias=jump",
 		"H=runs",
 		"g=graph",
-		escHint,
+		"q=quit",
 	}
 	return style.Dim.Render(strings.Join(hints, " · "))
 }

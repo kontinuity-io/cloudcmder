@@ -130,6 +130,8 @@ var allEnrichers = []kindEnricher{
 	{inventory.KindLoadBalancer, enrichLoadBalancers},
 	{inventory.KindDatabase, enrichDatabases},
 	{inventory.KindCluster, enrichClusters},
+	{inventory.KindBucket, enrichBuckets},
+	{inventory.KindFunction, enrichFunctions},
 }
 
 func runEnrichers(ctx context.Context, p *GCPProvider, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr) {

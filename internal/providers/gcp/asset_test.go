@@ -265,6 +265,15 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	p.gke.factory = func(_ context.Context, _ ...option.ClientOption) (gkeAPI, error) {
 		return &fakeGKEClient{}, nil
 	}
+	p.buckets.factory = func(_ context.Context, _ ...option.ClientOption) (bucketsAPI, error) {
+		return &fakeBucketsClient{}, nil
+	}
+	p.runsvc.factory = func(_ context.Context, _ ...option.ClientOption) (runServicesAPI, error) {
+		return &fakeRunClient{}, nil
+	}
+	p.funcs.factory = func(_ context.Context, _ ...option.ClientOption) (functionsAPI, error) {
+		return &fakeFunctionsClient{}, nil
+	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p
 }

@@ -10,15 +10,43 @@ import (
 	"cloudcmder.com/internal/inventory"
 )
 
-func TestBuildBucketResource(t *testing.T) {
-	b := &storage.BucketAttrs{
-		Name:                   "my-bucket",
-		Location:               "US",
-		StorageClass:           "STANDARD",
-		PublicAccessPrevention: storage.PublicAccessPreventionEnforced,
-		VersioningEnabled:      true,
+func TestBuildBucketResourcePublicAccessTruthTable(t *testing.T) {
+	cases := []struct {
+		name      string
+		pap       storage.PublicAccessPrevention
+		publicIAM bool
+		want      bool
+	}{
+		{name: "enforced + IAM allUsers → still not public", pap: storage.PublicAccessPreventionEnforced, publicIAM: true, want: false},
+		{name: "enforced + private IAM → not public", pap: storage.PublicAccessPreventionEnforced, publicIAM: false, want: false},
+		{name: "inherited + IAM allUsers → public", pap: storage.PublicAccessPreventionInherited, publicIAM: true, want: true},
+		{name: "inherited + private IAM → not public (the M6 bug case)", pap: storage.PublicAccessPreventionInherited, publicIAM: false, want: false},
+		{name: "unknown + private IAM → not public", pap: storage.PublicAccessPreventionUnknown, publicIAM: false, want: false},
 	}
-	r := buildBucketResource("p1", b)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := &storage.BucketAttrs{
+				Name:                   "b",
+				Location:               "US",
+				PublicAccessPrevention: tc.pap,
+			}
+			r := buildBucketResource("p1", b, tc.publicIAM)
+			d := r.Detail.(*inventory.BucketDetail)
+			if d.PublicAccess != tc.want {
+				t.Errorf("PublicAccess = %v, want %v", d.PublicAccess, tc.want)
+			}
+		})
+	}
+}
+
+func TestBuildBucketResourceFields(t *testing.T) {
+	b := &storage.BucketAttrs{
+		Name:              "my-bucket",
+		Location:          "US",
+		StorageClass:      "STANDARD",
+		VersioningEnabled: true,
+	}
+	r := buildBucketResource("p1", b, false)
 	if r.Ref.String() != "gcp:p1:Bucket:my-bucket" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}
@@ -26,32 +54,24 @@ func TestBuildBucketResource(t *testing.T) {
 	if d.Location != "US" || d.StorageClass != "STANDARD" || !d.Versioning {
 		t.Errorf("detail = %+v", d)
 	}
-	if d.PublicAccess {
-		t.Errorf("PublicAccess = true, want false (enforced)")
-	}
-}
-
-func TestBuildBucketResourceInherited(t *testing.T) {
-	b := &storage.BucketAttrs{
-		Name:                   "open-bucket",
-		Location:               "US",
-		PublicAccessPrevention: storage.PublicAccessPreventionInherited,
-	}
-	r := buildBucketResource("p1", b)
-	d := r.Detail.(*inventory.BucketDetail)
-	if !d.PublicAccess {
-		t.Errorf("PublicAccess = false, want true (inherited)")
-	}
 }
 
 // --- fake storage client ---------------------------------------------------
 
 type fakeBucketsClient struct {
-	items []*storage.BucketAttrs
+	items     []*storage.BucketAttrs
+	publicIAM map[string]bool
 }
 
 func (f *fakeBucketsClient) List(_ context.Context, _ string) bucketsIterator {
 	return &fakeBucketsIter{c: f}
+}
+
+func (f *fakeBucketsClient) HasPublicIAM(_ context.Context, name string) (bool, error) {
+	if f.publicIAM == nil {
+		return false, nil
+	}
+	return f.publicIAM[name], nil
 }
 
 func (f *fakeBucketsClient) Close() error { return nil }

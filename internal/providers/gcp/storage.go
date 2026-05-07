@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"cloud.google.com/go/storage"
@@ -15,6 +16,11 @@ import (
 
 type bucketsAPI interface {
 	List(ctx context.Context, projectID string) bucketsIterator
+	// HasPublicIAM reports whether the bucket's IAM policy grants any role
+	// to "allUsers" or "allAuthenticatedUsers". Combined with the bucket's
+	// PublicAccessPrevention setting, it produces an honest PublicAccess
+	// signal — what the GCP console shows.
+	HasPublicIAM(ctx context.Context, bucketName string) (bool, error)
 	Close() error
 }
 
@@ -28,6 +34,21 @@ type realBucketsClient struct {
 
 func (r *realBucketsClient) List(ctx context.Context, projectID string) bucketsIterator {
 	return r.c.Buckets(ctx, projectID)
+}
+
+func (r *realBucketsClient) HasPublicIAM(ctx context.Context, bucketName string) (bool, error) {
+	policy, err := r.c.Bucket(bucketName).IAM().Policy(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, role := range policy.Roles() {
+		for _, m := range policy.Members(role) {
+			if m == "allUsers" || m == "allAuthenticatedUsers" {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func (r *realBucketsClient) Close() error { return r.c.Close() }
@@ -90,15 +111,27 @@ func enrichBuckets(ctx context.Context, p *GCPProvider, scope inventory.Scope, c
 			})
 			return
 		}
-		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: buildBucketResource(scope.ID, attrs)})
+		// Per-bucket IAM check. If we can't read the policy (e.g., caller
+		// lacks storage.buckets.getIamPolicy on this bucket specifically),
+		// assume not-public to avoid false positives in the security view.
+		publicIAM, iamErr := bc.HasPublicIAM(ctx, attrs.Name)
+		if iamErr != nil {
+			slog.Warn("scan: bucket IAM unreadable; treating as not public",
+				"bucket", attrs.Name, "error", iamErr)
+			publicIAM = false
+		}
+		sendOrCancel(ctx, ch, inventory.ResourceOrErr{
+			Resource: buildBucketResource(scope.ID, attrs, publicIAM),
+		})
 	}
 }
 
-func buildBucketResource(scopeID string, b *storage.BucketAttrs) inventory.Resource {
-	// PublicAccess is best-effort: a bucket can still be public via IAM if
-	// PublicAccessPrevention is not "enforced". Treat enforcement as the
-	// definitive "not public" signal.
-	publicAccess := b.PublicAccessPrevention != storage.PublicAccessPreventionEnforced
+func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool) inventory.Resource {
+	// A bucket is reachable from the public internet iff the IAM policy has
+	// an `allUsers`/`allAuthenticatedUsers` binding AND PublicAccessPrevention
+	// is not enforced (because enforcement overrides any IAM binding). Match
+	// what the GCP console shows under "Public access".
+	publicAccess := publicIAM && b.PublicAccessPrevention != storage.PublicAccessPreventionEnforced
 	detail := inventory.BucketDetail{
 		Location:     b.Location,
 		StorageClass: b.StorageClass,

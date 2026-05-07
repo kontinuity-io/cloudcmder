@@ -36,6 +36,8 @@ Assign these roles to the account you use with `gcloud auth application-default 
 
 ## Keybindings
 
+Active in the TUI today (M3): `Esc`, `q`, `?`, `/`, `:`, `H`. Others land in the milestone noted.
+
 | Key | Action |
 |---|---|
 | `Enter` | Drill into selected item |
@@ -43,10 +45,10 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | `q` | Quit |
 | `?` | Show contextual help |
 | `/` | Filter list by regex |
-| `:vm` `:disk` `:db` `:lb` `:net` `:bucket` `:gke` `:fn` | Jump to resource type |
-| `e` | Export current run to Excel |
+| `:vm` `:disk` `:db` `:lb` `:net` `:bucket` `:gke` `:fn` | Jump to resource type *(M4+)* |
+| `e` | Export current run to Excel *(M7)* |
 | `H` | Run history for current scope |
-| `R` | Start a new scan of the current project |
+| `R` | Start a new scan of the current project *(M8)* |
 
 ## CLI flags
 
@@ -72,7 +74,7 @@ Flags:
 | M0 Skeleton | ✅ |
 | M1 Inventory types + GCP auth | ✅ |
 | M2 SQLite store + headless scan | ✅ |
-| M3 Bubble Tea TUI shell | 🔲 |
+| M3 Bubble Tea TUI shell | ✅ |
 | M4 Overview screen | 🔲 |
 | M5 VM detail + interconnections | 🔲 |
 | M6 All resource kinds | 🔲 |

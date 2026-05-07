@@ -3,7 +3,18 @@
 // internal/tui (the App) and internal/tui/screens (the implementations).
 package core
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	tea "github.com/charmbracelet/bubbletea"
+
+	"cloudcmder.com/internal/store"
+)
+
+// RunOwner is implemented by screens that hold a notion of the "current run"
+// (Overview, ResourceList, Detail). The App walks its stack top-down looking
+// for the first RunOwner so cmdbar `:alias` jumps know which run to open.
+type RunOwner interface {
+	CurrentRun() *store.RunSummary
+}
 
 // Screen is the contract every TUI screen satisfies. Update returns Screen
 // (not tea.Model) so the App stack can hold concrete types without asserting.

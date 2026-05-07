@@ -82,7 +82,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.toast = ""
 		return a, nil
 	case components.CmdSubmitMsg:
-		return a, core.ToastCmd("resource list available via Overview → kind row (got :" + m.Alias + ")")
+		kind, ok := screens.AliasToKind(m.Alias)
+		if !ok {
+			return a, core.ToastCmd("unknown alias: " + m.Alias)
+		}
+		run := a.findCurrentRun()
+		if run == nil {
+			return a, core.ToastCmd("no current run — open a scope first (got :" + m.Alias + ")")
+		}
+		return a, core.PushScreenCmd(screens.NewResourceList(a.ctx, a.st, *run, kind))
 	}
 
 	if a.cmdbar.IsOpen() {
@@ -114,6 +122,20 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	updated, cmd := top.Update(msg)
 	a.stack[len(a.stack)-1] = updated
 	return a, cmd
+}
+
+// findCurrentRun walks the screen stack top-down looking for a screen that
+// implements core.RunOwner. Returns nil if no screen on the stack holds a
+// run (e.g., the user invoked `:` from the ScopeList).
+func (a App) findCurrentRun() *store.RunSummary {
+	for i := len(a.stack) - 1; i >= 0; i-- {
+		if owner, ok := a.stack[i].(core.RunOwner); ok {
+			if r := owner.CurrentRun(); r != nil {
+				return r
+			}
+		}
+	}
+	return nil
 }
 
 // View composes breadcrumb + screen body + status/help/cmdbar/toast lines.

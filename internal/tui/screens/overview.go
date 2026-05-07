@@ -66,6 +66,9 @@ func NewOverview(ctx context.Context, st *store.Store, scopeID, runUUID string) 
 // Title satisfies core.Screen.
 func (o *Overview) Title() string { return "Overview: " + o.scopeID }
 
+// CurrentRun lets the App's :alias palette discover the active run.
+func (o *Overview) CurrentRun() *store.RunSummary { return o.run }
+
 // Init loads run metadata + counts in a single goroutine round trip.
 func (o *Overview) Init() tea.Cmd {
 	return func() tea.Msg {
@@ -103,11 +106,7 @@ func (o *Overview) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		if key.Matches(m, o.open) && len(o.rows) > 0 && o.run != nil {
 			cur := o.tbl.Cursor()
 			if cur >= 0 && cur < len(o.rows) {
-				kind := o.rows[cur].Kind
-				if _, ok := columnsFor(kind); ok {
-					return o, core.PushScreenCmd(NewResourceList(o.ctx, o.st, *o.run, kind))
-				}
-				return o, core.PushScreenCmd(NewResourceListStub(kind, *o.run))
+				return o, core.PushScreenCmd(NewResourceList(o.ctx, o.st, *o.run, o.rows[cur].Kind))
 			}
 		}
 	}

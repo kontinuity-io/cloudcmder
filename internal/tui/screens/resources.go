@@ -89,6 +89,9 @@ func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary,
 // Title satisfies core.Screen.
 func (s *ResourceList) Title() string { return "Resources: " + string(s.kind) }
 
+// CurrentRun lets the App's :alias palette discover the run this list is on.
+func (s *ResourceList) CurrentRun() *store.RunSummary { return &s.run }
+
 // Init loads the kind-filtered resource set.
 func (s *ResourceList) Init() tea.Cmd {
 	return func() tea.Msg {

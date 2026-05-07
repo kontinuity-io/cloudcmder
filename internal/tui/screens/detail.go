@@ -1,10 +1,9 @@
 package screens
 
 import (
+	"context"
 	"fmt"
 	"strings"
-
-	"context"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -61,7 +60,7 @@ func (d *Detail) Init() tea.Cmd {
 	}
 }
 
-// Update handles load completion, resize, and the `g` (GraphView) toast stub.
+// Update handles load completion, resize, and the `g` (GraphView) push.
 func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	switch m := msg.(type) {
 	case edgesLoadedMsg:
@@ -75,11 +74,15 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		return d, nil
 	case tea.KeyMsg:
 		if key.Matches(m, d.graphKey) {
-			return d, core.ToastCmd("ASCII graph view lands in M6")
+			return d, core.PushScreenCmd(NewGraphView(d.res, d.edges))
 		}
 	}
 	return d, nil
 }
+
+// CurrentRun lets the App's :alias palette discover the run this Detail
+// belongs to.
+func (d *Detail) CurrentRun() *store.RunSummary { return &d.run }
 
 // View renders detail (left pane) + connections (right pane) side-by-side at
 // ≥100 cols, stacked vertically below 100.
@@ -111,6 +114,24 @@ func (d *Detail) detailPane() string {
 	switch d.res.Kind {
 	case inventory.KindVM:
 		rows = append(rows, vmDetailRows(d.res, d.detail)...)
+	case inventory.KindDisk:
+		rows = append(rows, diskDetailRows(d.res, d.detail)...)
+	case inventory.KindNetwork:
+		rows = append(rows, networkDetailRows(d.res, d.detail)...)
+	case inventory.KindSubnet:
+		rows = append(rows, subnetDetailRows(d.res, d.detail)...)
+	case inventory.KindFirewall:
+		rows = append(rows, firewallDetailRows(d.res, d.detail)...)
+	case inventory.KindLoadBalancer:
+		rows = append(rows, lbDetailRows(d.res, d.detail)...)
+	case inventory.KindDatabase:
+		rows = append(rows, databaseDetailRows(d.res, d.detail)...)
+	case inventory.KindCluster:
+		rows = append(rows, clusterDetailRows(d.res, d.detail)...)
+	case inventory.KindBucket:
+		rows = append(rows, bucketDetailRows(d.res, d.detail)...)
+	case inventory.KindFunction:
+		rows = append(rows, functionDetailRows(d.res, d.detail)...)
 	default:
 		rows = append(rows,
 			kvLine("Name", d.res.Name),
@@ -119,6 +140,163 @@ func (d *Detail) detailPane() string {
 		)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+}
+
+func diskDetailRows(res inventory.Resource, detail any) []string {
+	dd, _ := detail.(*inventory.DiskDetail)
+	if dd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	out := []string{
+		kvLine("Size", fmt.Sprintf("%d GB", dd.SizeGB)),
+		kvLine("Type", dd.Type),
+		kvLine("Zone", dd.Zone),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+	if len(dd.InUseBy) > 0 {
+		out = append(out, "", style.Accent.Render("Attached to"))
+		for _, ref := range dd.InUseBy {
+			out = append(out, "  "+ref.ID)
+		}
+	}
+	return out
+}
+
+func networkDetailRows(_ inventory.Resource, detail any) []string {
+	nd, _ := detail.(*inventory.NetworkDetail)
+	if nd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	return []string{
+		kvLine("Auto subnet", boolStr(nd.AutoSubnet)),
+		kvLine("IPv4 range", nd.IPv4Range),
+		kvLine("Subnets", fmt.Sprintf("%d", nd.SubnetCount)),
+	}
+}
+
+func subnetDetailRows(_ inventory.Resource, detail any) []string {
+	sd, _ := detail.(*inventory.SubnetDetail)
+	if sd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	return []string{
+		kvLine("CIDR", sd.CIDR),
+		kvLine("Region", sd.Region),
+		kvLine("Network", sd.Network),
+		kvLine("Private GA", boolStr(sd.Private)),
+	}
+}
+
+func firewallDetailRows(_ inventory.Resource, detail any) []string {
+	fd, _ := detail.(*inventory.FirewallDetail)
+	if fd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	out := []string{
+		kvLine("Direction", fd.Direction),
+		kvLine("Priority", fmt.Sprintf("%d", fd.Priority)),
+		kvLine("Sources", strings.Join(fd.SourceRanges, ", ")),
+		kvLine("Tags", strings.Join(fd.TargetTags, ", ")),
+	}
+	if len(fd.Allowed) > 0 {
+		out = append(out, "", style.Accent.Render("Allowed"))
+		for _, a := range fd.Allowed {
+			out = append(out, "  "+a.Protocol+":"+strings.Join(a.Ports, ","))
+		}
+	}
+	return out
+}
+
+func lbDetailRows(_ inventory.Resource, detail any) []string {
+	lb, _ := detail.(*inventory.LoadBalancerDetail)
+	if lb == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	return []string{
+		kvLine("Scheme", lb.Scheme),
+		kvLine("Protocol", lb.Protocol),
+		kvLine("IP", lb.IPAddress),
+		kvLine("Ports", strings.Join(lb.Ports, ", ")),
+		kvLine("Backends", fmt.Sprintf("%d", lb.BackendCount)),
+	}
+}
+
+func databaseDetailRows(res inventory.Resource, detail any) []string {
+	dd, _ := detail.(*inventory.DatabaseDetail)
+	if dd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	vcpus := "—"
+	if dd.VCPUs > 0 {
+		vcpus = fmt.Sprintf("%d", dd.VCPUs)
+	}
+	mem := "—"
+	if dd.MemoryMiB > 0 {
+		mem = fmt.Sprintf("%.1f GiB", float64(dd.MemoryMiB)/1024.0)
+	}
+	return []string{
+		kvLine("Engine", dd.Engine),
+		kvLine("Tier", dd.Tier),
+		kvLine("vCPUs", vcpus),
+		kvLine("Memory", mem),
+		kvLine("Storage", fmt.Sprintf("%d GB %s", dd.StorageGB, dd.StorageType)),
+		kvLine("HA", boolStr(dd.HighAvailability)),
+		kvLine("Maintenance", dd.MaintenanceWindow),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+}
+
+func clusterDetailRows(res inventory.Resource, detail any) []string {
+	cd, _ := detail.(*inventory.ClusterDetail)
+	if cd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	return []string{
+		kvLine("Version", cd.Version),
+		kvLine("Location", cd.Location),
+		kvLine("Nodes", fmt.Sprintf("%d", cd.NodeCount)),
+		kvLine("Node MT", cd.NodeMachine),
+		kvLine("Disk GB", fmt.Sprintf("%d", cd.NodeDiskGB)),
+		kvLine("Autopilot", boolStr(cd.Autopilot)),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+}
+
+func bucketDetailRows(_ inventory.Resource, detail any) []string {
+	bd, _ := detail.(*inventory.BucketDetail)
+	if bd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	return []string{
+		kvLine("Location", bd.Location),
+		kvLine("Class", bd.StorageClass),
+		kvLine("Public", boolStr(bd.PublicAccess)),
+		kvLine("Versioning", boolStr(bd.Versioning)),
+	}
+}
+
+func functionDetailRows(res inventory.Resource, detail any) []string {
+	fd, _ := detail.(*inventory.FunctionDetail)
+	if fd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	mem := "—"
+	if fd.MemoryMiB > 0 {
+		mem = fmt.Sprintf("%d MiB", fd.MemoryMiB)
+	}
+	cpu := "—"
+	if fd.CPUs > 0 {
+		cpu = fmt.Sprintf("%g", fd.CPUs)
+	}
+	return []string{
+		kvLine("Runtime", fd.Runtime),
+		kvLine("Trigger", fd.Trigger),
+		kvLine("Memory", mem),
+		kvLine("CPUs", cpu),
+		kvLine("Max inst", fmt.Sprintf("%d", fd.MaxInst)),
+		kvLine("Region", fd.Region),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
 }
 
 func vmDetailRows(res inventory.Resource, detail any) []string {

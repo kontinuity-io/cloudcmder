@@ -94,7 +94,7 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | `roles/cloudasset.viewer` | Cloud Asset Inventory discovery |
 | `roles/storage.legacyBucketReader` *(optional)* | Accurate `PublicAccess` on Cloud Storage buckets — without it, the IAM check is skipped and buckets default to `PublicAccess=false` |
 
-> Read-only. cloudcmder never modifies resources. Per-API enablement on the target project is also required (Compute, Cloud SQL Admin, Container, Cloud Run, Cloud Functions, GCS); a disabled API is logged as a warning and that kind is skipped — the rest of the scan still completes.
+> Read-only. cloudcmder never modifies resources. The list of APIs that must be enabled on the target project is in [Troubleshooting](#troubleshooting); a disabled API is logged as a warning and that kind is skipped — the rest of the scan still completes.
 
 ## Keybindings
 
@@ -149,6 +149,64 @@ The interactive TUI is shipped — invoke `cloudcmder` with no flags.
 | v1.1 TUI Polish (lazydocker-rich) | 🔲 |
 
 See `plan.md` for full milestone details and acceptance criteria.
+
+## Troubleshooting
+
+### Enable the GCP APIs cloudcmder reads
+
+Each Kind needs its provider API enabled on the target project. A disabled API isn't fatal — the scan logs a warning and skips that kind — but for full enrichment, enable all of them:
+
+```sh
+PROJECT=<your-project-id>
+gcloud services enable \
+  cloudresourcemanager.googleapis.com \
+  cloudasset.googleapis.com \
+  compute.googleapis.com \
+  sqladmin.googleapis.com \
+  container.googleapis.com \
+  storage.googleapis.com \
+  run.googleapis.com \
+  cloudfunctions.googleapis.com \
+  --project=$PROJECT
+```
+
+| API | Used for |
+|---|---|
+| `cloudresourcemanager.googleapis.com` | `--list-scopes`; project listing |
+| `cloudasset.googleapis.com` | Cloud Asset Inventory discovery (Phase 1 of every scan) |
+| `compute.googleapis.com` | VMs, Disks, Networks, Subnets, Firewalls, Load Balancers |
+| `sqladmin.googleapis.com` | Cloud SQL Databases |
+| `container.googleapis.com` | GKE Clusters |
+| `storage.googleapis.com` | GCS Buckets (list + IAM check for `PublicAccess`) |
+| `run.googleapis.com` | Cloud Run services (rendered as `Function`) |
+| `cloudfunctions.googleapis.com` | Cloud Functions Gen2 (rendered as `Function`) |
+
+To turn them off again (no resources are deleted; the project just loses API access):
+
+```sh
+gcloud services disable \
+  cloudasset.googleapis.com \
+  compute.googleapis.com \
+  sqladmin.googleapis.com \
+  container.googleapis.com \
+  storage.googleapis.com \
+  run.googleapis.com \
+  cloudfunctions.googleapis.com \
+  --project=$PROJECT
+```
+
+> `cloudresourcemanager.googleapis.com` is intentionally omitted from the disable list — disabling it can lock you out of project metadata. Leave it on.
+
+### Common issues
+
+- **`--list-scopes` returns nothing** — your ADC credential can't see any projects. Re-auth with `gcloud auth application-default login`, or check `gcloud projects list` returns at least one project.
+- **`PermissionDenied: API has not been used in project …`** — that one API isn't enabled. The scan continues for the other kinds; enable the API per the table above and re-scan.
+- **All `Function` rows have empty Detail** — both `run.googleapis.com` and `cloudfunctions.googleapis.com` need to be enabled (Cloud Run + Cloud Functions Gen2 both back the `Function` kind).
+- **Bucket `PublicAccess` always shows `no`** — your credential lacks `storage.buckets.getIamPolicy`. Grant `roles/storage.legacyBucketReader` (or any role including that permission) and re-scan. Without it cloudcmder defaults to "not public" to avoid false alarms.
+- **TUI rendering looks corrupted** — check `~/.cloudcmder/cloudcmder.log`. Debug output is routed there so it can't trash the alt-screen; if anything went sideways the trace is in that file.
+- **Stuck on `loading…` forever** — usually a slow GCP API call. `q` to quit cleanly, then `tail ~/.cloudcmder/cloudcmder.log`.
+- **Start fresh** — `rm ~/.cloudcmder/cloudcmder.db` deletes every stored run; the next `--scan` rebuilds from scratch.
+- **Open the SQLite directly** — `sqlite3 ~/.cloudcmder/cloudcmder.db`. Schema is documented in `architecture.md`.
 
 ## Architecture
 

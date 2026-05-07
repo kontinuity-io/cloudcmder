@@ -101,7 +101,7 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | Key | Action |
 |---|---|
 | `Enter` | On a kind row: open that kind's resource list in the left pane. On a resource row: zoom Detail to full width. |
-| `Esc` | Unzoom Detail; or go back one screen |
+| `Esc` | Unzoom Detail; or walk back through left-pane history. No-op at the root pane — `q` is the only way out of the Frame. |
 | `Tab` | Cycle focus between the list (left) and detail (right) panes |
 | `q` | Quit |
 | `?` | Toggle contextual help |
@@ -110,7 +110,7 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | `g` | Open the ASCII connection-graph view for the focused resource |
 | `H` | Run history modal — pick a different run for this scope |
 | `e` | Export current run to Excel — lands in `~/.cloudcmder/exports/<scope>-<short-uuid>.xlsx` |
-| `R` | Start a new scan from inside the TUI *(M8 — use `--scan` from CLI for now)* |
+| `R` | Start a new scan from inside the TUI *(deferred to v1.1 — use `--scan` from CLI for now)* |
 
 ## CLI flags
 

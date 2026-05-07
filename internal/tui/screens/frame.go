@@ -32,6 +32,13 @@ type Frame struct {
 	left  LeftPane
 	right *Detail // nil when no resource is selected
 
+	// leftHistory is the stack of previous left panes — one entry pushed
+	// every time the user swaps the left pane via Enter on Overview or via
+	// the cmdbar `:alias` palette. Esc pops one entry and restores it,
+	// giving k9s-style "back through context" navigation. The Frame itself
+	// is only popped (returning to ScopeList) once leftHistory is empty.
+	leftHistory []LeftPane
+
 	// rightFor remembers which Resource the current right-pane Detail was
 	// built for. Used to debounce re-creation: if the left-pane cursor
 	// hasn't moved off this ref, don't rebuild Detail.
@@ -87,6 +94,7 @@ func (f *Frame) Init() tea.Cmd {
 func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	switch m := msg.(type) {
 	case core.SwapLeftPaneMsg:
+		f.leftHistory = append(f.leftHistory, f.left)
 		f.left = NewResourceList(f.ctx, f.st, f.run, m.Kind)
 		f.zoomed = false
 		f.right = nil
@@ -95,6 +103,7 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	case core.SwitchRunMsg:
 		f.run = m.Run
 		f.left = NewOverview(f.ctx, f.st, f.run.ScopeID, f.run.UUID)
+		f.leftHistory = nil // a new run resets the navigation stack
 		f.right = nil
 		f.rightFor = ""
 		f.zoomed = false
@@ -129,6 +138,17 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		case key.Matches(k, f.escKey):
 			if f.zoomed {
 				f.zoomed = false
+				return f, nil
+			}
+			if len(f.leftHistory) > 0 {
+				// Pop one step in the left-pane history — restore the
+				// previous pane without re-initialising it (its load is
+				// already done from the first time we built it).
+				idx := len(f.leftHistory) - 1
+				f.left = f.leftHistory[idx]
+				f.leftHistory = f.leftHistory[:idx]
+				f.right = nil
+				f.rightFor = ""
 				return f, nil
 			}
 			return f, core.PopScreenCmd()
@@ -182,7 +202,9 @@ func (f *Frame) handleEnter() tea.Cmd {
 		return nil
 	}
 	if k := f.left.SelectedKind(); k != nil {
-		// Overview-style pane: swap the left pane to the kind's ResourceList.
+		// Overview-style pane: push current onto history, swap the left
+		// pane to the kind's ResourceList. Esc later pops back.
+		f.leftHistory = append(f.leftHistory, f.left)
 		f.left = NewResourceList(f.ctx, f.st, f.run, *k)
 		f.right = nil
 		f.rightFor = ""
@@ -315,6 +337,10 @@ func (f *Frame) footerView() string {
 	if f.focus == focusRight {
 		focusStr = "right"
 	}
+	escHint := "esc=exit"
+	if len(f.leftHistory) > 0 {
+		escHint = "esc=back"
+	}
 	hints := []string{
 		"focus: " + focusStr,
 		"tab=swap",
@@ -322,6 +348,7 @@ func (f *Frame) footerView() string {
 		":alias=jump",
 		"H=runs",
 		"g=graph",
+		escHint,
 	}
 	return style.Dim.Render(strings.Join(hints, " · "))
 }

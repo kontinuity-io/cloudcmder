@@ -13,8 +13,8 @@ var (
 	ColorHealthy = lipgloss.Color("#00d4aa")
 	ColorWarning = lipgloss.Color("#f5a623")
 	ColorError   = lipgloss.Color("#e74c3c")
-	ColorUnknown = lipgloss.Color("#888888")
-	ColorDim     = lipgloss.Color("#555555")
+	ColorUnknown = lipgloss.Color("#a0a4b0")
+	ColorDim     = lipgloss.Color("#9aa0b0")
 	ColorAccent  = lipgloss.Color("#7aa2f7")
 )
 

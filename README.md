@@ -70,6 +70,14 @@ curl -Lo cloudcmder https://github.com/kontinuity-io/cloudcmder/releases/latest/
 
 # Power-user: query the SQLite directly.
 sqlite3 ~/.cloudcmder/cloudcmder.db "SELECT kind, COUNT(*) FROM resources GROUP BY kind;"
+
+# Export the most recent run to a multi-tab .xlsx for analysts/auditors.
+./cloudcmder --export ~/Desktop/assessment.xlsx
+
+# Export a specific run by uuid.
+./cloudcmder --export /tmp/old-snapshot.xlsx --run a5f1880b-8225-4ab1-915e-8461f6a21ee8
+# (Inside the TUI, press `e` to export the current run to
+#  ~/.cloudcmder/exports/<scope>-<short-uuid>.xlsx.)
 ```
 
 > **First-run gotcha:** if your project has APIs disabled (e.g. Cloud Functions or GKE never used), the scan logs a warning per kind and skips it. The rest of the scan still completes. To enrich every kind, enable the corresponding API once via the Cloud Console or `gcloud services enable …`.
@@ -99,7 +107,7 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | Swap the left pane to that kind's resource list |
 | `g` | Open the ASCII connection-graph view for the focused resource |
 | `H` | Run history modal — pick a different run for this scope |
-| `e` | Export current run to Excel *(M7)* |
+| `e` | Export current run to Excel — lands in `~/.cloudcmder/exports/<scope>-<short-uuid>.xlsx` |
 | `R` | Start a new scan from inside the TUI *(M8 — use `--scan` from CLI for now)* |
 
 ## CLI flags
@@ -114,10 +122,12 @@ Flags:
   --scan string        headless scan of a project; prints the run uuid on completion
   --list-runs          list every stored run as a table
   --show-run string    print resource counts grouped by kind for the given run uuid
+  --export string      write a multi-tab Excel workbook for a stored run to the given path
+  --run string         run uuid to export (with --export); defaults to the most recent run
   -v, --version        print version
 ```
 
-`--export` (Excel) lands in M7. The interactive TUI is shipped — invoke `cloudcmder` with no flags.
+The interactive TUI is shipped — invoke `cloudcmder` with no flags.
 
 ## Development status
 
@@ -131,7 +141,7 @@ Flags:
 | M5 VM detail + interconnections | ✅ |
 | M6 All resource kinds | ✅ |
 | M6.5 Commander layout (split-pane, live detail) | ✅ |
-| M7 Excel export | 🔲 |
+| M7 Excel export | ✅ |
 | M8 Concurrency + polish | 🔲 |
 | M9 Release v1.0.0 | 🔲 |
 | v1.1 TUI Polish (lazydocker-rich) | 🔲 |

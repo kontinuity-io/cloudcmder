@@ -137,7 +137,13 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		case key.Matches(m, s.keymap.Rescan):
 			return s, core.ToastCmd("use cloudcmder --scan <project-id> from CLI for now (M8 wires this in TUI)")
 		case key.Matches(m, s.keymap.Export):
-			return s, core.ToastCmd("export lands in M7")
+			if len(s.rows) == 0 {
+				return s, nil
+			}
+			cur := s.tbl.Cursor()
+			if cur >= 0 && cur < len(s.rows) {
+				return s, exportRunCmd(s.ctx, s.st, s.rows[cur].LatestRun)
+			}
 		}
 	}
 	var cmd tea.Cmd

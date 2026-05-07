@@ -2,12 +2,15 @@ package screens
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"cloudcmder.com/internal/export"
 	"cloudcmder.com/internal/store"
 	"cloudcmder.com/internal/tui/core"
 	"cloudcmder.com/internal/tui/style"
@@ -55,6 +58,7 @@ type Frame struct {
 	escKey     key.Binding
 	graphKey   key.Binding
 	historyKey key.Binding
+	exportKey  key.Binding
 }
 
 // NewFrame builds a Frame for the given run with Overview as the default
@@ -68,6 +72,7 @@ func NewFrame(ctx context.Context, st *store.Store, run store.RunSummary) *Frame
 		escKey:     key.NewBinding(key.WithKeys("esc")),
 		graphKey:   key.NewBinding(key.WithKeys("g")),
 		historyKey: key.NewBinding(key.WithKeys("H")),
+		exportKey:  key.NewBinding(key.WithKeys("e")),
 	}
 	f.left = NewOverview(ctx, st, run.ScopeID, run.UUID)
 	return f
@@ -161,6 +166,8 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			}
 		case key.Matches(k, f.historyKey):
 			return f, core.PushScreenCmd(NewRunHistory(f.ctx, f.st, f.run.ScopeID))
+		case key.Matches(k, f.exportKey):
+			return f, exportRunCmd(f.ctx, f.st, f.run)
 		}
 	}
 
@@ -328,6 +335,22 @@ func (f *Frame) bodyHeight() int {
 	return h
 }
 
+// exportRunCmd writes the run as an .xlsx to ~/.cloudcmder/exports/<scope>-<short>.xlsx
+// inside a goroutine so the TUI stays responsive. Result lands as a ToastMsg
+// — App's toast handler displays it for 3 seconds.
+func exportRunCmd(ctx context.Context, st *store.Store, run store.RunSummary) tea.Cmd {
+	return func() tea.Msg {
+		out := export.DefaultPath(run)
+		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			return core.ToastMsg{Text: "export failed: " + err.Error()}
+		}
+		if err := export.WriteWorkbook(ctx, st, run, out); err != nil {
+			return core.ToastMsg{Text: "export failed: " + err.Error()}
+		}
+		return core.ToastMsg{Text: "exported to " + out}
+	}
+}
+
 func (f *Frame) borderFor(p PaneFocus) lipgloss.Style {
 	if f.focus == p {
 		return style.BorderActive
@@ -348,6 +371,7 @@ func (f *Frame) footerView() string {
 		":alias=jump",
 		"H=runs",
 		"g=graph",
+		"e=export",
 		"q=quit",
 	}
 	return style.Dim.Render(strings.Join(hints, " · "))

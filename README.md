@@ -56,20 +56,22 @@ cloudcmder [flags]
 Flags:
   --db string          SQLite assessment database path (default ~/.cloudcmder/cloudcmder.db)
   --log-level string   debug, info, warn, error (default info)
-  --scan string        headless scan of a project; prints run uuid on completion
-  --list-runs          list all stored assessment runs
-  --export string      export a run to Excel (.xlsx)
-  --run string         run uuid to export (default: latest)
+  --list-scopes        list every accessible GCP project as JSON and exit
+  --scan string        headless scan of a project; prints the run uuid on completion
+  --list-runs          list every stored run as a table
+  --show-run string    print resource counts grouped by kind for the given run uuid
   -v, --version        print version
 ```
+
+`--export` (Excel) and the interactive TUI land in later milestones.
 
 ## Development status
 
 | Milestone | Status |
 |---|---|
 | M0 Skeleton | ✅ |
-| M1 Inventory types + GCP auth | 🔲 |
-| M2 SQLite store + headless scan | 🔲 |
+| M1 Inventory types + GCP auth | ✅ |
+| M2 SQLite store + headless scan | ✅ |
 | M3 Bubble Tea TUI shell | 🔲 |
 | M4 Overview screen | 🔲 |
 | M5 VM detail + interconnections | 🔲 |

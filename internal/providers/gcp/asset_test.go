@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/asset/apiv1/assetpb"
 	"google.golang.org/api/iterator"
@@ -217,6 +219,52 @@ func (it *fakeIter) Next() (*assetpb.ResourceSearchResult, error) {
 	res := it.c.pages[it.page][it.idx]
 	it.idx++
 	return res, nil
+}
+
+func TestRunEnrichersIsConcurrent(t *testing.T) {
+	// Four fake enrichers, each sleeping 80ms. Sequential = 320ms,
+	// concurrent (cap=4) = ~80ms. Asserting <200ms gives generous slack
+	// for CI scheduler jitter while still failing if the loop went serial.
+	const each = 80 * time.Millisecond
+	enrichers := []kindEnricher{
+		{kind: inventory.Kind("FakeA"), fn: sleeper(each)},
+		{kind: inventory.Kind("FakeB"), fn: sleeper(each)},
+		{kind: inventory.Kind("FakeC"), fn: sleeper(each)},
+		{kind: inventory.Kind("FakeD"), fn: sleeper(each)},
+	}
+	ch := make(chan inventory.ResourceOrErr, 16)
+	start := time.Now()
+	runEnrichersWith(context.Background(), nil, inventory.Scope{ID: "p1"}, nil, ch, enrichers)
+	elapsed := time.Since(start)
+	if elapsed > 200*time.Millisecond {
+		t.Errorf("runEnrichers ran serially (%v); expected concurrent (<200ms)", elapsed)
+	}
+}
+
+func TestRunEnrichersWithKindFilter(t *testing.T) {
+	var ran int32
+	enrichers := []kindEnricher{
+		{kind: inventory.Kind("FakeA"), fn: counter(&ran)},
+		{kind: inventory.Kind("FakeB"), fn: counter(&ran)},
+	}
+	ch := make(chan inventory.ResourceOrErr, 8)
+	runEnrichersWith(context.Background(), nil, inventory.Scope{ID: "p1"},
+		[]inventory.Kind{inventory.Kind("FakeA")}, ch, enrichers)
+	if got := atomic.LoadInt32(&ran); got != 1 {
+		t.Errorf("ran = %d, want 1 (kind filter should skip FakeB)", got)
+	}
+}
+
+func sleeper(d time.Duration) func(context.Context, *GCPProvider, inventory.Scope, chan<- inventory.ResourceOrErr) {
+	return func(_ context.Context, _ *GCPProvider, _ inventory.Scope, _ chan<- inventory.ResourceOrErr) {
+		time.Sleep(d)
+	}
+}
+
+func counter(c *int32) func(context.Context, *GCPProvider, inventory.Scope, chan<- inventory.ResourceOrErr) {
+	return func(_ context.Context, _ *GCPProvider, _ inventory.Scope, _ chan<- inventory.ResourceOrErr) {
+		atomic.AddInt32(c, 1)
+	}
 }
 
 // newProviderWithFakeAsset returns a GCPProvider whose asset client is the

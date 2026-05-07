@@ -15,6 +15,12 @@ import (
 	"cloudcmder.com/internal/inventory"
 )
 
+// enrichConcurrency caps how many per-kind enrichers run in parallel during
+// Phase 2 of a scan. Architecture.md §"Concurrency model" line 444–456
+// specifies up to 4. A const (rather than a CLI flag) keeps the surface
+// minimal for v1.0; promote to a flag if quota tuning becomes a real ask.
+const enrichConcurrency = 4
+
 // assetTypeToKind maps GCP asset type strings to cloudcmder Kinds, per
 // architecture.md §"Discovery (asset.go)". Both Cloud Run Services and Cloud
 // Functions normalize to KindFunction; GCP uses the same backend for both.
@@ -134,16 +140,48 @@ var allEnrichers = []kindEnricher{
 	{inventory.KindFunction, enrichFunctions},
 }
 
+// runEnrichers is the production entry point — fans Phase 2 across the
+// global allEnrichers slice with the architecture-mandated cap.
 func runEnrichers(ctx context.Context, p *GCPProvider, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr) {
-	for _, e := range allEnrichers {
+	runEnrichersWith(ctx, p, scope, kinds, ch, allEnrichers)
+}
+
+// runEnrichersWith fans the per-kind enrichment phase out across up to
+// enrichConcurrency goroutines. The semaphore (`sem`) bounds in-flight work;
+// the WaitGroup ensures every spawned goroutine completes before this call
+// returns, so the outer ListResources goroutine's `defer close(ch)` only
+// fires after every enricher has stopped writing — preventing send-on-
+// closed-channel panics. Exposed (lower-case but referenced by asset_test.go
+// in the same package) so tests can substitute a synthetic enricher slice
+// for parallelism / cancellation assertions.
+func runEnrichersWith(ctx context.Context, p *GCPProvider, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr, enrichers []kindEnricher) {
+	sem := make(chan struct{}, enrichConcurrency)
+	var wg sync.WaitGroup
+
+	for _, e := range enrichers {
 		if ctx.Err() != nil {
-			return
+			break
 		}
 		if !wantsKind(kinds, e.kind) {
 			continue
 		}
-		e.fn(ctx, p, scope, ch)
+		// Acquire a slot before spawning so the loop itself is bounded.
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			break
+		}
+		wg.Add(1)
+		go func(e kindEnricher) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			if ctx.Err() != nil {
+				return
+			}
+			e.fn(ctx, p, scope, ch)
+		}(e)
 	}
+	wg.Wait()
 }
 
 // streamAssetStubs runs Phase 1 — the Cloud Asset Inventory listing — and

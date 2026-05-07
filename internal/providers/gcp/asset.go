@@ -128,6 +128,8 @@ var allEnrichers = []kindEnricher{
 	{inventory.KindSubnet, enrichSubnets},
 	{inventory.KindFirewall, enrichFirewalls},
 	{inventory.KindLoadBalancer, enrichLoadBalancers},
+	{inventory.KindDatabase, enrichDatabases},
+	{inventory.KindCluster, enrichClusters},
 }
 
 func runEnrichers(ctx context.Context, p *GCPProvider, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr) {

@@ -259,6 +259,12 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	p.rfwd.factory = func(_ context.Context, _ ...option.ClientOption) (forwardingRulesAPI, error) {
 		return &fakeForwardingRulesClient{}, nil
 	}
+	p.sql.factory = func(_ context.Context, _ ...option.ClientOption) (sqlAPI, error) {
+		return &fakeSQLClient{}, nil
+	}
+	p.gke.factory = func(_ context.Context, _ ...option.ClientOption) (gkeAPI, error) {
+		return &fakeGKEClient{}, nil
+	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p
 }

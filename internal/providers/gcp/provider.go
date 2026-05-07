@@ -30,6 +30,8 @@ type GCPProvider struct {
 	firewalls firewallsClientState
 	gfwd      globalForwardingRulesClientState
 	rfwd      forwardingRulesClientState
+	sql       sqlClientState
+	gke       gkeClientState
 }
 
 // New constructs a GCPProvider using Application Default Credentials.
@@ -74,6 +76,8 @@ func (p *GCPProvider) Close() error {
 		p.closeFirewallsClient,
 		p.closeGlobalForwardingRulesClient,
 		p.closeForwardingRulesClient,
+		p.closeSQLClient,
+		p.closeGKEClient,
 	} {
 		if err := closer(); err != nil {
 			errs = append(errs, err)

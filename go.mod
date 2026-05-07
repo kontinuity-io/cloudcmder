@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	cloud.google.com/go/asset v1.26.0
 	cloud.google.com/go/compute v1.61.0
+	cloud.google.com/go/container v1.50.0
 	cloud.google.com/go/resourcemanager v1.14.0
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10

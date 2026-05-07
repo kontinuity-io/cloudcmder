@@ -77,7 +77,7 @@ Flags:
 | M3 Bubble Tea TUI shell | ✅ |
 | M4 Overview screen | ✅ |
 | M5 VM detail + interconnections | ✅ |
-| M6 All resource kinds | 🔲 |
+| M6 All resource kinds | ✅ |
 | M7 Excel export | 🔲 |
 | M8 Concurrency + polish | 🔲 |
 | M9 Release v1.0.0 | 🔲 |

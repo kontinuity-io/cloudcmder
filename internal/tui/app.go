@@ -76,8 +76,22 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.help.Width(m.Width)
 		// fall through so screens see the resize too
 	case core.PushScreenMsg:
-		a.stack = append(a.stack, m.Screen)
-		return a, m.Screen.Init()
+		// Newly pushed screens don't get a WindowSizeMsg from Bubble Tea
+		// automatically — the runtime only emits one on init/resize for the
+		// program-root model. Without this synthesis, every pushed screen
+		// renders at width=0 until the user resizes the terminal, which
+		// makes width-aware layouts (Frame's split-pane mode) collapse to
+		// their narrow fallback.
+		s := m.Screen
+		initCmd := s.Init()
+		var sizeCmd tea.Cmd
+		if a.width > 0 && a.height > 0 {
+			updated, c := s.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+			s = updated
+			sizeCmd = c
+		}
+		a.stack = append(a.stack, s)
+		return a, tea.Batch(initCmd, sizeCmd)
 	case core.PopScreenMsg:
 		if len(a.stack) <= 1 {
 			return a, tea.Quit

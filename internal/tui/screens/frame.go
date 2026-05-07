@@ -250,25 +250,57 @@ func (f *Frame) headerView() string {
 }
 
 func (f *Frame) bodyView() string {
+	bodyH := f.bodyHeight()
 	if f.zoomed && f.right != nil {
-		return style.BorderActive.Render(f.right.View())
+		w := f.width
+		if w < 4 {
+			w = 80
+		}
+		return style.BorderActive.Width(w - 2).Height(bodyH - 2).Render(f.right.View())
 	}
-	leftBox := f.borderFor(focusLeft).Render(f.left.View())
-	var rightBox string
-	if f.right == nil {
-		rightBox = style.BorderInactive.Render(
-			style.Dim.Render("\n  (move cursor onto a resource row to see details)\n"))
+
+	// Empty-state placeholder for the right pane.
+	rightBody := f.right // capture
+	rightContent := ""
+	if rightBody == nil {
+		rightContent = style.Dim.Render("  move cursor onto a resource row\n  to see details here")
 	} else {
-		rightBox = f.borderFor(focusRight).Render(f.right.View())
+		rightContent = rightBody.View()
 	}
-	// Side-by-side at ≥100 cols; stacked vertically below that so CloudShell
-	// at 80 cols still shows both panes without horizontal overflow. The
-	// list table may be wider than its half of the screen at 100–119 cols —
-	// the bordered box clips columns rather than wrapping awkwardly.
+
 	if f.width >= 100 {
+		// Side-by-side, explicit 60/40 split with fixed heights so cursor
+		// moves don't reflow the whole screen.
+		inner := f.width - 1 // account for the 1-char separator
+		leftW := inner * 60 / 100
+		rightW := inner - leftW
+		leftBox := f.borderFor(focusLeft).
+			Width(leftW - 2).Height(bodyH - 2).
+			Render(f.left.View())
+		rightBox := f.borderFor(focusRight).
+			Width(rightW - 2).Height(bodyH - 2).
+			Render(rightContent)
 		return lipgloss.JoinHorizontal(lipgloss.Top, leftBox, " ", rightBox)
 	}
+	// Narrow: stacked top/bottom, each gets ~half the body height.
+	half := (bodyH - 1) / 2
+	leftBox := f.borderFor(focusLeft).
+		Width(f.width - 2).Height(half - 2).
+		Render(f.left.View())
+	rightBox := f.borderFor(focusRight).
+		Width(f.width - 2).Height(bodyH - half - 2).
+		Render(rightContent)
 	return lipgloss.JoinVertical(lipgloss.Left, leftBox, rightBox)
+}
+
+// bodyHeight is the vertical room available for the two-pane body — the
+// total terminal height minus the header (1 line) and the two footer lines.
+func (f *Frame) bodyHeight() int {
+	h := f.height - 3
+	if h < 8 {
+		h = 8
+	}
+	return h
 }
 
 func (f *Frame) borderFor(p PaneFocus) lipgloss.Style {

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -28,6 +29,7 @@ type Detail struct {
 	res    inventory.Resource
 	detail any
 
+	spin   spinner.Model
 	width  int
 	height int
 
@@ -42,8 +44,10 @@ type Detail struct {
 // caller passes the already-decoded kind-specific Detail (avoids re-decoding
 // the json.RawMessage that LoadResources hands back).
 func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res inventory.Resource, detail any) *Detail {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
 	return &Detail{
-		ctx: ctx, st: st, run: run, res: res, detail: detail,
+		ctx: ctx, st: st, run: run, res: res, detail: detail, spin: s,
 		graphKey: key.NewBinding(key.WithKeys("g")),
 	}
 }
@@ -51,13 +55,14 @@ func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res i
 // Title satisfies core.Screen.
 func (d *Detail) Title() string { return d.res.Name }
 
-// Init loads edges from the store; the resource and its detail are already in
-// hand from the parent ResourceList.
+// Init loads edges from the store and kicks the spinner so the right pane
+// shows visible feedback during the (~10ms) query.
 func (d *Detail) Init() tea.Cmd {
-	return func() tea.Msg {
+	load := func() tea.Msg {
 		es, err := d.st.LoadEdges(d.ctx, d.run.ID)
 		return edgesLoadedMsg{edges: es, err: err}
 	}
+	return tea.Batch(load, d.spin.Tick)
 }
 
 // Update handles load completion, resize, and the `g` (GraphView) push.
@@ -71,6 +76,13 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		d.width = m.Width
 		d.height = m.Height
+		return d, nil
+	case spinner.TickMsg:
+		if !d.loaded {
+			var cmd tea.Cmd
+			d.spin, cmd = d.spin.Update(msg)
+			return d, cmd
+		}
 		return d, nil
 	case tea.KeyMsg:
 		if key.Matches(m, d.graphKey) {
@@ -89,7 +101,7 @@ func (d *Detail) CurrentRun() *store.RunSummary { return &d.run }
 // surrounding border and layout.
 func (d *Detail) View() string {
 	if !d.loaded {
-		return style.Dim.Render("loading detail…")
+		return d.spin.View() + style.Dim.Render(" loading detail…")
 	}
 	if d.loadErr != nil {
 		return lipgloss.NewStyle().Foreground(style.ColorError).

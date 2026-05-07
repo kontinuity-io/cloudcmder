@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -38,6 +39,7 @@ type Overview struct {
 	runUUID string
 
 	tbl    table.Model
+	spin   spinner.Model
 	width  int
 	height int
 
@@ -57,8 +59,10 @@ func NewOverview(ctx context.Context, st *store.Store, scopeID, runUUID string) 
 		table.WithFocused(true),
 		table.WithHeight(10),
 	)
+	s := spinner.New()
+	s.Spinner = spinner.Dot
 	return &Overview{
-		ctx: ctx, st: st, scopeID: scopeID, runUUID: runUUID, tbl: tbl,
+		ctx: ctx, st: st, scopeID: scopeID, runUUID: runUUID, tbl: tbl, spin: s,
 	}
 }
 
@@ -84,9 +88,10 @@ func (o *Overview) SelectedKind() *inventory.Kind {
 	return &k
 }
 
-// Init loads run metadata + counts in a single goroutine round trip.
+// Init loads run metadata + counts in a single goroutine round trip and
+// also kicks the spinner so the pane shows visible progress while loading.
 func (o *Overview) Init() tea.Cmd {
-	return func() tea.Msg {
+	load := func() tea.Msg {
 		run, err := o.st.FindRunByUUID(o.ctx, o.runUUID)
 		if err != nil {
 			return overviewLoadedMsg{err: err}
@@ -100,6 +105,7 @@ func (o *Overview) Init() tea.Cmd {
 		}
 		return overviewLoadedMsg{run: run, counts: sortKindCounts(counts)}
 	}
+	return tea.Batch(load, o.spin.Tick)
 }
 
 // Update handles load completion, resize, and table cursor moves. Frame
@@ -118,6 +124,13 @@ func (o *Overview) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 		o.height = m.Height
 		o.tbl.SetHeight(max(5, m.Height-12))
 		return o, nil
+	case spinner.TickMsg:
+		if !o.loaded {
+			var cmd tea.Cmd
+			o.spin, cmd = o.spin.Update(msg)
+			return o, cmd
+		}
+		return o, nil
 	}
 	var cmd tea.Cmd
 	o.tbl, cmd = o.tbl.Update(msg)
@@ -129,7 +142,7 @@ func (o *Overview) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 func (o *Overview) View() string {
 	switch {
 	case !o.loaded:
-		return style.Dim.Render("loading overview…")
+		return o.spin.View() + style.Dim.Render(" loading overview…")
 	case o.loadErr != nil:
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading overview: " + o.loadErr.Error())

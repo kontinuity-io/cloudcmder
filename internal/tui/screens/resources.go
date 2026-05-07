@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -43,6 +44,7 @@ type ResourceList struct {
 	kind    inventory.Kind
 	cols    []ColumnDef
 	tbl     table.Model
+	spin    spinner.Model
 	rows    []rowData
 	visible []rowData
 	loaded  bool
@@ -74,8 +76,11 @@ func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary,
 	in.CharLimit = 64
 	in.Width = 32
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+
 	return &ResourceList{
-		ctx: ctx, st: st, run: run, kind: kind, cols: cols, tbl: tbl,
+		ctx: ctx, st: st, run: run, kind: kind, cols: cols, tbl: tbl, spin: s,
 		filterIn:   in,
 		regexCache: map[string]*regexp.Regexp{},
 		keymap: resourcesKeymap{
@@ -107,9 +112,9 @@ func (s *ResourceList) SelectedResource() *rowData {
 // SelectedKind is nil — ResourceList's selection is a Resource, not a Kind.
 func (s *ResourceList) SelectedKind() *inventory.Kind { return nil }
 
-// Init loads the kind-filtered resource set.
+// Init loads the kind-filtered resource set and kicks the spinner.
 func (s *ResourceList) Init() tea.Cmd {
-	return func() tea.Msg {
+	load := func() tea.Msg {
 		res, err := s.st.LoadResources(s.ctx, s.run.ID, s.kind)
 		if err != nil {
 			return resourcesLoadedMsg{err: err}
@@ -121,6 +126,7 @@ func (s *ResourceList) Init() tea.Cmd {
 		}
 		return resourcesLoadedMsg{rows: out}
 	}
+	return tea.Batch(load, s.spin.Tick)
 }
 
 // Update routes messages either to the filter input (when open) or the table.
@@ -140,6 +146,13 @@ func (s *ResourceList) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		s.height = m.Height
 		s.tbl.SetHeight(tableHeight(len(s.visible), m.Height))
+		return s, nil
+	case spinner.TickMsg:
+		if !s.loaded {
+			var cmd tea.Cmd
+			s.spin, cmd = s.spin.Update(msg)
+			return s, cmd
+		}
 		return s, nil
 	}
 
@@ -243,7 +256,7 @@ func (s *ResourceList) toTableRows(in []rowData) []table.Row {
 func (s *ResourceList) View() string {
 	switch {
 	case !s.loaded:
-		return style.Dim.Render("loading resources…")
+		return s.spin.View() + style.Dim.Render(" loading "+string(s.kind)+"s…")
 	case s.loadErr != nil:
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading resources: " + s.loadErr.Error())

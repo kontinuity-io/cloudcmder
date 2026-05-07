@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -39,6 +40,7 @@ type Scopes struct {
 	ctx     context.Context
 	st      *store.Store
 	tbl     table.Model
+	spin    spinner.Model
 	rows    []ScopeSummary
 	loaded  bool
 	loadErr error
@@ -66,8 +68,10 @@ func NewScopes(ctx context.Context, st *store.Store) *Scopes {
 		table.WithFocused(true),
 		table.WithHeight(15),
 	)
+	s := spinner.New()
+	s.Spinner = spinner.Dot
 	return &Scopes{
-		ctx: ctx, st: st, tbl: tbl,
+		ctx: ctx, st: st, tbl: tbl, spin: s,
 		keymap: scopesKeymap{
 			Open:    key.NewBinding(key.WithKeys("enter")),
 			History: key.NewBinding(key.WithKeys("H")),
@@ -80,8 +84,10 @@ func NewScopes(ctx context.Context, st *store.Store) *Scopes {
 // Title satisfies the tui.Screen contract.
 func (s *Scopes) Title() string { return "Scopes" }
 
-// Init triggers the initial store query.
-func (s *Scopes) Init() tea.Cmd { return s.loadCmd() }
+// Init triggers the initial store query and kicks the spinner.
+func (s *Scopes) Init() tea.Cmd {
+	return tea.Batch(s.loadCmd(), s.spin.Tick)
+}
 
 func (s *Scopes) loadCmd() tea.Cmd {
 	return func() tea.Msg {
@@ -113,6 +119,13 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		s.width, s.height = m.Width, m.Height
 		s.tbl.SetHeight(tableHeight(len(s.rows), m.Height))
+		return s, nil
+	case spinner.TickMsg:
+		if !s.loaded {
+			var cmd tea.Cmd
+			s.spin, cmd = s.spin.Update(msg)
+			return s, cmd
+		}
 		return s, nil
 	case tea.KeyMsg:
 		switch {
@@ -155,7 +168,7 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 func (s *Scopes) View() string {
 	switch {
 	case !s.loaded:
-		return style.Dim.Render("loading scopes…")
+		return s.spin.View() + style.Dim.Render(" loading scopes…")
 	case s.loadErr != nil:
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading scopes: " + s.loadErr.Error())

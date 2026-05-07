@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -25,6 +26,7 @@ type RunHistory struct {
 	st      *store.Store
 	scopeID string
 	tbl     table.Model
+	spin    spinner.Model
 	rows    []store.RunSummary
 	loaded  bool
 	loadErr error
@@ -45,8 +47,10 @@ func NewRunHistory(ctx context.Context, st *store.Store, scopeID string) *RunHis
 		table.WithFocused(true),
 		table.WithHeight(15),
 	)
+	s := spinner.New()
+	s.Spinner = spinner.Dot
 	return &RunHistory{
-		ctx: ctx, st: st, scopeID: scopeID, tbl: tbl,
+		ctx: ctx, st: st, scopeID: scopeID, tbl: tbl, spin: s,
 		open: key.NewBinding(key.WithKeys("enter")),
 	}
 }
@@ -54,9 +58,9 @@ func NewRunHistory(ctx context.Context, st *store.Store, scopeID string) *RunHis
 // Title returns the breadcrumb label.
 func (r *RunHistory) Title() string { return "RunHistory: " + r.scopeID }
 
-// Init kicks off the store query.
+// Init kicks off the store query and the spinner.
 func (r *RunHistory) Init() tea.Cmd {
-	return func() tea.Msg {
+	load := func() tea.Msg {
 		runs, err := r.st.ListRuns(r.ctx)
 		if err != nil {
 			return runsLoadedMsg{err: err}
@@ -69,6 +73,7 @@ func (r *RunHistory) Init() tea.Cmd {
 		}
 		return runsLoadedMsg{rows: filtered}
 	}
+	return tea.Batch(load, r.spin.Tick)
 }
 
 // Update handles load completion, resize, and enter to open a run.
@@ -86,6 +91,13 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		r.height = m.Height
 		r.tbl.SetHeight(tableHeight(len(r.rows), m.Height))
+		return r, nil
+	case spinner.TickMsg:
+		if !r.loaded {
+			var cmd tea.Cmd
+			r.spin, cmd = r.spin.Update(msg)
+			return r, cmd
+		}
 		return r, nil
 	case tea.KeyMsg:
 		if m.String() == "esc" {
@@ -117,7 +129,7 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 func (r *RunHistory) View() string {
 	switch {
 	case !r.loaded:
-		return style.Dim.Render("loading runs…")
+		return r.spin.View() + style.Dim.Render(" loading runs…")
 	case r.loadErr != nil:
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading runs: " + r.loadErr.Error())

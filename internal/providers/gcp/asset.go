@@ -106,14 +106,40 @@ func (p *GCPProvider) ListResources(ctx context.Context, scope inventory.Scope, 
 	go func() {
 		defer close(ch)
 		streamAssetStubs(ctx, cli, scope, kinds, ch)
+		runEnrichers(ctx, p, scope, kinds, ch)
+	}()
+	return ch, nil
+}
+
+// kindEnricher pairs a Kind with the function that emits enriched Resources
+// for it. The enrichers run sequentially in order; concurrent fan-out is M8
+// polish per architecture.md.
+type kindEnricher struct {
+	kind inventory.Kind
+	fn   func(ctx context.Context, p *GCPProvider, scope inventory.Scope, ch chan<- inventory.ResourceOrErr)
+}
+
+// allEnrichers is the registered list of Phase 2 enrichers. M6 commits add to
+// this slice; nothing else should need to change to wire a new kind.
+var allEnrichers = []kindEnricher{
+	{inventory.KindVM, enrichVMs},
+	{inventory.KindDisk, enrichDisks},
+	{inventory.KindNetwork, enrichNetworks},
+	{inventory.KindSubnet, enrichSubnets},
+	{inventory.KindFirewall, enrichFirewalls},
+	{inventory.KindLoadBalancer, enrichLoadBalancers},
+}
+
+func runEnrichers(ctx context.Context, p *GCPProvider, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr) {
+	for _, e := range allEnrichers {
 		if ctx.Err() != nil {
 			return
 		}
-		if wantsKind(kinds, inventory.KindVM) {
-			enrichVMs(ctx, p, scope, ch)
+		if !wantsKind(kinds, e.kind) {
+			continue
 		}
-	}()
-	return ch, nil
+		e.fn(ctx, p, scope, ch)
+	}
 }
 
 // streamAssetStubs runs Phase 1 — the Cloud Asset Inventory listing — and

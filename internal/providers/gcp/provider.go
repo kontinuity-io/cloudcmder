@@ -20,6 +20,16 @@ type GCPProvider struct {
 	projects *resourcemanager.ProjectsClient
 	assetState
 	computeState
+
+	// M6 lazy clients — one named field per kind family (no embedding to
+	// avoid name collisions across the per-client (once, cli, err, factory)
+	// quartets).
+	disks     disksClientState
+	networks  networksClientState
+	subnets   subnetsClientState
+	firewalls firewallsClientState
+	gfwd      globalForwardingRulesClientState
+	rfwd      forwardingRulesClientState
 }
 
 // New constructs a GCPProvider using Application Default Credentials.
@@ -56,6 +66,18 @@ func (p *GCPProvider) Close() error {
 	}
 	if err := p.closeMachineTypesClient(); err != nil {
 		errs = append(errs, err)
+	}
+	for _, closer := range []func() error{
+		p.closeDisksClient,
+		p.closeNetworksClient,
+		p.closeSubnetsClient,
+		p.closeFirewallsClient,
+		p.closeGlobalForwardingRulesClient,
+		p.closeForwardingRulesClient,
+	} {
+		if err := closer(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	return errors.Join(errs...)
 }

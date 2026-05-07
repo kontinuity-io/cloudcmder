@@ -239,6 +239,26 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	p.instancesFact = func(_ context.Context, _ ...option.ClientOption) (instancesAPI, error) {
 		return &fakeInstancesClient{}, nil
 	}
+	// Stub every M6 compute client too so Phase 2 enrichers find no work
+	// without trying to reach the real API.
+	p.disks.factory = func(_ context.Context, _ ...option.ClientOption) (disksAPI, error) {
+		return &fakeDisksClient{}, nil
+	}
+	p.networks.factory = func(_ context.Context, _ ...option.ClientOption) (networksAPI, error) {
+		return &fakeNetworksClient{}, nil
+	}
+	p.subnets.factory = func(_ context.Context, _ ...option.ClientOption) (subnetsAPI, error) {
+		return &fakeSubnetsClient{}, nil
+	}
+	p.firewalls.factory = func(_ context.Context, _ ...option.ClientOption) (firewallsAPI, error) {
+		return &fakeFirewallsClient{}, nil
+	}
+	p.gfwd.factory = func(_ context.Context, _ ...option.ClientOption) (globalForwardingRulesAPI, error) {
+		return &fakeGlobalForwardingRulesClient{}, nil
+	}
+	p.rfwd.factory = func(_ context.Context, _ ...option.ClientOption) (forwardingRulesAPI, error) {
+		return &fakeForwardingRulesClient{}, nil
+	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p
 }

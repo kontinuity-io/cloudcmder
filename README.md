@@ -29,26 +29,26 @@ Assign these roles to the account you use with `gcloud auth application-default 
 
 | Role | Purpose |
 |---|---|
-| `roles/viewer` | List most resource types |
+| `roles/viewer` | Read most resource types (compute, sql, gke, run, cloud functions, storage list) |
 | `roles/cloudasset.viewer` | Cloud Asset Inventory discovery |
+| `roles/storage.legacyBucketReader` *(optional)* | Accurate `PublicAccess` on Cloud Storage buckets — without it, the IAM check is skipped and buckets default to `PublicAccess=false` |
 
-> Read-only. cloudcmder never modifies resources.
+> Read-only. cloudcmder never modifies resources. Per-API enablement on the target project is also required (Compute, Cloud SQL Admin, Container, Cloud Run, Cloud Functions, GCS); a disabled API is logged as a warning and that kind is skipped — the rest of the scan still completes.
 
 ## Keybindings
-
-Active in the TUI today (M3): `Esc`, `q`, `?`, `/`, `:`, `H`. Others land in the milestone noted.
 
 | Key | Action |
 |---|---|
 | `Enter` | Drill into selected item |
 | `Esc` | Go back |
 | `q` | Quit |
-| `?` | Show contextual help |
-| `/` | Filter list by regex |
-| `:vm` `:disk` `:db` `:lb` `:net` `:bucket` `:gke` `:fn` | Jump to resource type *(M4+)* |
+| `?` | Toggle contextual help |
+| `/` | Filter list by regex (case-insensitive; substring fallback if invalid) |
+| `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | Jump to a resource list (requires a current run in scope) |
+| `g` | Open ASCII connection-graph view *(on Detail screen)* |
+| `H` | Run history for the current scope |
 | `e` | Export current run to Excel *(M7)* |
-| `H` | Run history for current scope |
-| `R` | Start a new scan of the current project *(M8)* |
+| `R` | Start a new scan from inside the TUI *(M8 — use `--scan` from CLI for now)* |
 
 ## CLI flags
 
@@ -65,7 +65,7 @@ Flags:
   -v, --version        print version
 ```
 
-`--export` (Excel) and the interactive TUI land in later milestones.
+`--export` (Excel) lands in M7. The interactive TUI is shipped — invoke `cloudcmder` with no flags.
 
 ## Development status
 

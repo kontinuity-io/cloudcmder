@@ -12,6 +12,7 @@ import (
 	"cloudcmder.com/internal/tui/components"
 	"cloudcmder.com/internal/tui/core"
 	"cloudcmder.com/internal/tui/screens"
+	"cloudcmder.com/internal/tui/style"
 	"cloudcmder.com/internal/version"
 )
 
@@ -46,7 +47,7 @@ func newApp(ctx context.Context, st *store.Store) App {
 		ctx:     ctx,
 		st:      st,
 		keymap:  DefaultKeymap(),
-		cmdbar:  components.NewCmdbar(StyleAccent, StyleDim),
+		cmdbar:  components.NewCmdbar(style.Accent, style.Dim),
 		help:    components.NewHelp(),
 		version: version.String(),
 	}
@@ -124,7 +125,7 @@ func (a App) View() string {
 	for i, s := range a.stack {
 		titles[i] = s.Title()
 	}
-	crumbs := components.Render(titles, a.width, StyleDim, StyleAccent)
+	crumbs := components.Render(titles, a.width, style.Dim, style.Accent)
 	body := a.stack[len(a.stack)-1].View()
 
 	footer := ""
@@ -134,9 +135,9 @@ func (a App) View() string {
 	case a.helpOn:
 		footer = a.help.View(a.keymap)
 	case a.toast != "":
-		footer = StyleToast.Render(a.toast)
+		footer = style.Toast.Render(a.toast)
 	default:
-		footer = StyleDim.Render("? help · q quit · " + a.version)
+		footer = style.Dim.Render("? help · q quit · " + a.version)
 	}
 
 	return strings.Join([]string{crumbs, body, footer}, "\n")

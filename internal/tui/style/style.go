@@ -1,7 +1,7 @@
-// Package tui hosts the Bubble Tea screen stack and reusable components.
-// All colour and border choices route through this file so a future re-skin
-// is a single-file change.
-package tui
+// Package style holds the lipgloss colour tokens, borders, and helpers used
+// across the TUI. Lives as a leaf package so both internal/tui (App) and
+// internal/tui/screens can import it without creating a cycle.
+package style
 
 import (
 	"strings"
@@ -27,15 +27,15 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorDim)
 
-	StyleDim    = lipgloss.NewStyle().Foreground(ColorDim)
-	StyleAccent = lipgloss.NewStyle().Foreground(ColorAccent)
-	StyleToast  = lipgloss.NewStyle().Foreground(ColorWarning).Bold(true)
+	Dim    = lipgloss.NewStyle().Foreground(ColorDim)
+	Accent = lipgloss.NewStyle().Foreground(ColorAccent)
+	Toast  = lipgloss.NewStyle().Foreground(ColorWarning).Bold(true)
 )
 
-// StatusStyle maps a run/resource status string to a coloured style. Inputs
-// are normalised to upper-case before matching so callers don't need to care
-// whether the provider returned "ok" or "OK" or "Running".
-func StatusStyle(status string) lipgloss.Style {
+// Status maps a run/resource status string to a coloured style. Inputs are
+// upper-cased before matching so callers don't need to care whether the
+// provider returned "ok" or "OK" or "Running".
+func Status(status string) lipgloss.Style {
 	switch strings.ToUpper(status) {
 	case "OK", "ACTIVE", "RUNNING", "READY":
 		return lipgloss.NewStyle().Foreground(ColorHealthy)
@@ -46,4 +46,13 @@ func StatusStyle(status string) lipgloss.Style {
 	default:
 		return lipgloss.NewStyle().Foreground(ColorUnknown)
 	}
+}
+
+// Separator returns a dim horizontal rule of the given width — used inside
+// bordered containers to divide sections.
+func Separator(width int) string {
+	if width <= 0 {
+		return ""
+	}
+	return Dim.Render(strings.Repeat("─", width))
 }

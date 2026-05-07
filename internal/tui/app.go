@@ -82,7 +82,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.toast = ""
 		return a, nil
 	case components.CmdSubmitMsg:
-		return a, core.ToastCmd("M5 lands the real resource list — for now drill in via Overview (got :" + m.Alias + ")")
+		return a, core.ToastCmd("resource list available via Overview → kind row (got :" + m.Alias + ")")
 	}
 
 	if a.cmdbar.IsOpen() {

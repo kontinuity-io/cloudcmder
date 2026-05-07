@@ -103,7 +103,11 @@ func (o *Overview) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		if key.Matches(m, o.open) && len(o.rows) > 0 && o.run != nil {
 			cur := o.tbl.Cursor()
 			if cur >= 0 && cur < len(o.rows) {
-				return o, core.PushScreenCmd(NewResourceListStub(o.rows[cur].Kind, *o.run))
+				kind := o.rows[cur].Kind
+				if _, ok := columnsFor(kind); ok {
+					return o, core.PushScreenCmd(NewResourceList(o.ctx, o.st, *o.run, kind))
+				}
+				return o, core.PushScreenCmd(NewResourceListStub(kind, *o.run))
 			}
 		}
 	}

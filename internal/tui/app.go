@@ -132,13 +132,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(k, a.keymap.Cmd):
 			a.cmdbar.Open()
 			return a, nil
-		case key.Matches(k, a.keymap.Back):
-			if len(a.stack) <= 1 {
-				return a, tea.Quit
-			}
-			a.stack = a.stack[:len(a.stack)-1]
-			return a, nil
 		}
+		// Esc is intentionally NOT handled here. Each screen (Frame,
+		// RunHistory, GraphView) decides what Esc means in its own
+		// context — Frame walks pane history; modals close themselves
+		// via core.PopScreenCmd. Eating Esc at the App layer would
+		// short-circuit Frame's pane-history navigation.
 	}
 
 	top := a.stack[len(a.stack)-1]

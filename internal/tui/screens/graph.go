@@ -27,9 +27,16 @@ func NewGraphView(res inventory.Resource, edges []store.Edge) *GraphView {
 // Title satisfies core.Screen.
 func (g *GraphView) Title() string { return "Graph: " + g.res.Name }
 
-// Init / Update are no-ops; everything we need was already loaded by Detail.
-func (g *GraphView) Init() tea.Cmd                            { return nil }
-func (g *GraphView) Update(_ tea.Msg) (core.Screen, tea.Cmd)  { return g, nil }
+// Init is a no-op; everything we need was already loaded by Detail.
+func (g *GraphView) Init() tea.Cmd { return nil }
+
+// Update closes the modal on Esc and ignores everything else.
+func (g *GraphView) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
+	if k, ok := msg.(tea.KeyMsg); ok && k.String() == "esc" {
+		return g, core.PopScreenCmd()
+	}
+	return g, nil
+}
 
 // View renders the tree inside the standard rounded border.
 func (g *GraphView) View() string {

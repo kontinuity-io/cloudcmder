@@ -118,33 +118,38 @@ func AliasToKind(alias string) (inventory.Kind, bool) {
 // --- VM --------------------------------------------------------------------
 
 func vmColumns() []ColumnDef {
+	// Widths are tuned so the rendered table (sum of widths + bubbles/table's
+	// 2-char per-cell padding) fits inside the Frame's left pane at ≥120-col
+	// terminals (~94-col content area at the 60/40 split). Expand later via
+	// adaptive column-width sizing once Frame passes its inner width to the
+	// pane (M8 polish).
 	return []ColumnDef{
-		{Header: "NAME", Width: 22, Extract: func(r inventory.Resource, _ any) string { return r.Name }},
-		{Header: "ZONE", Width: 16, Extract: func(_ inventory.Resource, d any) string {
+		{Header: "NAME", Width: 20, Extract: func(r inventory.Resource, _ any) string { return r.Name }},
+		{Header: "ZONE", Width: 14, Extract: func(_ inventory.Resource, d any) string {
 			if vm := vmOf(d); vm != nil {
 				return vm.Zone
 			}
 			return ""
 		}},
-		{Header: "MACHINE", Width: 14, Extract: func(_ inventory.Resource, d any) string {
+		{Header: "MACHINE", Width: 13, Extract: func(_ inventory.Resource, d any) string {
 			if vm := vmOf(d); vm != nil {
 				return vm.MachineType
 			}
 			return ""
 		}},
-		{Header: "VCPU", Width: 5, Extract: func(_ inventory.Resource, d any) string {
+		{Header: "vCPU", Width: 5, Extract: func(_ inventory.Resource, d any) string {
 			if vm := vmOf(d); vm != nil && vm.VCPUs > 0 {
 				return fmt.Sprintf("%d", vm.VCPUs)
 			}
 			return ""
 		}},
-		{Header: "RAM GIB", Width: 8, Extract: func(_ inventory.Resource, d any) string {
+		{Header: "RAM", Width: 6, Extract: func(_ inventory.Resource, d any) string {
 			if vm := vmOf(d); vm != nil && vm.MemoryMiB > 0 {
 				return fmt.Sprintf("%.1f", float64(vm.MemoryMiB)/1024.0)
 			}
 			return ""
 		}},
-		{Header: "OS", Width: 12, Extract: func(_ inventory.Resource, d any) string {
+		{Header: "OS", Width: 10, Extract: func(_ inventory.Resource, d any) string {
 			if vm := vmOf(d); vm != nil {
 				return vm.OSFamily
 			}

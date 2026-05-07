@@ -88,6 +88,11 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		r.tbl.SetHeight(tableHeight(len(r.rows), m.Height))
 		return r, nil
 	case tea.KeyMsg:
+		if m.String() == "esc" {
+			// Modal screens own their own Esc → pop themselves; the
+			// App-level handler no longer pops for us as of M6.5.
+			return r, core.PopScreenCmd()
+		}
 		if key.Matches(m, r.open) && len(r.rows) > 0 {
 			cur := r.tbl.Cursor()
 			if cur >= 0 && cur < len(r.rows) {

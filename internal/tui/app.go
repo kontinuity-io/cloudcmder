@@ -91,6 +91,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			sizeCmd = c
 		}
 		a.stack = append(a.stack, s)
+		// Refresh the cmdbar's fuzzy corpus whenever a RunOwner lands on
+		// top — keeps the `:` palette pointing at the active run's resources.
+		if owner, ok := s.(core.RunOwner); ok {
+			if r := owner.CurrentRun(); r != nil {
+				a.refreshCmdbarCorpus(*r)
+			}
+		}
 		return a, tea.Batch(initCmd, sizeCmd)
 	case core.PopScreenMsg:
 		if len(a.stack) <= 1 {
@@ -114,6 +121,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Frame on the stack will catch this and swap its left pane in place.
 		return a, core.SwapLeftPaneCmd(kind)
+	case components.CmdJumpResourceMsg:
+		if a.findCurrentRun() == nil {
+			return a, core.ToastCmd("no current run — open a scope first")
+		}
+		// Two-step: swap to the kind's pane, then position cursor on the
+		// matched resource. Frame absorbs both messages in order; the new
+		// pane queues the jump if its load is still in flight.
+		return a, tea.Batch(core.SwapLeftPaneCmd(m.Kind), core.JumpToResourceCmd(m.ID))
 	}
 
 	if a.cmdbar.IsOpen() {
@@ -158,6 +173,22 @@ func (a App) findCurrentRun() *store.RunSummary {
 		}
 	}
 	return nil
+}
+
+// refreshCmdbarCorpus reloads the cmdbar's fuzzy corpus for the given run.
+// Failures degrade gracefully: the alias tier still works, only the
+// resource-jump tier is missing.
+func (a *App) refreshCmdbarCorpus(run store.RunSummary) {
+	idx, err := a.st.LoadResourceIndex(a.ctx, run.ID)
+	if err != nil {
+		a.cmdbar.SetCorpus(screens.AllAliases(), nil)
+		return
+	}
+	entries := make([]components.ResourceEntry, len(idx))
+	for i, e := range idx {
+		entries[i] = components.ResourceEntry{Kind: e.Kind, ID: e.ID, Name: e.Name}
+	}
+	a.cmdbar.SetCorpus(screens.AllAliases(), entries)
 }
 
 // View composes breadcrumb + screen body + status/help/cmdbar/toast lines.

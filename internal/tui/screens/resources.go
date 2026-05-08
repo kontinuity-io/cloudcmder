@@ -15,6 +15,7 @@ import (
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
+	"cloudcmder.com/internal/tui/core"
 	"cloudcmder.com/internal/tui/style"
 )
 
@@ -53,6 +54,11 @@ type ResourceList struct {
 
 	filterOn bool
 	filterIn textinput.Model
+
+	// pendingJumpID is non-empty when the cmdbar issued a JumpToResourceMsg
+	// before our async load finished; applied as soon as resourcesLoadedMsg
+	// arrives.
+	pendingJumpID string
 
 	keymap resourcesKeymap
 }
@@ -110,6 +116,17 @@ func (s *ResourceList) SelectedResource() *rowData {
 // SelectedKind is nil — ResourceList's selection is a Resource, not a Kind.
 func (s *ResourceList) SelectedKind() *inventory.Kind { return nil }
 
+// JumpTo positions the cursor on the row whose Resource.Ref.ID matches.
+// No-op if the id is absent (e.g., user filtered it out before jumping).
+func (s *ResourceList) JumpTo(id string) {
+	for i, r := range s.visible {
+		if r.res.Ref.ID == id {
+			s.tbl.SetCursor(i)
+			return
+		}
+	}
+}
+
 // Init loads the kind-filtered resource set and kicks the spinner.
 func (s *ResourceList) Init() tea.Cmd {
 	load := func() tea.Msg {
@@ -139,6 +156,17 @@ func (s *ResourceList) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 		s.applyFilter("")
 		if s.height > 0 {
 			s.tbl.SetHeight(tableHeight(len(s.visible), s.height))
+		}
+		if s.pendingJumpID != "" {
+			s.JumpTo(s.pendingJumpID)
+			s.pendingJumpID = ""
+		}
+		return s, nil
+	case core.JumpToResourceMsg:
+		if s.loaded {
+			s.JumpTo(m.ID)
+		} else {
+			s.pendingJumpID = m.ID
 		}
 		return s, nil
 	case tea.WindowSizeMsg:

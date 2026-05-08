@@ -60,6 +60,12 @@ type SwapLeftPaneMsg struct{ Kind inventory.Kind }
 // stack — replaces the Frame's run in place instead of pushing a new Frame.
 type SwitchRunMsg struct{ Run store.RunSummary }
 
+// JumpToResourceMsg asks the active ResourceList to position its cursor on
+// the row whose Resource.Ref.ID matches. Paired with SwapLeftPaneMsg, this
+// drives the cmdbar's "fuzzy a resource name from anywhere → land on it"
+// flow. ResourceList queues the jump if its load hasn't finished yet.
+type JumpToResourceMsg struct{ ID string }
+
 // SwapLeftPaneCmd is the conventional helper.
 func SwapLeftPaneCmd(kind inventory.Kind) tea.Cmd {
 	return func() tea.Msg { return SwapLeftPaneMsg{Kind: kind} }
@@ -68,4 +74,9 @@ func SwapLeftPaneCmd(kind inventory.Kind) tea.Cmd {
 // SwitchRunCmd is the conventional helper.
 func SwitchRunCmd(run store.RunSummary) tea.Cmd {
 	return func() tea.Msg { return SwitchRunMsg{Run: run} }
+}
+
+// JumpToResourceCmd is the conventional helper.
+func JumpToResourceCmd(id string) tea.Cmd {
+	return func() tea.Msg { return JumpToResourceMsg{ID: id} }
 }

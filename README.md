@@ -105,8 +105,9 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | `Tab` | Cycle focus between the list (left) and detail (right) panes |
 | `q` | Quit |
 | `?` | Toggle contextual help |
-| `/` | Filter list by regex (case-insensitive; substring fallback if invalid) |
-| `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | Swap the left pane to that kind's resource list |
+| `/` | Fuzzy filter the current list. Matches across name, region, status, and label values; rows reorder by best-score-first. |
+| `:` | Open the fuzzy palette. Type a kind alias (`vm`, `bucket`, …) or a resource name from anywhere in the run; ↑/↓ to pick, Enter to commit. Resource picks swap the left pane and land the cursor on the matched row. |
+| `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | Direct kind aliases — Enter swaps the left pane to that kind's resource list |
 | `g` | Open the ASCII connection-graph view for the focused resource |
 | `H` | Run history modal — pick a different run for this scope |
 | `e` | Export current run to Excel — lands in `~/.cloudcmder/exports/<scope>-<short-uuid>.xlsx` |

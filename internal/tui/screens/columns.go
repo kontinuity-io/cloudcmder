@@ -115,6 +115,12 @@ func AliasToKind(alias string) (inventory.Kind, bool) {
 	return "", false
 }
 
+// AllAliases returns every cmdbar alias in declaration order. Used by the
+// cmdbar to seed its fuzzy-suggestion corpus.
+func AllAliases() []string {
+	return []string{"vm", "disk", "db", "lb", "net", "subnet", "fw", "gke", "bucket", "fn"}
+}
+
 // --- VM --------------------------------------------------------------------
 
 func vmColumns() []ColumnDef {

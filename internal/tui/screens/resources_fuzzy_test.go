@@ -3,9 +3,11 @@ package screens
 import (
 	"testing"
 
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/stretchr/testify/assert"
 
 	"cloudcmder.com/internal/inventory"
+	"cloudcmder.com/internal/tui/core"
 )
 
 func TestRowCorpusFlattensSearchableFields(t *testing.T) {
@@ -63,6 +65,39 @@ func TestMatchRowsHonoursLabelsAndRegion(t *testing.T) {
 	got = rl.matchRows("production")
 	assert.Len(t, got, 1)
 	assert.Equal(t, "gamma", got[0].res.Name)
+}
+
+func TestJumpToPositionsCursorOnMatch(t *testing.T) {
+	rl := &ResourceList{
+		visible: []rowData{
+			{res: inventory.Resource{Ref: inventory.ResourceRef{ID: "alpha"}, Name: "alpha"}},
+			{res: inventory.Resource{Ref: inventory.ResourceRef{ID: "bravo"}, Name: "bravo"}},
+			{res: inventory.Resource{Ref: inventory.ResourceRef{ID: "charlie"}, Name: "charlie"}},
+		},
+	}
+	rl.tbl = table.New(table.WithColumns([]table.Column{{Title: "NAME", Width: 10}}))
+	rl.tbl.SetRows([]table.Row{{"alpha"}, {"bravo"}, {"charlie"}})
+	rl.JumpTo("charlie")
+	assert.Equal(t, 2, rl.tbl.Cursor())
+}
+
+func TestJumpToResourceMsgQueuesUntilLoaded(t *testing.T) {
+	rl := &ResourceList{kind: inventory.KindVM}
+	rl.tbl = table.New(table.WithColumns([]table.Column{{Title: "NAME", Width: 10}}))
+
+	// Pane not yet loaded → JumpToResourceMsg should be queued.
+	updated, _ := rl.Update(core.JumpToResourceMsg{ID: "vm-2"})
+	rl = updated.(*ResourceList)
+	assert.Equal(t, "vm-2", rl.pendingJumpID)
+
+	// Now the load completes — pendingJumpID gets applied as cursor position.
+	updated, _ = rl.Update(resourcesLoadedMsg{rows: []rowData{
+		{res: inventory.Resource{Ref: inventory.ResourceRef{ID: "vm-1"}, Name: "vm-1"}},
+		{res: inventory.Resource{Ref: inventory.ResourceRef{ID: "vm-2"}, Name: "vm-2"}},
+	}})
+	rl = updated.(*ResourceList)
+	assert.Equal(t, "", rl.pendingJumpID, "pending jump should be cleared once applied")
+	assert.Equal(t, 1, rl.tbl.Cursor(), "cursor should land on vm-2")
 }
 
 func TestMatchRowsEmptyPatternReturnsAll(t *testing.T) {

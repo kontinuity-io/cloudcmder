@@ -19,10 +19,14 @@ import (
 )
 
 // rowData pairs a stored Resource with its kind-specific decoded Detail so the
-// per-column Extract calls don't re-unmarshal JSON.
+// per-column Extract calls don't re-unmarshal JSON. matchedIndexes are byte
+// offsets into rowCorpus(res) populated when the row arrived via fuzzy
+// matching — used by highlightName to bold the matched runes inside the
+// NAME cell. Empty when the row is shown without a filter active.
 type rowData struct {
-	res    inventory.Resource
-	detail any
+	res            inventory.Resource
+	detail         any
+	matchedIndexes []int
 }
 
 type resourcesLoadedMsg struct {
@@ -259,7 +263,9 @@ func (s *ResourceList) applyFilter(pattern string) {
 
 // matchRows fuzzy-scores rows against pattern. The corpus per row is
 // "name|region|status|label-vals" so a label or region typo still surfaces
-// the resource. Output is ordered by descending fuzzy score.
+// the resource. Output is ordered by descending fuzzy score; each entry
+// carries the matched byte indices into the corpus so the renderer can
+// highlight the matched runes inside the NAME cell.
 func (s *ResourceList) matchRows(pattern string) []rowData {
 	corpus := make([]string, len(s.rows))
 	for i, r := range s.rows {
@@ -268,7 +274,9 @@ func (s *ResourceList) matchRows(pattern string) []rowData {
 	matches := fuzzy.Find(pattern, corpus)
 	out := make([]rowData, len(matches))
 	for i, m := range matches {
-		out[i] = s.rows[m.Index]
+		rd := s.rows[m.Index]
+		rd.matchedIndexes = m.MatchedIndexes
+		out[i] = rd
 	}
 	return out
 }
@@ -286,11 +294,22 @@ func rowCorpus(r inventory.Resource) string {
 }
 
 func (s *ResourceList) toTableRows(in []rowData) []table.Row {
+	nameCol := -1
+	for j, c := range s.cols {
+		if strings.EqualFold(c.Header, "NAME") {
+			nameCol = j
+			break
+		}
+	}
 	out := make([]table.Row, len(in))
 	for i, rd := range in {
 		row := make(table.Row, len(s.cols))
 		for j, c := range s.cols {
-			row[j] = truncate(c.Extract(rd.res, rd.detail), c.Width)
+			cell := c.Extract(rd.res, rd.detail)
+			if j == nameCol && len(rd.matchedIndexes) > 0 {
+				cell = highlightName(cell, rd.matchedIndexes)
+			}
+			row[j] = truncate(cell, c.Width)
 		}
 		out[i] = row
 	}

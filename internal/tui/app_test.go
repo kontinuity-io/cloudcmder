@@ -44,3 +44,39 @@ func TestAppCtrlCQuits(t *testing.T) {
 	require.NotNil(t, cmd)
 	assert.Equal(t, tea.Quit(), cmd())
 }
+
+// TestCmdbarBodyShrinkOnlyFiresOnTransitions guards the load-bearing
+// invariant from Batch 1: opening the cmdbar emits exactly one body
+// resize, typing into it emits zero, closing it emits exactly one. If
+// per-keystroke emits ever return, the original unresponsive-TUI bug
+// (commit 8d055af) is back.
+func TestCmdbarBodyShrinkOnlyFiresOnTransitions(t *testing.T) {
+	app := newApp(context.Background(), openMemStore(t))
+	// Seed App with a known terminal size so syncBodyShrink can compute.
+	model, _ := app.Update(tea.WindowSizeMsg{Width: 200, Height: 60})
+	app = model.(App)
+
+	initialShrink := app.lastBodyShrink
+	require.Equal(t, 0, initialShrink, "cmdbar starts closed")
+
+	// Open via `:` — should bump lastBodyShrink to the constant.
+	model, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
+	app = model.(App)
+	assert.True(t, app.cmdbar.IsOpen())
+	openedShrink := app.lastBodyShrink
+	assert.Greater(t, openedShrink, 0, "open should bump shrink")
+
+	// Type three characters into cmdbar — shrink must NOT change.
+	for _, r := range []rune{'v', 'm', 's'} {
+		model, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		app = model.(App)
+		assert.Equal(t, openedShrink, app.lastBodyShrink,
+			"shrink must stay constant while typing (no per-keystroke cascade)")
+	}
+
+	// Close via Esc — shrink should drop back to 0.
+	model, _ = app.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	app = model.(App)
+	assert.False(t, app.cmdbar.IsOpen())
+	assert.Equal(t, 0, app.lastBodyShrink, "close should reset shrink")
+}

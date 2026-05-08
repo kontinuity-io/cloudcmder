@@ -34,6 +34,14 @@ type App struct {
 	helpOn  bool
 	toast   string
 	version string
+
+	// lastBodyShrink is the number of vertical lines the cmdbar (when open)
+	// is currently asking the body to give up. Tracked so syncBodyShrink
+	// only re-emits a synthesized WindowSizeMsg on actual transitions —
+	// since RenderHeight is now constant while the cmdbar is open, the
+	// state is binary (0 ↔ 1+maxSuggestions) and emit fires twice per
+	// cmdbar session.
+	lastBodyShrink int
 }
 
 // Run launches the TUI with the given store. Blocks until the user quits.
@@ -145,7 +153,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if a.cmdbar.IsOpen() {
 		var cmd tea.Cmd
 		a.cmdbar, cmd = a.cmdbar.Update(msg)
-		return a, cmd
+		// The cmdbar may have closed via Esc/Enter; rebalance the body's
+		// effective height if so. RenderHeight is constant while open, so
+		// this is a no-op during typing and only fires on the close edge.
+		sizeCmd := a.syncBodyShrink()
+		return a, tea.Batch(cmd, sizeCmd)
 	}
 
 	if k, ok := msg.(tea.KeyMsg); ok {
@@ -155,7 +167,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case key.Matches(k, a.keymap.Cmd):
 			a.cmdbar.Open()
-			return a, nil
+			sizeCmd := a.syncBodyShrink()
+			return a, sizeCmd
 		}
 		// Esc is intentionally NOT handled here. Each screen (Frame,
 		// RunHistory, GraphView) decides what Esc means in its own
@@ -184,6 +197,30 @@ func (a App) findCurrentRun() *store.RunSummary {
 	return nil
 }
 
+// syncBodyShrink emits a WindowSizeMsg to the top screen whenever the
+// cmdbar transitions between closed and open states. RenderHeight is
+// constant while the cmdbar is open (1+maxSuggestions), so this only
+// fires on the open and close edges — never on every keystroke. The
+// keystroke cascade was the original cause of the unresponsive TUI in
+// the failed move-to-top attempt (commit 8d055af).
+func (a *App) syncBodyShrink() tea.Cmd {
+	if a.width == 0 || a.height == 0 || len(a.stack) == 0 {
+		return nil
+	}
+	shrink := a.cmdbar.RenderHeight()
+	if shrink == a.lastBodyShrink {
+		return nil
+	}
+	a.lastBodyShrink = shrink
+	top := a.stack[len(a.stack)-1]
+	updated, cmd := top.Update(tea.WindowSizeMsg{
+		Width:  a.width,
+		Height: a.height - shrink,
+	})
+	a.stack[len(a.stack)-1] = updated
+	return cmd
+}
+
 // refreshCmdbarCorpus reloads the cmdbar's fuzzy corpus for the given run.
 // Failures degrade gracefully: the alias tier still works, only the
 // resource-jump tier is missing.
@@ -200,11 +237,11 @@ func (a *App) refreshCmdbarCorpus(run store.RunSummary) {
 	a.cmdbar.SetCorpus(screens.AllAliases(), entries)
 }
 
-// View composes breadcrumb + screen body + status/help/cmdbar/toast lines.
-// Cmdbar renders at the footer position (bottom). Moving it to the top
-// (k9s-style header) is deferred to the v1.2 polish milestone — the
-// cleanest implementation needs a proper layout abstraction so the body
-// can shrink without re-emitting WindowSizeMsg cascades on every keystroke.
+// View composes breadcrumb + (cmdbar when open) + screen body + footer.
+// Cmdbar renders ABOVE the body — k9s-style — with a constant footprint
+// so the body's effective height stays stable for the duration of a
+// cmdbar session (height is updated via syncBodyShrink only on open/close
+// transitions).
 func (a App) View() string {
 	if len(a.stack) == 0 {
 		return ""
@@ -218,8 +255,6 @@ func (a App) View() string {
 
 	footer := ""
 	switch {
-	case a.cmdbar.IsOpen():
-		footer = a.cmdbar.View()
 	case a.helpOn:
 		footer = a.help.View(a.keymap)
 	case a.toast != "":
@@ -228,5 +263,10 @@ func (a App) View() string {
 		footer = style.Dim.Render("? help · q quit · " + a.version)
 	}
 
-	return strings.Join([]string{crumbs, body, footer}, "\n")
+	parts := []string{crumbs}
+	if a.cmdbar.IsOpen() {
+		parts = append(parts, a.cmdbar.View())
+	}
+	parts = append(parts, body, footer)
+	return strings.Join(parts, "\n")
 }

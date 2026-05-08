@@ -149,18 +149,33 @@ func TestCmdbarSelectedSurvivesRefiningKeystrokes(t *testing.T) {
 	assert.Equal(t, found, c.selected, "selected should track the previously-picked entry")
 }
 
-func TestCmdbarRenderHeightTracksDropdown(t *testing.T) {
+func TestCmdbarRenderHeightIsConstantWhenOpen(t *testing.T) {
+	// Constant height is the load-bearing invariant: if RenderHeight changed
+	// per keystroke, App.syncBodyShrink would re-emit a WindowSizeMsg
+	// cascade through Frame and the panes' tables on every typed character.
+	// That cascade was the cause of the original unresponsive-TUI bug
+	// (commit 8d055af, reverted in c1ced8b). Lock the constant in.
 	c := newTestCmdbar()
-	c.SetCorpus([]string{"vm", "bucket"}, nil)
+	c.SetCorpus([]string{"vm", "bucket", "disk", "net", "fw", "subnet", "lb", "db", "fn", "gke"}, nil)
+
 	assert.Equal(t, 0, c.RenderHeight(), "closed cmdbar takes no vertical room")
 
 	c.Open()
+	const wantOpenHeight = 1 + maxSuggestions
+
+	// Empty query → no suggestions but still padded to constant height.
+	assert.Equal(t, wantOpenHeight, c.RenderHeight(), "open + empty query")
+
+	// One match.
 	c = typeInto(c, "v")
-	// Open + 1 input line + N suggestions.
-	assert.Equal(t, 1+len(c.suggestions), c.RenderHeight())
+	assert.Equal(t, wantOpenHeight, c.RenderHeight(), "open + one match")
+
+	// Many matches (all 10 aliases fuzzy-match common chars).
+	c = typeInto(c, "e")
+	assert.Equal(t, wantOpenHeight, c.RenderHeight(), "open + many matches")
 
 	c.Close()
-	assert.Equal(t, 0, c.RenderHeight())
+	assert.Equal(t, 0, c.RenderHeight(), "closed again")
 }
 
 func TestCmdbarEmptySuggestionsFallsBackToAliasSubmit(t *testing.T) {

@@ -219,41 +219,50 @@ func (c *Cmdbar) recomputeSuggestions() {
 	}
 }
 
-// RenderHeight is the number of vertical lines View() will produce. Used by
-// App to shrink the body's WindowSizeMsg by exactly the cmdbar's footprint
-// when it opens, so the body never overflows under the cmdbar.
+// RenderHeight returns the constant vertical footprint of the cmdbar: 0
+// when closed, 1+maxSuggestions when open. The constant is critical — if
+// the height varied with the typed query, App would have to re-emit a
+// WindowSizeMsg on every keystroke, cascading through Frame and both
+// panes' tables. Padding the dropdown with empty lines keeps the body's
+// effective height stable for the duration of a cmdbar session.
 func (c Cmdbar) RenderHeight() int {
 	if !c.open {
 		return 0
 	}
-	return len(c.suggestions) + 1 // suggestions + the input line
+	return 1 + maxSuggestions
 }
 
-// View renders the suggestion dropdown stacked above the input line.
-// Empty when closed. The cmdbar lives at the screen footer, so putting
-// the input at the bottom means the active line stays anchored to the
-// terminal floor while suggestions grow upward.
+// View renders the input line at the top (k9s-style header) followed by a
+// fixed-height suggestion dropdown padded with blank lines. Total output
+// is always RenderHeight() lines when open, so the body's effective
+// height doesn't shift while the user types.
 func (c Cmdbar) View() string {
 	if !c.open {
 		return ""
 	}
-	lines := make([]string, 0, len(c.suggestions)+1)
-	for i, s := range c.suggestions {
-		marker := "  "
-		if i == c.selected {
-			marker = "▸ "
-		}
-		row := marker + s.label
-		if s.hint != "" {
-			row += "  " + c.dim.Render("("+s.hint+")")
-		}
-		if i == c.selected {
-			row = c.prompt.Render(row)
-		} else {
-			row = c.dim.Render(row)
-		}
-		lines = append(lines, row)
-	}
+	lines := make([]string, 0, 1+maxSuggestions)
 	lines = append(lines, c.prompt.Render(c.in.View()))
+	for i := 0; i < maxSuggestions; i++ {
+		if i < len(c.suggestions) {
+			s := c.suggestions[i]
+			marker := "  "
+			if i == c.selected {
+				marker = "▸ "
+			}
+			row := marker + s.label
+			if s.hint != "" {
+				row += "  " + c.dim.Render("("+s.hint+")")
+			}
+			if i == c.selected {
+				row = c.prompt.Render(row)
+			} else {
+				row = c.dim.Render(row)
+			}
+			lines = append(lines, row)
+		} else {
+			// Padding line keeps the cmdbar's vertical footprint constant.
+			lines = append(lines, "")
+		}
+	}
 	return strings.Join(lines, "\n")
 }

@@ -30,10 +30,14 @@ jobs:
       # golangci-lint ships. Go vet + the depguard_test.go architecture
       # check cover the load-bearing quality gates for v1.0.
       - name: Vet
-        run: CGO_ENABLED=0 go vet ./...
+        run: go vet ./...
 
+      # -race requires cgo, so the test step uses the default (CGO_ENABLED=1).
+      # CGO_ENABLED=0 is enforced ONLY on the shipped binary build below;
+      # modernc.org/sqlite is pure Go either way, so the test artefacts and
+      # the release artefact use the same SQLite implementation.
       - name: Test
-        run: CGO_ENABLED=0 go test -race ./...
+        run: go test -race ./...
 
       - name: Build (static)
         run: CGO_ENABLED=0 go build -o cloudcmder_ci ./cmd/cloudcmder

@@ -36,8 +36,12 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
-sboms:
-  - artifacts: archive
+# SBOMs (syft-generated software bill of materials) deferred — adds an
+# extra binary (syft) to install both locally and in the GH Action runner.
+# Re-enable in a later release if a security audit needs the manifest.
+#
+# sboms:
+#   - artifacts: archive
 
 changelog:
   sort: asc

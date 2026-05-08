@@ -18,7 +18,12 @@ import (
 	"cloudcmder.com/internal/version"
 )
 
-type clearToastMsg struct{}
+// toastExpireMsg fires once per Toast TTL; carries the timestamp so the
+// queue can prune anything that's expired by then. time.Time directly so
+// the message has zero overhead beyond the wall clock.
+type toastExpireMsg time.Time
+
+const toastTTL = 3 * time.Second
 
 // App is the root Bubble Tea model. The screen stack lives here; everything
 // else (cmdbar, help, toast) wraps the active screen's view.
@@ -33,7 +38,7 @@ type App struct {
 	statusbar components.Statusbar
 	help      components.Help
 	helpOn    bool
-	toast     string
+	toasts    components.ToastQueue
 	version   string
 
 	// lastBodyShrink is the number of vertical lines the cmdbar (when open)
@@ -122,10 +127,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.stack = a.stack[:len(a.stack)-1]
 		return a, nil
 	case core.ToastMsg:
-		a.toast = m.Text
-		return a, tea.Tick(3*time.Second, func(time.Time) tea.Msg { return clearToastMsg{} })
-	case clearToastMsg:
-		a.toast = ""
+		a.toasts.Push(m.Text, toastTTL)
+		// One expiry tick per push — multiple stacked toasts each get
+		// their own scheduled prune, and Tick is idempotent so duplicate
+		// fires are harmless.
+		return a, tea.Tick(toastTTL, func(t time.Time) tea.Msg {
+			return toastExpireMsg(t)
+		})
+	case toastExpireMsg:
+		a.toasts.Tick(time.Time(m))
 		return a, nil
 	case components.CmdSubmitMsg:
 		kind, ok := screens.AliasToKind(m.Alias)
@@ -265,8 +275,8 @@ func (a App) View() string {
 	switch {
 	case a.helpOn:
 		footer = a.help.View(a.keymap)
-	case a.toast != "":
-		footer = style.Toast.Render(a.toast)
+	case !a.toasts.IsEmpty():
+		footer = a.toasts.View(style.Toast)
 	default:
 		footer = style.Dim.Render("? help · q quit · " + a.version)
 	}

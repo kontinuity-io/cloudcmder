@@ -229,15 +229,15 @@ func (c Cmdbar) RenderHeight() int {
 	return len(c.suggestions) + 1 // suggestions + the input line
 }
 
-// View renders the input line first (k9s-style header), then the dropdown
-// of fuzzy suggestions stacked beneath. Empty when closed. App renders this
-// between the breadcrumbs and the body.
+// View renders the suggestion dropdown stacked above the input line.
+// Empty when closed. The cmdbar lives at the screen footer, so putting
+// the input at the bottom means the active line stays anchored to the
+// terminal floor while suggestions grow upward.
 func (c Cmdbar) View() string {
 	if !c.open {
 		return ""
 	}
 	lines := make([]string, 0, len(c.suggestions)+1)
-	lines = append(lines, c.prompt.Render(c.in.View()))
 	for i, s := range c.suggestions {
 		marker := "  "
 		if i == c.selected {
@@ -254,5 +254,6 @@ func (c Cmdbar) View() string {
 		}
 		lines = append(lines, row)
 	}
+	lines = append(lines, c.prompt.Render(c.in.View()))
 	return strings.Join(lines, "\n")
 }

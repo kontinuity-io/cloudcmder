@@ -34,12 +34,6 @@ type App struct {
 	helpOn  bool
 	toast   string
 	version string
-
-	// lastBodyShrink remembers how many vertical lines the cmdbar
-	// (when open) is currently consuming, so we only re-emit a synthetic
-	// WindowSizeMsg to the top screen when its effective height actually
-	// changes — avoids flicker on every keystroke.
-	lastBodyShrink int
 }
 
 // Run launches the TUI with the given store. Blocks until the user quits.
@@ -137,26 +131,29 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tea.Batch(core.SwapLeftPaneCmd(m.Kind), core.JumpToResourceCmd(m.ID))
 	}
 
+	// q / Ctrl+C is a global quit — handled BEFORE the cmdbar so a stuck
+	// open cmdbar can never trap the user. (`:` opens the palette; type
+	// queries with non-q characters or use Esc to close it.)
+	if k, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(k, a.keymap.Quit) {
+			return a, tea.Quit
+		}
+	}
+
 	if a.cmdbar.IsOpen() {
 		var cmd tea.Cmd
 		a.cmdbar, cmd = a.cmdbar.Update(msg)
-		// The cmdbar may have grown/shrunk its dropdown OR closed entirely;
-		// re-sync the body's effective height in either case.
-		sizeCmd := a.syncBodyShrink()
-		return a, tea.Batch(cmd, sizeCmd)
+		return a, cmd
 	}
 
 	if k, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		case key.Matches(k, a.keymap.Quit):
-			return a, tea.Quit
 		case key.Matches(k, a.keymap.Help):
 			a.helpOn = !a.helpOn
 			return a, nil
 		case key.Matches(k, a.keymap.Cmd):
 			a.cmdbar.Open()
-			sizeCmd := a.syncBodyShrink()
-			return a, sizeCmd
+			return a, nil
 		}
 		// Esc is intentionally NOT handled here. Each screen (Frame,
 		// RunHistory, GraphView) decides what Esc means in its own
@@ -185,29 +182,6 @@ func (a App) findCurrentRun() *store.RunSummary {
 	return nil
 }
 
-// syncBodyShrink re-emits a WindowSizeMsg to the top screen when the cmdbar
-// has changed how many vertical lines it consumes — opening, closing, or
-// growing/shrinking its dropdown as the user types. Without this the body
-// continues to size itself for the full terminal height and overflows
-// underneath the cmdbar (the original "search pushes the body up" bug).
-func (a *App) syncBodyShrink() tea.Cmd {
-	if a.width == 0 || a.height == 0 || len(a.stack) == 0 {
-		return nil
-	}
-	shrink := a.cmdbar.RenderHeight()
-	if shrink == a.lastBodyShrink {
-		return nil
-	}
-	a.lastBodyShrink = shrink
-	top := a.stack[len(a.stack)-1]
-	updated, cmd := top.Update(tea.WindowSizeMsg{
-		Width:  a.width,
-		Height: a.height - shrink,
-	})
-	a.stack[len(a.stack)-1] = updated
-	return cmd
-}
-
 // refreshCmdbarCorpus reloads the cmdbar's fuzzy corpus for the given run.
 // Failures degrade gracefully: the alias tier still works, only the
 // resource-jump tier is missing.
@@ -224,10 +198,11 @@ func (a *App) refreshCmdbarCorpus(run store.RunSummary) {
 	a.cmdbar.SetCorpus(screens.AllAliases(), entries)
 }
 
-// View composes breadcrumb + (cmdbar when open) + screen body + footer.
-// The cmdbar renders ABOVE the body — k9s-style — so a multi-line dropdown
-// can't push the top of the body off-screen. The body has already been
-// resized via syncBodyShrink to fit the remaining vertical room.
+// View composes breadcrumb + screen body + status/help/cmdbar/toast lines.
+// Cmdbar renders at the footer position (bottom). Moving it to the top
+// (k9s-style header) is deferred to the v1.2 polish milestone — the
+// cleanest implementation needs a proper layout abstraction so the body
+// can shrink without re-emitting WindowSizeMsg cascades on every keystroke.
 func (a App) View() string {
 	if len(a.stack) == 0 {
 		return ""
@@ -241,6 +216,8 @@ func (a App) View() string {
 
 	footer := ""
 	switch {
+	case a.cmdbar.IsOpen():
+		footer = a.cmdbar.View()
 	case a.helpOn:
 		footer = a.help.View(a.keymap)
 	case a.toast != "":
@@ -249,10 +226,5 @@ func (a App) View() string {
 		footer = style.Dim.Render("? help · q quit · " + a.version)
 	}
 
-	parts := []string{crumbs}
-	if a.cmdbar.IsOpen() {
-		parts = append(parts, a.cmdbar.View())
-	}
-	parts = append(parts, body, footer)
-	return strings.Join(parts, "\n")
+	return strings.Join([]string{crumbs, body, footer}, "\n")
 }

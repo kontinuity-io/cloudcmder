@@ -382,10 +382,12 @@ func (f *Frame) bodyView() string {
 	return lipgloss.JoinVertical(lipgloss.Left, leftBox, rightBox)
 }
 
-// bodyHeight is the vertical room available for the two-pane body — the
-// total terminal height minus the header (1 line) and the two footer lines.
+// bodyHeight is the vertical room available for the two-pane body. f.height
+// is what App tells us via WindowSizeMsg — already chrome-adjusted for
+// crumbs/cmdbar/statusbar/footer. We only subtract Frame's OWN chrome:
+// 1 line for the run-metadata header and 1 line for the focus-hint footer.
 func (f *Frame) bodyHeight() int {
-	h := f.height - 3
+	h := f.height - 2
 	if h < 8 {
 		h = 8
 	}

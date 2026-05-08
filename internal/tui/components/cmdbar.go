@@ -54,9 +54,12 @@ func (s suggestion) suggestionKey() string {
 	return "alias:" + s.label
 }
 
-// maxSuggestions caps the dropdown so a 1000-resource project doesn't
-// stretch the palette across the screen. The user keeps typing to narrow.
-const maxSuggestions = 6
+// maxSuggestions caps the dropdown to 4 entries so the palette doesn't
+// dominate the screen — the user keeps typing to narrow further. Combined
+// with constant render height (1 input + maxSuggestions slots) this keeps
+// the body's effective height stable regardless of how many matches the
+// query produces.
+const maxSuggestions = 4
 
 // Cmdbar is the `:` palette: a single-line input with a fuzzy suggestion
 // dropdown above it. Suggestions span both kind aliases and live resources

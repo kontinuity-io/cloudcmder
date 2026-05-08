@@ -95,7 +95,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = m.Width, m.Height
 		a.help.Width(m.Width)
-		// fall through so screens see the resize too
+		a.lastBodyShrink = a.cmdbar.RenderHeight()
+		// Reserve App-level chrome before forwarding to the active screen
+		// — without this, Frame thinks it owns the full terminal and the
+		// crumb + statusbar + footer push the top of the body off-screen.
+		forwarded := tea.WindowSizeMsg{Width: m.Width, Height: a.bodyBudget()}
+		top := a.stack[len(a.stack)-1]
+		updated, cmd := top.Update(forwarded)
+		a.stack[len(a.stack)-1] = updated
+		return a, cmd
 	case core.PushScreenMsg:
 		// Newly pushed screens don't get a WindowSizeMsg from Bubble Tea
 		// automatically — the runtime only emits one on init/resize for the
@@ -104,17 +112,19 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// makes width-aware layouts (Frame's split-pane mode) collapse to
 		// their narrow fallback.
 		s := m.Screen
+		// Push first so bodyBudget can see the new screen when computing
+		// the statusbar reservation (RunOwner contributes a line).
+		a.stack = append(a.stack, s)
 		initCmd := s.Init()
 		var sizeCmd tea.Cmd
 		if a.width > 0 && a.height > 0 {
-			updated, c := s.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
-			s = updated
+			updated, c := s.Update(tea.WindowSizeMsg{Width: a.width, Height: a.bodyBudget()})
+			a.stack[len(a.stack)-1] = updated
 			sizeCmd = c
 		}
-		a.stack = append(a.stack, s)
 		// Refresh the cmdbar's fuzzy corpus whenever a RunOwner lands on
 		// top — keeps the `:` palette pointing at the active run's resources.
-		if owner, ok := s.(core.RunOwner); ok {
+		if owner, ok := a.stack[len(a.stack)-1].(core.RunOwner); ok {
 			if r := owner.CurrentRun(); r != nil {
 				a.refreshCmdbarCorpus(*r)
 			}
@@ -230,6 +240,23 @@ func (a App) findCurrentRun() *store.RunSummary {
 	return nil
 }
 
+// bodyBudget returns the vertical room available to the active screen
+// once App-level chrome (crumbs, cmdbar, statusbar, footer) is reserved.
+// Single source of truth so the WindowSizeMsg path and the cmdbar
+// open/close path produce identical sizes — preventing one-off rendering
+// glitches when the cmdbar toggles.
+func (a App) bodyBudget() int {
+	chrome := 1 + a.cmdbar.RenderHeight() + 1 // crumbs + cmdbar + footer
+	if a.statusbarLine() != "" {
+		chrome++
+	}
+	h := a.height - chrome
+	if h < 5 {
+		h = 5
+	}
+	return h
+}
+
 // syncBodyShrink emits a WindowSizeMsg to the top screen whenever the
 // cmdbar transitions between closed and open states. RenderHeight is
 // constant while the cmdbar is open (1+maxSuggestions), so this only
@@ -248,7 +275,7 @@ func (a *App) syncBodyShrink() tea.Cmd {
 	top := a.stack[len(a.stack)-1]
 	updated, cmd := top.Update(tea.WindowSizeMsg{
 		Width:  a.width,
-		Height: a.height - shrink,
+		Height: a.bodyBudget(),
 	})
 	a.stack[len(a.stack)-1] = updated
 	return cmd

@@ -161,7 +161,7 @@ func TestCmdbarRenderHeightIsConstantWhenOpen(t *testing.T) {
 	assert.Equal(t, 0, c.RenderHeight(), "closed cmdbar takes no vertical room")
 
 	c.Open()
-	const wantOpenHeight = 1 + maxSuggestions
+	const wantOpenHeight = 1 + visibleWindow
 
 	// Empty query → no suggestions but still padded to constant height.
 	assert.Equal(t, wantOpenHeight, c.RenderHeight(), "open + empty query")
@@ -176,6 +176,63 @@ func TestCmdbarRenderHeightIsConstantWhenOpen(t *testing.T) {
 
 	c.Close()
 	assert.Equal(t, 0, c.RenderHeight(), "closed again")
+}
+
+func TestCmdbarScrollsViewportPastVisibleWindow(t *testing.T) {
+	// Make 8 resources whose names all fuzzy-match a single query so the
+	// dropdown has more entries than visibleWindow can show. Pressing Down
+	// past the last visible slot must scroll the offset, not stop at slot 4.
+	resources := make([]ResourceEntry, 8)
+	for i := range resources {
+		resources[i] = ResourceEntry{
+			Kind: inventory.KindVM,
+			ID:   "alpha-vm-" + string(rune('a'+i)),
+			Name: "alpha-vm-" + string(rune('a'+i)),
+		}
+	}
+	c := newTestCmdbar()
+	c.SetCorpus(nil, resources)
+	c.Open()
+	c = typeInto(c, "alpha")
+
+	require.Greater(t, len(c.suggestions), visibleWindow,
+		"need more matches than the visible window to test scrolling")
+	assert.Equal(t, 0, c.offset, "starts at top")
+
+	// Down × visibleWindow → cursor reaches last visible slot, offset still 0.
+	for i := 0; i < visibleWindow-1; i++ {
+		c, _ = c.Update(keyMsg("down"))
+	}
+	assert.Equal(t, visibleWindow-1, c.selected)
+	assert.Equal(t, 0, c.offset, "no scroll until cursor exits the window")
+
+	// Next Down → offset advances by 1, cursor follows.
+	c, _ = c.Update(keyMsg("down"))
+	assert.Equal(t, visibleWindow, c.selected)
+	assert.Equal(t, 1, c.offset)
+
+	// Up back to top → offset rewinds.
+	for c.selected > 0 {
+		c, _ = c.Update(keyMsg("up"))
+	}
+	assert.Equal(t, 0, c.selected)
+	assert.Equal(t, 0, c.offset)
+}
+
+func TestCmdbarKeepsAllMatchesNotJustVisibleWindow(t *testing.T) {
+	// Locks in the bug fix: previously, only visibleWindow matches were
+	// kept; the rest were silently dropped. Now matches up to
+	// maxFuzzyResults survive — user can scroll into them.
+	resources := make([]ResourceEntry, 6)
+	for i := range resources {
+		resources[i] = ResourceEntry{Kind: inventory.KindVM, ID: "x", Name: "java-" + string(rune('a'+i))}
+	}
+	c := newTestCmdbar()
+	c.SetCorpus(nil, resources)
+	c.Open()
+	c = typeInto(c, "java")
+	assert.Equal(t, 6, len(c.suggestions),
+		"all matches should be kept even when there are more than visibleWindow")
 }
 
 func TestCmdbarEmptySuggestionsFallsBackToAliasSubmit(t *testing.T) {

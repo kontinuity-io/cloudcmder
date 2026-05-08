@@ -54,12 +54,18 @@ func (s suggestion) suggestionKey() string {
 	return "alias:" + s.label
 }
 
-// maxSuggestions caps the dropdown to 4 entries so the palette doesn't
-// dominate the screen — the user keeps typing to narrow further. Combined
-// with constant render height (1 input + maxSuggestions slots) this keeps
-// the body's effective height stable regardless of how many matches the
-// query produces.
-const maxSuggestions = 4
+// visibleWindow is the number of suggestion rows rendered at once. The
+// total render height is constant (1 input + visibleWindow slots) so the
+// body's effective height doesn't shift while the user types — but the
+// pool of matches kept can be much larger; arrow keys scroll a viewport
+// across that pool.
+const visibleWindow = 4
+
+// maxFuzzyResults caps the underlying match pool. Keeping a larger
+// reservoir than the visible window lets the user scroll into matches
+// that didn't make the first screenful — the previous behaviour silently
+// dropped any match past slot 4.
+const maxFuzzyResults = 50
 
 // Cmdbar is the `:` palette: a single-line input with a fuzzy suggestion
 // dropdown above it. Suggestions span both kind aliases and live resources
@@ -74,9 +80,14 @@ type Cmdbar struct {
 	aliases   []string
 	resources []ResourceEntry
 
-	// transient: rebuilt on every keystroke
+	// transient: rebuilt on every keystroke. suggestions holds up to
+	// maxFuzzyResults matches; selected is the absolute index inside it.
+	// offset is the start of the visibleWindow viewport — when the cursor
+	// moves past the visible bottom or above the top, offset adjusts so
+	// the highlighted entry is always on-screen.
 	suggestions []suggestion
 	selected    int
+	offset      int
 }
 
 // NewCmdbar builds a cmdbar with sensible defaults. Corpus is empty until
@@ -103,6 +114,7 @@ func (c *Cmdbar) Close() {
 	c.in.Blur()
 	c.suggestions = nil
 	c.selected = 0
+	c.offset = 0
 }
 
 // SetCorpus replaces the alias and resource search targets. Cheap to call
@@ -125,11 +137,17 @@ func (c Cmdbar) Update(msg tea.Msg) (Cmdbar, tea.Cmd) {
 		case key.Matches(k, key.NewBinding(key.WithKeys("up"))):
 			if c.selected > 0 {
 				c.selected--
+				if c.selected < c.offset {
+					c.offset = c.selected
+				}
 			}
 			return c, nil
 		case key.Matches(k, key.NewBinding(key.WithKeys("down"))):
 			if c.selected < len(c.suggestions)-1 {
 				c.selected++
+				if c.selected >= c.offset+visibleWindow {
+					c.offset = c.selected - visibleWindow + 1
+				}
 			}
 			return c, nil
 		case key.Matches(k, key.NewBinding(key.WithKeys("enter"))):
@@ -170,27 +188,32 @@ func (c Cmdbar) commit() tea.Cmd {
 // would yank the cursor back to the top mid-navigation.
 func (c *Cmdbar) recomputeSuggestions() {
 	pat := c.in.Value()
+	// Only preserve selection across recomputes when the user has
+	// actively navigated (selected > 0). At the default selected=0, the
+	// "best match" identity drifts as the query refines — preserving it
+	// would silently drag the cursor away from the new top match.
 	prevKey := ""
-	if c.selected < len(c.suggestions) {
+	if c.selected > 0 && c.selected < len(c.suggestions) {
 		prevKey = c.suggestions[c.selected].suggestionKey()
 	}
 
 	if pat == "" {
 		c.suggestions = nil
 		c.selected = 0
+		c.offset = 0
 		return
 	}
 
-	out := make([]suggestion, 0, maxSuggestions)
+	out := make([]suggestion, 0, maxFuzzyResults)
 
 	for _, m := range fuzzy.Find(pat, c.aliases) {
 		out = append(out, suggestion{label: c.aliases[m.Index], hint: "kind"})
-		if len(out) >= maxSuggestions {
+		if len(out) >= maxFuzzyResults {
 			break
 		}
 	}
 
-	if len(out) < maxSuggestions {
+	if len(out) < maxFuzzyResults {
 		names := make([]string, len(c.resources))
 		for i, r := range c.resources {
 			names[i] = r.Name
@@ -203,7 +226,7 @@ func (c *Cmdbar) recomputeSuggestions() {
 				id:    r.ID,
 				hint:  string(r.Kind),
 			})
-			if len(out) >= maxSuggestions {
+			if len(out) >= maxFuzzyResults {
 				break
 			}
 		}
@@ -211,12 +234,18 @@ func (c *Cmdbar) recomputeSuggestions() {
 
 	c.suggestions = out
 	c.selected = 0
+	c.offset = 0
 	if prevKey == "" {
 		return
 	}
 	for i, s := range out {
 		if s.suggestionKey() == prevKey {
 			c.selected = i
+			// Keep the previously-picked entry on-screen by sliding the
+			// viewport so it lands inside the visibleWindow.
+			if c.selected >= visibleWindow {
+				c.offset = c.selected - visibleWindow + 1
+			}
 			return
 		}
 	}
@@ -232,40 +261,53 @@ func (c Cmdbar) RenderHeight() int {
 	if !c.open {
 		return 0
 	}
-	return 1 + maxSuggestions
+	return 1 + visibleWindow
 }
 
 // View renders the input line at the top (k9s-style header) followed by a
-// fixed-height suggestion dropdown padded with blank lines. Total output
-// is always RenderHeight() lines when open, so the body's effective
-// height doesn't shift while the user types.
+// fixed-height windowed suggestion dropdown. The window slides over a
+// larger pool — match indicators (`↑`/`↓`) at the top/bottom signal that
+// more entries exist above/below the visible slice. Total output is
+// always RenderHeight() lines when open.
 func (c Cmdbar) View() string {
 	if !c.open {
 		return ""
 	}
-	lines := make([]string, 0, 1+maxSuggestions)
+	lines := make([]string, 0, 1+visibleWindow)
 	lines = append(lines, c.prompt.Render(c.in.View()))
-	for i := 0; i < maxSuggestions; i++ {
-		if i < len(c.suggestions) {
-			s := c.suggestions[i]
-			marker := "  "
-			if i == c.selected {
-				marker = "▸ "
-			}
-			row := marker + s.label
-			if s.hint != "" {
-				row += "  " + c.dim.Render("("+s.hint+")")
-			}
-			if i == c.selected {
-				row = c.prompt.Render(row)
-			} else {
-				row = c.dim.Render(row)
-			}
-			lines = append(lines, row)
-		} else {
-			// Padding line keeps the cmdbar's vertical footprint constant.
+	end := c.offset + visibleWindow
+	if end > len(c.suggestions) {
+		end = len(c.suggestions)
+	}
+	for slot := 0; slot < visibleWindow; slot++ {
+		i := c.offset + slot
+		if i >= end {
 			lines = append(lines, "")
+			continue
 		}
+		s := c.suggestions[i]
+		marker := "  "
+		switch {
+		case slot == 0 && c.offset > 0:
+			// More matches above the visible window.
+			marker = "↑ "
+		case slot == visibleWindow-1 && end < len(c.suggestions):
+			// More matches below the visible window.
+			marker = "↓ "
+		}
+		if i == c.selected {
+			marker = "▸ "
+		}
+		row := marker + s.label
+		if s.hint != "" {
+			row += "  " + c.dim.Render("("+s.hint+")")
+		}
+		if i == c.selected {
+			row = c.prompt.Render(row)
+		} else {
+			row = c.dim.Render(row)
+		}
+		lines = append(lines, row)
 	}
 	return strings.Join(lines, "\n")
 }

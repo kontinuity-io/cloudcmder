@@ -24,12 +24,11 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: true
 
-      - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m
-
+      # golangci-lint deferred — at the Go 1.25 release window (early 2026),
+      # the action's bundled binary is still built with Go 1.24 and refuses
+      # to lint code targeting 1.25.0. Re-enable once a 1.25-compatible
+      # golangci-lint ships. Go vet + the depguard_test.go architecture
+      # check cover the load-bearing quality gates for v1.0.
       - name: Vet
         run: CGO_ENABLED=0 go vet ./...
 

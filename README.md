@@ -101,17 +101,23 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | Key | Action |
 |---|---|
 | `Enter` | On a kind row: open that kind's resource list in the left pane. On a resource row: zoom Detail to full width. |
-| `Esc` | Unzoom Detail; or walk back through left-pane history. No-op at the root pane — `q` is the only way out of the Frame. |
+| `Esc` | Unzoom Detail; walk back through left-pane history; close a modal. No-op at the root pane — `q` is the only way out of the Frame. |
 | `Tab` | Cycle focus between the list (left) and detail (right) panes |
-| `q` | Quit |
+| `q` / `Ctrl+C` | Quit (always wins, even with the cmdbar open) |
 | `?` | Toggle contextual help |
-| `/` | Fuzzy filter the current list. Matches across name, region, status, and label values; rows reorder by best-score-first. |
-| `:` | Open the fuzzy palette. Type a kind alias (`vm`, `bucket`, …) or a resource name from anywhere in the run; ↑/↓ to pick, Enter to commit. Resource picks swap the left pane and land the cursor on the matched row. |
+| `/` | Fuzzy filter the current list. Matches across name, region, status, and labels; rows reorder by best-score-first. Matched runes bolded+underlined in the NAME cell. |
+| `:` | Open the fuzzy palette. Type a kind alias (`vm`, `bucket`, …), a resource name, or `scopes`; ↑/↓ to pick, Enter to commit. Resource picks swap the left pane and land the cursor on the match. |
 | `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | Direct kind aliases — Enter swaps the left pane to that kind's resource list |
-| `g` | Open the ASCII connection-graph view for the focused resource |
+| `:scopes` | Open ScopeList as a modal over the current Frame — pick a different project without `q` and relaunch |
+| `j` / `k` | Move cursor down / up (vim alias for ↓ / ↑) |
+| `g` / `G` | Jump cursor to top / bottom of the list (vim) |
+| `Ctrl+u` / `Ctrl+d` | Half-page scroll up / down (vim) |
+| `s` | Cycle sort: column 0 asc → desc → column 1 asc → desc → … → no sort. Active only when the `/` filter is empty. |
+| `m` | (in right pane) Cycle Detail mode: Full → Connections-only → Raw JSON → Inline Graph |
+| `g` | (in right pane via global) Open the full-screen ASCII connection-graph for the focused resource |
 | `H` | Run history modal — pick a different run for this scope |
 | `e` | Export current run to Excel — lands in `~/.cloudcmder/exports/<scope>-<short-uuid>.xlsx` |
-| `R` | Start a new scan from inside the TUI *(deferred to v1.1 — use `--scan` from CLI for now)* |
+| `R` | Start a new scan from inside the TUI *(deferred — use `--scan` from CLI for now)* |
 
 ## CLI flags
 
@@ -146,8 +152,11 @@ The interactive TUI is shipped — invoke `cloudcmder` with no flags.
 | M6.5 Commander layout (split-pane, live detail) | ✅ |
 | M7 Excel export | ✅ |
 | M8 Concurrency + polish | ✅ |
+| v1.1 Fuzzy command palette | ✅ |
+| v1.2 TUI polish (lazydocker-rich) | ✅ |
 | M9 Release v1.0.0 | 🔲 |
-| v1.1 TUI Polish (lazydocker-rich) | 🔲 |
+| M9.5 Charm v2 upgrade | 🔲 |
+| v1.3 Telemetry overlay | 🔲 |
 
 See `plan.md` for full milestone details and acceptance criteria.
 

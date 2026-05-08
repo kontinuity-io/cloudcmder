@@ -15,7 +15,6 @@ import (
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
-	"cloudcmder.com/internal/tui/core"
 	"cloudcmder.com/internal/tui/style"
 )
 
@@ -127,6 +126,14 @@ func (s *ResourceList) JumpTo(id string) {
 	}
 }
 
+// QueueJump records a target ID to position the cursor on once the async
+// load completes. Frame calls this immediately after constructing the
+// pane via SwapLeftPaneMsg, so the jump fires atomically with the load
+// rather than racing in via a separate message.
+func (s *ResourceList) QueueJump(id string) {
+	s.pendingJumpID = id
+}
+
 // Init loads the kind-filtered resource set and kicks the spinner.
 func (s *ResourceList) Init() tea.Cmd {
 	load := func() tea.Msg {
@@ -160,13 +167,6 @@ func (s *ResourceList) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 		if s.pendingJumpID != "" {
 			s.JumpTo(s.pendingJumpID)
 			s.pendingJumpID = ""
-		}
-		return s, nil
-	case core.JumpToResourceMsg:
-		if s.loaded {
-			s.JumpTo(m.ID)
-		} else {
-			s.pendingJumpID = m.ID
 		}
 		return s, nil
 	case tea.WindowSizeMsg:

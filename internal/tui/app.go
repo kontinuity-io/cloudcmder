@@ -125,10 +125,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.findCurrentRun() == nil {
 			return a, core.ToastCmd("no current run — open a scope first")
 		}
-		// Two-step: swap to the kind's pane, then position cursor on the
-		// matched resource. Frame absorbs both messages in order; the new
-		// pane queues the jump if its load is still in flight.
-		return a, tea.Batch(core.SwapLeftPaneCmd(m.Kind), core.JumpToResourceCmd(m.ID))
+		// Single atomic message — Frame builds the new ResourceList and
+		// sets pendingJumpID before Init, so the cursor positions on the
+		// matched row as soon as the async load completes. tea.Batch can't
+		// be used here because its commands fire concurrently — the jump
+		// would race ahead and arrive at the OLD pane.
+		return a, core.SwapAndJumpCmd(m.Kind, m.ID)
 	}
 
 	// q / Ctrl+C is a global quit — handled BEFORE the cmdbar so a stuck

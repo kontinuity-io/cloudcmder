@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"cloudcmder.com/internal/inventory"
-	"cloudcmder.com/internal/tui/core"
 )
 
 func TestRowCorpusFlattensSearchableFields(t *testing.T) {
@@ -81,17 +80,16 @@ func TestJumpToPositionsCursorOnMatch(t *testing.T) {
 	assert.Equal(t, 2, rl.tbl.Cursor())
 }
 
-func TestJumpToResourceMsgQueuesUntilLoaded(t *testing.T) {
+func TestQueueJumpAppliesAfterLoad(t *testing.T) {
 	rl := &ResourceList{kind: inventory.KindVM}
 	rl.tbl = table.New(table.WithColumns([]table.Column{{Title: "NAME", Width: 10}}))
 
-	// Pane not yet loaded → JumpToResourceMsg should be queued.
-	updated, _ := rl.Update(core.JumpToResourceMsg{ID: "vm-2"})
-	rl = updated.(*ResourceList)
+	// Frame queues the jump synchronously, before the async load fires.
+	rl.QueueJump("vm-2")
 	assert.Equal(t, "vm-2", rl.pendingJumpID)
 
-	// Now the load completes — pendingJumpID gets applied as cursor position.
-	updated, _ = rl.Update(resourcesLoadedMsg{rows: []rowData{
+	// Load completes: pendingJumpID is consumed and cursor lands on vm-2.
+	updated, _ := rl.Update(resourcesLoadedMsg{rows: []rowData{
 		{res: inventory.Resource{Ref: inventory.ResourceRef{ID: "vm-1"}, Name: "vm-1"}},
 		{res: inventory.Resource{Ref: inventory.ResourceRef{ID: "vm-2"}, Name: "vm-2"}},
 	}})

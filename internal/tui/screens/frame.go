@@ -100,7 +100,13 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	switch m := msg.(type) {
 	case core.SwapLeftPaneMsg:
 		f.leftHistory = append(f.leftHistory, f.left)
-		f.left = NewResourceList(f.ctx, f.st, f.run, m.Kind)
+		rl := NewResourceList(f.ctx, f.st, f.run, m.Kind)
+		if m.JumpID != "" {
+			// Set the pending jump BEFORE Init so resourcesLoadedMsg can
+			// position the cursor without racing against a separate message.
+			rl.QueueJump(m.JumpID)
+		}
+		f.left = rl
 		f.zoomed = false
 		f.right = nil
 		f.rightFor = ""

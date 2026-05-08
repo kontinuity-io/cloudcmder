@@ -51,32 +51,40 @@ func ToastCmd(text string) tea.Cmd {
 }
 
 // SwapLeftPaneMsg asks any Frame on the stack to replace its left pane with
-// the kind-specific resource list. Emitted by the App when the user types a
-// `:alias` command in the cmdbar.
-type SwapLeftPaneMsg struct{ Kind inventory.Kind }
+// the kind-specific resource list. JumpID is optional: when non-empty, the
+// new ResourceList queues a jump so the cursor lands on the matching row as
+// soon as its async load completes — used by the `:` palette to "search a
+// resource name from anywhere → land on it".
+//
+// Why this is one message instead of SwapLeftPaneCmd + JumpToResourceCmd:
+// tea.Batch runs commands concurrently, so the jump message could arrive
+// at the OLD pane before the new pane finishes constructing. Carrying the
+// jump target inside the swap message makes the combined operation atomic.
+type SwapLeftPaneMsg struct {
+	Kind   inventory.Kind
+	JumpID string
+}
 
 // SwitchRunMsg asks any Frame on the stack to load a different run. Emitted
 // by RunHistory when the user picks a run while a Frame is already on the
 // stack — replaces the Frame's run in place instead of pushing a new Frame.
 type SwitchRunMsg struct{ Run store.RunSummary }
 
-// JumpToResourceMsg asks the active ResourceList to position its cursor on
-// the row whose Resource.Ref.ID matches. Paired with SwapLeftPaneMsg, this
-// drives the cmdbar's "fuzzy a resource name from anywhere → land on it"
-// flow. ResourceList queues the jump if its load hasn't finished yet.
-type JumpToResourceMsg struct{ ID string }
 
-// SwapLeftPaneCmd is the conventional helper.
+// SwapLeftPaneCmd is the conventional helper for alias-only swaps
+// (`:vm`, `:bucket`, …) where there's no specific resource to jump to.
 func SwapLeftPaneCmd(kind inventory.Kind) tea.Cmd {
 	return func() tea.Msg { return SwapLeftPaneMsg{Kind: kind} }
+}
+
+// SwapAndJumpCmd is the helper for fuzzy-palette resource picks: swap
+// the left pane to the kind's ResourceList AND position the cursor on
+// the row matching jumpID once the load completes.
+func SwapAndJumpCmd(kind inventory.Kind, jumpID string) tea.Cmd {
+	return func() tea.Msg { return SwapLeftPaneMsg{Kind: kind, JumpID: jumpID} }
 }
 
 // SwitchRunCmd is the conventional helper.
 func SwitchRunCmd(run store.RunSummary) tea.Cmd {
 	return func() tea.Msg { return SwitchRunMsg{Run: run} }
-}
-
-// JumpToResourceCmd is the conventional helper.
-func JumpToResourceCmd(id string) tea.Cmd {
-	return func() tea.Msg { return JumpToResourceMsg{ID: id} }
 }

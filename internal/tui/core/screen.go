@@ -4,6 +4,8 @@
 package core
 
 import (
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"cloudcmder.com/internal/inventory"
@@ -13,8 +15,27 @@ import (
 // RunOwner is implemented by screens that hold a notion of the "current run"
 // (Overview, ResourceList, Detail). The App walks its stack top-down looking
 // for the first RunOwner so cmdbar `:alias` jumps know which run to open.
+//
+// StatusbarData() returns the live snapshot for the bottom status bar. Returning
+// a pointer (rather than embedding the components type to avoid an import cycle)
+// keeps this contract decoupled from the components package; the App imports
+// both core and components and bridges the data.
 type RunOwner interface {
 	CurrentRun() *store.RunSummary
+	StatusbarData() RunStatusSnapshot
+}
+
+// RunStatusSnapshot is the data the bottom status bar renders. Mirrors
+// components.StatusbarData but lives in core so RunOwner doesn't need to
+// import components (which would create a cycle: components → core →
+// components).
+type RunStatusSnapshot struct {
+	ScopeID        string
+	RunUUIDShort   string
+	RunStatus      string
+	TotalResources int
+	KindCount      int
+	StartedAt      time.Time
 }
 
 // Screen is the contract every TUI screen satisfies. Update returns Screen

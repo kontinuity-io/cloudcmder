@@ -52,6 +52,12 @@ type Frame struct {
 	focus  PaneFocus
 	zoomed bool
 
+	// totalResources / kindCount are loaded once in NewFrame and feed the
+	// bottom status bar via StatusbarData. Cached because re-querying on
+	// every render would hit the store on each keystroke.
+	totalResources int
+	kindCount      int
+
 	// keys
 	tabKey     key.Binding
 	enterKey   key.Binding
@@ -74,6 +80,16 @@ func NewFrame(ctx context.Context, st *store.Store, run store.RunSummary) *Frame
 		historyKey: key.NewBinding(key.WithKeys("H")),
 		exportKey:  key.NewBinding(key.WithKeys("e")),
 	}
+	// One-shot count load for the status bar. Cheap (one SELECT GROUP BY
+	// against an indexed table) and avoids re-querying on every render. If
+	// the store is unhealthy here, the status bar shows "0 resources" —
+	// preferable to crashing the TUI startup.
+	if counts, err := st.CountResourcesByKind(ctx, run.ID); err == nil {
+		for _, n := range counts {
+			f.totalResources += n
+		}
+		f.kindCount = len(counts)
+	}
 	f.left = NewOverview(ctx, st, run.ScopeID, run.UUID)
 	return f
 }
@@ -83,6 +99,20 @@ func (f *Frame) Title() string { return f.run.ScopeID }
 
 // CurrentRun lets the App's :alias palette discover the active run.
 func (f *Frame) CurrentRun() *store.RunSummary { return &f.run }
+
+// StatusbarData returns the data the bottom status bar renders. Counts
+// are pre-loaded in NewFrame; everything else is in the cached
+// store.RunSummary.
+func (f *Frame) StatusbarData() core.RunStatusSnapshot {
+	return core.RunStatusSnapshot{
+		ScopeID:        f.run.ScopeID,
+		RunUUIDShort:   short(f.run.UUID),
+		RunStatus:      f.run.Status,
+		TotalResources: f.totalResources,
+		KindCount:      f.kindCount,
+		StartedAt:      f.run.StartedAt,
+	}
+}
 
 // Init kicks off the left pane's initial load.
 func (f *Frame) Init() tea.Cmd {

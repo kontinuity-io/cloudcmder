@@ -23,17 +23,18 @@ type clearToastMsg struct{}
 // App is the root Bubble Tea model. The screen stack lives here; everything
 // else (cmdbar, help, toast) wraps the active screen's view.
 type App struct {
-	ctx     context.Context
-	st      *store.Store
-	stack   []core.Screen
-	width   int
-	height  int
-	keymap  Keymap
-	cmdbar  components.Cmdbar
-	help    components.Help
-	helpOn  bool
-	toast   string
-	version string
+	ctx       context.Context
+	st        *store.Store
+	stack     []core.Screen
+	width     int
+	height    int
+	keymap    Keymap
+	cmdbar    components.Cmdbar
+	statusbar components.Statusbar
+	help      components.Help
+	helpOn    bool
+	toast     string
+	version   string
 
 	// lastBodyShrink is the number of vertical lines the cmdbar (when open)
 	// is currently asking the body to give up. Tracked so syncBodyShrink
@@ -61,11 +62,18 @@ func Run(ctx context.Context, st *store.Store) error {
 
 func newApp(ctx context.Context, st *store.Store) App {
 	app := App{
-		ctx:     ctx,
-		st:      st,
-		keymap:  DefaultKeymap(),
-		cmdbar:  components.NewCmdbar(style.Accent, style.Dim),
-		help:    components.NewHelp(),
+		ctx:    ctx,
+		st:     st,
+		keymap: DefaultKeymap(),
+		cmdbar: components.NewCmdbar(style.Accent, style.Dim),
+		help:   components.NewHelp(),
+		statusbar: components.NewStatusbar(
+			style.Accent,
+			style.Dim,
+			lipgloss.NewStyle().Foreground(style.ColorHealthy),
+			lipgloss.NewStyle().Foreground(style.ColorWarning),
+			lipgloss.NewStyle().Foreground(style.ColorError),
+		),
 		version: version.String(),
 	}
 	app.stack = []core.Screen{screens.NewScopes(ctx, st)}
@@ -267,6 +275,34 @@ func (a App) View() string {
 	if a.cmdbar.IsOpen() {
 		parts = append(parts, a.cmdbar.View())
 	}
-	parts = append(parts, body, footer)
+	parts = append(parts, body)
+	if bar := a.statusbarLine(); bar != "" {
+		parts = append(parts, bar)
+	}
+	parts = append(parts, footer)
 	return strings.Join(parts, "\n")
+}
+
+// statusbarLine returns the rendered status bar when the active screen is
+// a RunOwner — otherwise empty (e.g., on ScopeList where no run is active).
+func (a App) statusbarLine() string {
+	for i := len(a.stack) - 1; i >= 0; i-- {
+		owner, ok := a.stack[i].(core.RunOwner)
+		if !ok {
+			continue
+		}
+		if owner.CurrentRun() == nil {
+			continue
+		}
+		snap := owner.StatusbarData()
+		return a.statusbar.View(components.StatusbarData{
+			ScopeID:        snap.ScopeID,
+			RunUUIDShort:   snap.RunUUIDShort,
+			RunStatus:      snap.RunStatus,
+			TotalResources: snap.TotalResources,
+			KindCount:      snap.KindCount,
+			StartedAt:      snap.StartedAt,
+		})
+	}
+	return ""
 }

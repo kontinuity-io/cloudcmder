@@ -6,19 +6,6 @@ import (
 	"cloudcmder.com/internal/inventory"
 )
 
-// vmDiskRef parses a GCP disk source URL into a Disk ResourceRef.
-// Returns the zero ResourceRef when sourceURL is empty so callers can skip.
-// e.g. "projects/p/zones/us-central1-a/disks/my-disk" → ref{Kind:Disk, ID:my-disk}.
-func vmDiskRef(scopeID, sourceURL string) inventory.ResourceRef {
-	name := lastSegment(sourceURL)
-	if name == "" {
-		return inventory.ResourceRef{}
-	}
-	return inventory.ResourceRef{
-		Provider: providerName, ScopeID: scopeID, Kind: inventory.KindDisk, ID: name,
-	}
-}
-
 // vmSubnetRef parses a GCP subnetwork URL into a Subnet ResourceRef.
 func vmSubnetRef(scopeID, subnetURL string) inventory.ResourceRef {
 	name := lastSegment(subnetURL)

@@ -164,23 +164,11 @@ func enrichVMs(ctx context.Context, p *GCPProvider, scope inventory.Scope, ch ch
 		for _, inst := range pair.Value.Instances {
 			vmRes := buildVMResource(ctx, scope.ID, inst, resolveMT, p.dumpNative)
 			sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: vmRes})
-
-			for _, ad := range inst.GetDisks() {
-				diskRef := vmDiskRef(scope.ID, ad.GetSource())
-				if diskRef.ID == "" {
-					continue
-				}
-				stub := inventory.Resource{
-					Ref:    diskRef,
-					Kind:   inventory.KindDisk,
-					Name:   diskRef.ID,
-					Region: lastSegment(inst.GetZone()),
-					Refs: map[inventory.RefKind][]inventory.ResourceRef{
-						inventory.RefAttachedTo: {vmRes.Ref},
-					},
-				}
-				sendOrCancel(ctx, ch, inventory.ResourceOrErr{Resource: stub})
-			}
+			// Disk → VM AttachedTo edges are emitted from the disk side
+			// in enrichDisks via Disk.Users(). Emitting a Disk stub here
+			// (with no Detail) races against enrichDisks under the M8
+			// concurrent fan-out and clobbers the disk's SizeGB/Type/etc
+			// via INSERT OR REPLACE — the "all disks 0 GB" bug.
 		}
 	}
 }

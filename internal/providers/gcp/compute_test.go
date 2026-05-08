@@ -151,8 +151,10 @@ func TestEnrichVMsStreamsResources(t *testing.T) {
 	if vms != 1 {
 		t.Errorf("got %d VMs, want 1", vms)
 	}
-	if disks != 1 {
-		t.Errorf("got %d disk stubs, want 1", disks)
+	// enrichVMs no longer emits Disk stubs — the Disk → VM AttachedTo
+	// edge is captured from the disk side via enrichDisks (Disk.Users()).
+	if disks != 0 {
+		t.Errorf("got %d disk stubs, want 0 (disk side now emits the edge)", disks)
 	}
 }
 

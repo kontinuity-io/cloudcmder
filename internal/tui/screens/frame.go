@@ -104,7 +104,7 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		f.zoomed = false
 		f.right = nil
 		f.rightFor = ""
-		return f, f.left.Init()
+		return f, f.initLeftWithSize()
 	case core.SwitchRunMsg:
 		f.run = m.Run
 		f.left = NewOverview(f.ctx, f.st, f.run.ScopeID, f.run.UUID)
@@ -112,7 +112,7 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		f.right = nil
 		f.rightFor = ""
 		f.zoomed = false
-		return f, f.left.Init()
+		return f, f.initLeftWithSize()
 	case tea.WindowSizeMsg:
 		f.width, f.height = m.Width, m.Height
 		// Broadcast to both panes so each can size its internal table/text.
@@ -218,7 +218,7 @@ func (f *Frame) handleEnter() tea.Cmd {
 		f.left = NewResourceList(f.ctx, f.st, f.run, *k)
 		f.right = nil
 		f.rightFor = ""
-		return f.left.Init()
+		return f.initLeftWithSize()
 	}
 	if r := f.left.SelectedResource(); r != nil {
 		// ResourceList-style pane: zoom Detail to full width.
@@ -226,6 +226,22 @@ func (f *Frame) handleEnter() tea.Cmd {
 		return nil
 	}
 	return nil
+}
+
+// initLeftWithSize returns a Cmd that runs the new left pane's Init AND
+// synchronously seeds it with the Frame's current width/height via a
+// synthesized WindowSizeMsg. Without the size seed, the new pane's
+// internal table sizes against height=0 — and tableHeight's floor pins
+// the visible viewport at 3 rows, which the user sees as "scroll wraps
+// after 3 items."
+func (f *Frame) initLeftWithSize() tea.Cmd {
+	initCmd := f.left.Init()
+	if f.height == 0 {
+		return initCmd
+	}
+	var sizeCmd tea.Cmd
+	f.left, sizeCmd = f.left.Update(tea.WindowSizeMsg{Width: f.width, Height: f.height})
+	return tea.Batch(initCmd, sizeCmd)
 }
 
 // syncRightWithSelection rebuilds the right-pane Detail if the left pane's

@@ -34,14 +34,24 @@ type ResourceEntry struct {
 	Name string
 }
 
-// suggestion is one row in the dropdown above the input. Either an alias
+// suggestion is one row in the dropdown below the input. Either an alias
 // (kind="" — submit emits CmdSubmitMsg) or a resource (kind!="" — submit
 // emits CmdJumpResourceMsg).
 type suggestion struct {
-	label  string
-	kind   inventory.Kind
-	id     string
-	hint   string // shown faintly to the right of the label (e.g., "vm")
+	label string
+	kind  inventory.Kind
+	id    string
+	hint  string // shown faintly to the right of the label (e.g., "vm")
+}
+
+// suggestionKey returns the stable identity of a suggestion. Resources are
+// keyed by kind+id (label collisions across kinds are common for, e.g.,
+// disk vs vm sharing a name); aliases are keyed by their label.
+func (s suggestion) suggestionKey() string {
+	if s.kind != "" {
+		return string(s.kind) + ":" + s.id
+	}
+	return "alias:" + s.label
 }
 
 // maxSuggestions caps the dropdown so a 1000-resource project doesn't
@@ -151,11 +161,20 @@ func (c Cmdbar) commit() tea.Cmd {
 // and resource names are fuzzy-matched against the typed pattern; results
 // are merged with aliases first (kind keywords are usually shorter and
 // almost always what the user meant when typing 2-3 chars).
+//
+// Selection is preserved across recomputes when the previously-selected
+// entry is still in the new list — without this, every refining keystroke
+// would yank the cursor back to the top mid-navigation.
 func (c *Cmdbar) recomputeSuggestions() {
 	pat := c.in.Value()
-	c.selected = 0
+	prevKey := ""
+	if c.selected < len(c.suggestions) {
+		prevKey = c.suggestions[c.selected].suggestionKey()
+	}
+
 	if pat == "" {
 		c.suggestions = nil
+		c.selected = 0
 		return
 	}
 
@@ -164,8 +183,7 @@ func (c *Cmdbar) recomputeSuggestions() {
 	for _, m := range fuzzy.Find(pat, c.aliases) {
 		out = append(out, suggestion{label: c.aliases[m.Index], hint: "kind"})
 		if len(out) >= maxSuggestions {
-			c.suggestions = out
-			return
+			break
 		}
 	}
 
@@ -189,14 +207,37 @@ func (c *Cmdbar) recomputeSuggestions() {
 	}
 
 	c.suggestions = out
+	c.selected = 0
+	if prevKey == "" {
+		return
+	}
+	for i, s := range out {
+		if s.suggestionKey() == prevKey {
+			c.selected = i
+			return
+		}
+	}
 }
 
-// View renders the dropdown stacked above the input line. Empty when closed.
+// RenderHeight is the number of vertical lines View() will produce. Used by
+// App to shrink the body's WindowSizeMsg by exactly the cmdbar's footprint
+// when it opens, so the body never overflows under the cmdbar.
+func (c Cmdbar) RenderHeight() int {
+	if !c.open {
+		return 0
+	}
+	return len(c.suggestions) + 1 // suggestions + the input line
+}
+
+// View renders the input line first (k9s-style header), then the dropdown
+// of fuzzy suggestions stacked beneath. Empty when closed. App renders this
+// between the breadcrumbs and the body.
 func (c Cmdbar) View() string {
 	if !c.open {
 		return ""
 	}
 	lines := make([]string, 0, len(c.suggestions)+1)
+	lines = append(lines, c.prompt.Render(c.in.View()))
 	for i, s := range c.suggestions {
 		marker := "  "
 		if i == c.selected {
@@ -213,6 +254,5 @@ func (c Cmdbar) View() string {
 		}
 		lines = append(lines, row)
 	}
-	lines = append(lines, c.prompt.Render(c.in.View()))
 	return strings.Join(lines, "\n")
 }

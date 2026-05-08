@@ -115,6 +115,54 @@ func TestCmdbarEscClosesWithoutSubmit(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
+func TestCmdbarSelectedSurvivesRefiningKeystrokes(t *testing.T) {
+	c := newTestCmdbar()
+	c.SetCorpus(
+		nil,
+		[]ResourceEntry{
+			{Kind: inventory.KindVM, ID: "vm-prod-api", Name: "vm-prod-api"},
+			{Kind: inventory.KindVM, ID: "vm-prod-db", Name: "vm-prod-db"},
+			{Kind: inventory.KindVM, ID: "vm-prod-cache", Name: "vm-prod-cache"},
+		},
+	)
+	c.Open()
+
+	c = typeInto(c, "vm")
+	require.GreaterOrEqual(t, len(c.suggestions), 3)
+	c, _ = c.Update(keyMsg("down"))
+	c, _ = c.Update(keyMsg("down"))
+	require.Equal(t, 2, c.selected)
+	picked := c.suggestions[c.selected]
+
+	// Refining keystroke ("p" → narrows to all -prod-*) should keep the
+	// cursor on the same resource if it's still in the new list, instead
+	// of yanking back to selected=0.
+	c, _ = c.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	found := -1
+	for i, s := range c.suggestions {
+		if s.suggestionKey() == picked.suggestionKey() {
+			found = i
+			break
+		}
+	}
+	require.GreaterOrEqual(t, found, 0, "previously-selected suggestion should still be in the list")
+	assert.Equal(t, found, c.selected, "selected should track the previously-picked entry")
+}
+
+func TestCmdbarRenderHeightTracksDropdown(t *testing.T) {
+	c := newTestCmdbar()
+	c.SetCorpus([]string{"vm", "bucket"}, nil)
+	assert.Equal(t, 0, c.RenderHeight(), "closed cmdbar takes no vertical room")
+
+	c.Open()
+	c = typeInto(c, "v")
+	// Open + 1 input line + N suggestions.
+	assert.Equal(t, 1+len(c.suggestions), c.RenderHeight())
+
+	c.Close()
+	assert.Equal(t, 0, c.RenderHeight())
+}
+
 func TestCmdbarEmptySuggestionsFallsBackToAliasSubmit(t *testing.T) {
 	c := newTestCmdbar()
 	c.SetCorpus([]string{"vm"}, nil)

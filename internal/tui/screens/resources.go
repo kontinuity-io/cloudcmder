@@ -38,18 +38,19 @@ type resourcesKeymap struct {
 // component owned by Frame; Frame draws the surrounding border and is the
 // host for Enter (Frame zooms the right-pane Detail to full width).
 type ResourceList struct {
-	ctx     context.Context
-	st      *store.Store
-	run     store.RunSummary
-	kind    inventory.Kind
-	cols    []ColumnDef
-	tbl     table.Model
-	spin    spinner.Model
-	rows    []rowData
-	visible []rowData
-	loaded  bool
-	loadErr error
-	height  int
+	ctx        context.Context
+	st         *store.Store
+	run        store.RunSummary
+	kind       inventory.Kind
+	cols       []ColumnDef
+	tbl        table.Model
+	spin       spinner.Model
+	rows       []rowData
+	visible    []rowData
+	loaded     bool
+	loadErr    error
+	height     int
+	innerWidth int
 
 	filterOn bool
 	filterIn textinput.Model
@@ -63,9 +64,11 @@ type ResourceList struct {
 }
 
 // NewResourceList returns a ResourceList for the given kind/run pair. Callers
-// should have already verified `columnsFor(kind)` returned ok=true.
+// should have already verified `columnsFor(kind, …)` returned ok=true.
+// Columns start at their natural widths; Frame calls SetInnerWidth before the
+// first render so they can fit the actual pane.
 func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary, kind inventory.Kind) *ResourceList {
-	cols, _ := columnsFor(kind)
+	cols, _ := columnsFor(kind, 0)
 	tCols := make([]table.Column, len(cols))
 	for i, c := range cols {
 		tCols[i] = table.Column{Title: c.Header, Width: c.Width}
@@ -74,6 +77,7 @@ func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary,
 		table.WithColumns(tCols),
 		table.WithFocused(true),
 		table.WithHeight(15),
+		table.WithStyles(selectedRowStyles()),
 	)
 	in := textinput.New()
 	in.Prompt = "/"
@@ -90,6 +94,24 @@ func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary,
 			Filter: key.NewBinding(key.WithKeys("/")),
 		},
 	}
+}
+
+// SetInnerWidth recomputes column widths to fit the given pane budget,
+// then re-renders the visible rows with the new widths. Called by Frame
+// when it knows the actual leftW. No-op if width is unchanged.
+func (s *ResourceList) SetInnerWidth(w int) {
+	if s.innerWidth == w || w <= 0 {
+		return
+	}
+	s.innerWidth = w
+	cols, _ := columnsFor(s.kind, w)
+	s.cols = cols
+	tCols := make([]table.Column, len(cols))
+	for i, c := range cols {
+		tCols[i] = table.Column{Title: c.Header, Width: c.Width}
+	}
+	s.tbl.SetColumns(tCols)
+	s.tbl.SetRows(s.toTableRows(s.visible))
 }
 
 // Title satisfies LeftPane.

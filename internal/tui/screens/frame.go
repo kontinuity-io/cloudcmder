@@ -358,6 +358,10 @@ func (f *Frame) bodyView() string {
 		inner := f.width - 1 // account for the 1-char separator
 		leftW := inner * 60 / 100
 		rightW := inner - leftW
+		// Tell the left pane its budget BEFORE rendering — it adapts
+		// column widths to fit. SetInnerWidth is a no-op when the value
+		// hasn't changed since the last render, so this is cheap.
+		f.left.SetInnerWidth(leftW - 2)
 		leftBox := f.borderFor(focusLeft).
 			Width(leftW - 2).Height(bodyH - 2).
 			Render(f.left.View())
@@ -367,6 +371,7 @@ func (f *Frame) bodyView() string {
 		return lipgloss.JoinHorizontal(lipgloss.Top, leftBox, " ", rightBox)
 	}
 	// Narrow: stacked top/bottom, each gets ~half the body height.
+	f.left.SetInnerWidth(f.width - 2)
 	half := (bodyH - 1) / 2
 	leftBox := f.borderFor(focusLeft).
 		Width(f.width - 2).Height(half - 2).

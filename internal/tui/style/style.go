@@ -48,6 +48,16 @@ func Status(status string) lipgloss.Style {
 	}
 }
 
+// StatusBullet returns a coloured ● glyph reflecting status. Empty string
+// in → empty string out (no bullet for resources without status). Used in
+// table cells to save horizontal space and read at a glance.
+func StatusBullet(status string) string {
+	if status == "" {
+		return ""
+	}
+	return Status(status).Render("●")
+}
+
 // Separator returns a dim horizontal rule of the given width — used inside
 // bordered containers to divide sections.
 func Separator(width int) string {

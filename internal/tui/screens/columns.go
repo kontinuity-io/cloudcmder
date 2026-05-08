@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/lipgloss"
+
 	"cloudcmder.com/internal/inventory"
+	"cloudcmder.com/internal/tui/style"
 )
 
 // ColumnDef describes one column in a ResourceList table. Extract receives
@@ -17,34 +21,82 @@ type ColumnDef struct {
 	Extract func(r inventory.Resource, detail any) string
 }
 
-// columnsFor returns the column set registered for the given Kind. The second
-// return value reports whether a kind-specific column set exists; callers use
-// it to decide between the real ResourceList and a stub. After M6 every kind
-// is registered, so the stub fallback is unreachable.
-func columnsFor(kind inventory.Kind) ([]ColumnDef, bool) {
+// columnsFor returns the column set registered for the given Kind, with
+// each column's Width adapted to fit availableWidth. The hardcoded widths
+// in the per-kind functions are treated as relative weights — at narrow
+// terminals they shrink proportionally; at wide terminals they fit
+// naturally. Pass availableWidth=0 to skip the fit step (tests, exporter
+// reuse). The second return value reports whether a kind-specific column
+// set exists.
+func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
+	var cols []ColumnDef
 	switch kind {
 	case inventory.KindVM:
-		return vmColumns(), true
+		cols = vmColumns()
 	case inventory.KindDisk:
-		return diskColumns(), true
+		cols = diskColumns()
 	case inventory.KindNetwork:
-		return networkColumns(), true
+		cols = networkColumns()
 	case inventory.KindSubnet:
-		return subnetColumns(), true
+		cols = subnetColumns()
 	case inventory.KindFirewall:
-		return firewallColumns(), true
+		cols = firewallColumns()
 	case inventory.KindLoadBalancer:
-		return loadBalancerColumns(), true
+		cols = loadBalancerColumns()
 	case inventory.KindDatabase:
-		return databaseColumns(), true
+		cols = databaseColumns()
 	case inventory.KindCluster:
-		return clusterColumns(), true
+		cols = clusterColumns()
 	case inventory.KindBucket:
-		return bucketColumns(), true
+		cols = bucketColumns()
 	case inventory.KindFunction:
-		return functionColumns(), true
+		cols = functionColumns()
 	default:
 		return nil, false
+	}
+	if availableWidth > 0 {
+		fitColumnWidths(cols, availableWidth)
+	}
+	return cols, true
+}
+
+// fitColumnWidths shrinks the per-column Width values so the rendered
+// table fits inside availableWidth. bubbles/table v1 adds 2 padding chars
+// per cell, so the effective budget is availableWidth − 2*len(cols).
+// Natural widths that already fit are left alone; narrow terminals shrink
+// each column proportionally with a 4-rune floor.
+func fitColumnWidths(cols []ColumnDef, availableWidth int) {
+	if len(cols) == 0 {
+		return
+	}
+	const minWidth = 4
+	const cellPadding = 2
+	budget := availableWidth - cellPadding*len(cols)
+	if budget <= minWidth*len(cols) {
+		// Terminal too narrow to shrink fairly — leave defaults; bubbles/
+		// table will horizontally clip on render.
+		return
+	}
+	sum := 0
+	for _, c := range cols {
+		sum += c.Width
+	}
+	if sum <= budget {
+		return
+	}
+	used := 0
+	for i := range cols {
+		scaled := cols[i].Width * budget / sum
+		if scaled < minWidth {
+			scaled = minWidth
+		}
+		cols[i].Width = scaled
+		used += scaled
+	}
+	// Spend any remainder on the first column (typically NAME) so the
+	// total matches the budget within rounding error.
+	if r := budget - used; r > 0 {
+		cols[0].Width += r
 	}
 }
 
@@ -124,11 +176,9 @@ func AllAliases() []string {
 // --- VM --------------------------------------------------------------------
 
 func vmColumns() []ColumnDef {
-	// Widths are tuned so the rendered table (sum of widths + bubbles/table's
-	// 2-char per-cell padding) fits inside the Frame's left pane at ≥120-col
-	// terminals (~94-col content area at the 60/40 split). Expand later via
-	// adaptive column-width sizing once Frame passes its inner width to the
-	// pane (M8 polish).
+	// Widths are relative weights; columnsFor scales them to the actual
+	// pane width via fitColumnWidths. At ≥120-col terminals the natural
+	// widths fit; narrower terminals get proportionally shrunken cells.
 	return []ColumnDef{
 		{Header: "NAME", Width: 20, Extract: func(r inventory.Resource, _ any) string { return r.Name }},
 		{Header: "ZONE", Width: 14, Extract: func(_ inventory.Resource, d any) string {
@@ -161,7 +211,7 @@ func vmColumns() []ColumnDef {
 			}
 			return ""
 		}},
-		{Header: "STATUS", Width: 10, Extract: func(r inventory.Resource, _ any) string { return r.Status }},
+		{Header: "STATUS", Width: 12, Extract: statusOf},
 	}
 }
 
@@ -442,10 +492,35 @@ func functionColumns() []ColumnDef {
 	}
 }
 
+// selectedRowStyles returns the bubbles/table styles used by every left
+// pane in v1.2 — accent-on-dark for the selected row, dim for the header
+// rule. Centralised so the row contrast looks consistent across panes.
+func selectedRowStyles() table.Styles {
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		Foreground(style.ColorAccent).
+		Bold(true).
+		BorderForeground(style.ColorDim)
+	s.Selected = s.Selected.
+		Foreground(style.ColorAccent).
+		Background(lipgloss.Color("#1f2335")).
+		Bold(true)
+	return s
+}
+
 // --- shared helpers --------------------------------------------------------
 
-func nameOf(r inventory.Resource, _ any) string   { return r.Name }
-func statusOf(r inventory.Resource, _ any) string { return r.Status }
+func nameOf(r inventory.Resource, _ any) string { return r.Name }
+
+// statusOf renders the resource status as "● TEXT" using a coloured bullet
+// from style.StatusBullet. Empty status → empty cell. The bullet costs ~3
+// runes; widths in column packs already include space for it.
+func statusOf(r inventory.Resource, _ any) string {
+	if r.Status == "" {
+		return ""
+	}
+	return style.StatusBullet(r.Status) + " " + r.Status
+}
 
 func boolStr(b bool) string {
 	if b {

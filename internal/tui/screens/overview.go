@@ -58,6 +58,7 @@ func NewOverview(ctx context.Context, st *store.Store, scopeID, runUUID string) 
 		}),
 		table.WithFocused(true),
 		table.WithHeight(10),
+		table.WithStyles(selectedRowStyles()),
 	)
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -71,6 +72,11 @@ func (o *Overview) Title() string { return "Overview" }
 
 // AbsorbingKeys reports false — Overview has no input field.
 func (o *Overview) AbsorbingKeys() bool { return false }
+
+// SetInnerWidth is a no-op for Overview: its KIND/COUNT columns are
+// fixed-shape and small enough to fit any reasonable terminal. The pane
+// width controls border drawing, not table layout.
+func (o *Overview) SetInnerWidth(_ int) {}
 
 // SelectedResource is always nil — Overview operates on Kinds, not resources.
 func (o *Overview) SelectedResource() *rowData { return nil }

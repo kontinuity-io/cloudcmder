@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"cloudcmder.com/internal/store"
 	"cloudcmder.com/internal/tui/core"
@@ -226,14 +227,21 @@ func short(uuid string) string {
 	return uuid
 }
 
+// truncate clips s to a visible width of n columns, ANSI-aware. Cells
+// that are already styled (e.g., status bullets) round-trip without
+// corrupting the escape sequences. Falls back to the un-styled byte
+// truncation when the input has no ANSI (cheap fast-path).
 func truncate(s string, n int) string {
-	if len(s) <= n {
+	if n <= 0 {
+		return ""
+	}
+	if lipgloss.Width(s) <= n {
 		return s
 	}
 	if n <= 1 {
 		return "…"
 	}
-	return s[:n-1] + "…"
+	return ansi.Truncate(s, n-1, "") + "…"
 }
 
 func max(a, b int) int {

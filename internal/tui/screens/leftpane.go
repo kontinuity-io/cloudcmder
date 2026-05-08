@@ -29,4 +29,11 @@ type LeftPane interface {
 	// ResourceList's `/` filter textinput. Frame stops eating keys (Tab,
 	// Enter, Esc, `:`, etc.) while this is true so the user can type freely.
 	AbsorbingKeys() bool
+
+	// SetInnerWidth tells the pane the horizontal budget it has inside the
+	// border, so it can recompute column widths to fit. Frame calls this
+	// before rendering whenever the available width changes (terminal
+	// resize, side-by-side ↔ stacked layout switch). Implementations should
+	// be cheap — typically just "store the value, recompute on next View".
+	SetInnerWidth(int)
 }

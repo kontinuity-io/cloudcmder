@@ -212,7 +212,7 @@ func vmColumns() []ColumnDef {
 			}
 			return ""
 		}},
-		{Header: "STATUS", Width: 12, Extract: statusOf},
+		{Header: "STATUS", Width: 10, Extract: statusOf},
 	}
 }
 
@@ -513,14 +513,17 @@ func selectedRowStyles() table.Styles {
 
 func nameOf(r inventory.Resource, _ any) string { return r.Name }
 
-// statusOf renders the resource status as "● TEXT" using a coloured bullet
-// from style.StatusBullet. Empty status → empty cell. The bullet costs ~3
-// runes; widths in column packs already include space for it.
+// statusOf returns the plain status text. The colour bullet from
+// style.StatusBullet is REMOVED from cells: bubbles/table v1's row width
+// calculation gets confused by ANSI escape sequences inside cell strings,
+// causing rows to render wider than the column budget — which made the
+// right-pane Detail visually overlap the left-pane resource list on any
+// kind that had a STATUS column with the bullet (VM, Disk, Database,
+// Cluster, Function). Bullets still render in Detail panes where the
+// content path doesn't go through bubbles/table; full bullet-in-table
+// support waits for Charm v2 or a custom ANSI-aware table component.
 func statusOf(r inventory.Resource, _ any) string {
-	if r.Status == "" {
-		return ""
-	}
-	return style.StatusBullet(r.Status) + " " + r.Status
+	return r.Status
 }
 
 func boolStr(b bool) string {

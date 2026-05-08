@@ -168,9 +168,10 @@ func AliasToKind(alias string) (inventory.Kind, bool) {
 }
 
 // AllAliases returns every cmdbar alias in declaration order. Used by the
-// cmdbar to seed its fuzzy-suggestion corpus.
+// cmdbar to seed its fuzzy-suggestion corpus. "scopes" doesn't map to a
+// Kind — App.Update special-cases it and pushes the ScopesModal instead.
 func AllAliases() []string {
-	return []string{"vm", "disk", "db", "lb", "net", "subnet", "fw", "gke", "bucket", "fn"}
+	return []string{"vm", "disk", "db", "lb", "net", "subnet", "fw", "gke", "bucket", "fn", "scopes"}
 }
 
 // --- VM --------------------------------------------------------------------

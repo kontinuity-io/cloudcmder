@@ -2,6 +2,7 @@ package screens
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -15,6 +16,23 @@ import (
 	"cloudcmder.com/internal/tui/core"
 	"cloudcmder.com/internal/tui/style"
 )
+
+// DetailMode controls what the right pane renders for a Resource. Cycles
+// via the `m` key. Full is the default; ConnectionsOnly and RawJSON are
+// data-focused alternates; InlineGraph reuses the GraphView ASCII tree
+// renderer embedded in the right pane.
+type DetailMode int
+
+const (
+	DetailModeFull DetailMode = iota
+	DetailModeConnectionsOnly
+	DetailModeRawJSON
+	DetailModeInlineGraph
+)
+
+// detailModeCount is the number of distinct DetailMode values; lets
+// cycleMode wrap without hardcoding the upper bound.
+const detailModeCount = 4
 
 type edgesLoadedMsg struct {
 	edges []store.Edge
@@ -37,6 +55,9 @@ type Detail struct {
 	loadErr error
 	edges   []store.Edge
 
+	mode    DetailMode
+	modeKey key.Binding
+
 	graphKey key.Binding
 }
 
@@ -48,8 +69,16 @@ func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res i
 	s.Spinner = spinner.Dot
 	return &Detail{
 		ctx: ctx, st: st, run: run, res: res, detail: detail, spin: s,
+		modeKey:  key.NewBinding(key.WithKeys("m")),
 		graphKey: key.NewBinding(key.WithKeys("g")),
 	}
+}
+
+// CycleMode advances the right-pane mode to the next DetailMode, wrapping
+// back to Full after the last one. Exported so Frame can drive the cycle
+// (the user holds Tab+m vs. just m depending on focus).
+func (d *Detail) CycleMode() {
+	d.mode = (d.mode + 1) % detailModeCount
 }
 
 // Title satisfies core.Screen.
@@ -85,7 +114,11 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		}
 		return d, nil
 	case tea.KeyMsg:
-		if key.Matches(m, d.graphKey) {
+		switch {
+		case key.Matches(m, d.modeKey):
+			d.CycleMode()
+			return d, nil
+		case key.Matches(m, d.graphKey):
 			return d, core.PushScreenCmd(NewGraphView(d.res, d.edges))
 		}
 	}
@@ -96,9 +129,11 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 // belongs to.
 func (d *Detail) CurrentRun() *store.RunSummary { return &d.run }
 
-// View renders Detail content as a single vertical stream: kind-specific
-// fields, a separator, then the connections list. Frame controls the
-// surrounding border and layout.
+// View renders Detail content. The active DetailMode controls layout:
+// Full (default) shows kind-specific fields above the connections list;
+// ConnectionsOnly hides the kind-specific block; RawJSON pretty-prints
+// the decoded Detail; InlineGraph embeds the GraphView ASCII tree.
+// Frame draws the surrounding border.
 func (d *Detail) View() string {
 	if !d.loaded {
 		return d.spin.View() + style.Dim.Render(" loading detail…")
@@ -107,14 +142,57 @@ func (d *Detail) View() string {
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading edges: " + d.loadErr.Error())
 	}
-	body := lipgloss.JoinVertical(lipgloss.Left,
+	switch d.mode {
+	case DetailModeConnectionsOnly:
+		return d.connectionsPane()
+	case DetailModeRawJSON:
+		return d.rawJSONPane()
+	case DetailModeInlineGraph:
+		return buildTree(d.res.Name, d.edges, d.res.Ref.String())
+	}
+	return lipgloss.JoinVertical(lipgloss.Left,
 		d.detailPane(),
 		"",
 		style.Separator(40),
 		"",
 		d.connectionsPane(),
 	)
-	return body
+}
+
+// rawJSONPane pretty-prints the decoded Detail struct (or, when the
+// resource was scanned with --dump-native, the provider's raw payload).
+// Useful when an audit needs to confirm a field that the kind-specific
+// rows don't surface.
+func (d *Detail) rawJSONPane() string {
+	header := style.Accent.Render("RAW JSON — ") + style.Dim.Render(string(d.res.Kind))
+	target := d.res.Native
+	label := "native"
+	if target == nil {
+		target = d.detail
+		label = "detail"
+	}
+	if target == nil {
+		return lipgloss.JoinVertical(lipgloss.Left,
+			header,
+			style.Separator(40),
+			style.Dim.Render("(no "+label+" data — scan with --dump-native to capture)"),
+		)
+	}
+	body, err := json.MarshalIndent(target, "", "  ")
+	if err != nil {
+		return lipgloss.JoinVertical(lipgloss.Left,
+			header,
+			style.Separator(40),
+			lipgloss.NewStyle().Foreground(style.ColorError).
+				Render("marshal error: "+err.Error()),
+		)
+	}
+	return lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		style.Dim.Render("("+label+")"),
+		style.Separator(40),
+		string(body),
+	)
 }
 
 func (d *Detail) detailPane() string {

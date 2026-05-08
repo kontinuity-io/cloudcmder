@@ -126,6 +126,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		a.stack = a.stack[:len(a.stack)-1]
 		return a, nil
+	case core.SwitchRunMsg:
+		// A modal (RunHistory or ScopesModal) is asking the Frame
+		// underneath to swap its run. Refresh the cmdbar corpus first so
+		// `:` after the swap points at the new scope's resources, THEN
+		// forward to Frame so it can swap in place.
+		a.refreshCmdbarCorpus(m.Run)
+		top := a.stack[len(a.stack)-1]
+		updated, cmd := top.Update(msg)
+		a.stack[len(a.stack)-1] = updated
+		return a, cmd
 	case core.ToastMsg:
 		a.toasts.Push(m.Text, toastTTL)
 		// One expiry tick per push — multiple stacked toasts each get
@@ -138,6 +148,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.toasts.Tick(time.Time(m))
 		return a, nil
 	case components.CmdSubmitMsg:
+		// `:scopes` is a special-case alias that doesn't map to a Kind —
+		// open the ScopeList as a modal over the current Frame.
+		if strings.EqualFold(m.Alias, "scopes") {
+			return a, core.PushScreenCmd(screens.NewScopesModal(a.ctx, a.st))
+		}
 		kind, ok := screens.AliasToKind(m.Alias)
 		if !ok {
 			return a, core.ToastCmd("unknown alias: " + m.Alias)

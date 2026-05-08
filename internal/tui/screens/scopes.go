@@ -48,6 +48,11 @@ type Scopes struct {
 	width   int
 	height  int
 	keymap  scopesKeymap
+	// modal is true when this Scopes was pushed via `:scopes` over an
+	// existing Frame. In that mode, picking a scope emits SwitchRunMsg
+	// (the Frame underneath swaps in place) and pops the modal — instead
+	// of the default behaviour of pushing a new Frame on top.
+	modal bool
 }
 
 type scopesKeymap struct {
@@ -82,8 +87,23 @@ func NewScopes(ctx context.Context, st *store.Store) *Scopes {
 	}
 }
 
+// NewScopesModal returns a Scopes screen configured for "switch project
+// without exiting the current Frame" — pushed by App on `:scopes`. Esc
+// pops the modal; Enter on a row emits SwitchRunMsg + PopScreenMsg so
+// the Frame underneath swaps to the picked scope.
+func NewScopesModal(ctx context.Context, st *store.Store) *Scopes {
+	s := NewScopes(ctx, st)
+	s.modal = true
+	return s
+}
+
 // Title satisfies the tui.Screen contract.
-func (s *Scopes) Title() string { return "Scopes" }
+func (s *Scopes) Title() string {
+	if s.modal {
+		return "Scopes (modal)"
+	}
+	return "Scopes"
+}
 
 // Init triggers the initial store query and kicks the spinner.
 func (s *Scopes) Init() tea.Cmd {
@@ -137,6 +157,15 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			cur := s.tbl.Cursor()
 			if cur >= 0 && cur < len(s.rows) {
 				row := s.rows[cur]
+				if s.modal {
+					// Modal mode: pop the modal FIRST so the Frame underneath
+					// is the active screen when SwitchRunMsg lands. tea.Batch
+					// would race; tea.Sequence guarantees order.
+					return s, tea.Sequence(
+						core.PopScreenCmd(),
+						core.SwitchRunCmd(row.LatestRun),
+					)
+				}
 				return s, core.PushScreenCmd(NewFrame(s.ctx, s.st, row.LatestRun))
 			}
 		case key.Matches(m, s.keymap.History):
@@ -158,6 +187,12 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			if cur >= 0 && cur < len(s.rows) {
 				return s, exportRunCmd(s.ctx, s.st, s.rows[cur].LatestRun)
 			}
+		}
+		// Esc in modal mode pops the modal without switching scope. Only
+		// honoured for modal mode — at the root, Esc has no defined action
+		// and we leave it alone so future bindings aren't blocked.
+		if s.modal && m.Type == tea.KeyEsc {
+			return s, core.PopScreenCmd()
 		}
 	}
 	var cmd tea.Cmd

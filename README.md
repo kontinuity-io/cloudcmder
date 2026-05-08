@@ -40,42 +40,42 @@ directly — that decouples interactive browsing from network calls.
 
 ```mermaid
 flowchart TB
-    subgraph "User entry"
+    subgraph EntryGroup [User entry]
         CLI["<b>cmd/cloudcmder</b><br/>cobra root: --scan, --export,<br/>--list-runs, TUI launch"]
     end
 
-    subgraph "Read-side consumers"
-        TUI["<b>internal/tui</b><br/>Bubble Tea screens<br/>(Scopes, Frame, Detail, …)"]
+    subgraph ReadGroup [Read-side consumers]
+        TUI["<b>internal/tui</b><br/>Bubble Tea screens<br/>(Scopes, Frame, Detail, ...)"]
         EXP["<b>internal/export</b><br/>excelize StreamWriter<br/>multi-sheet xlsx"]
     end
 
-    subgraph "Source of truth"
-        STORE[("<b>internal/store</b><br/>SQLite (WAL)<br/>runs · resources · edges · scopes")]
+    subgraph StoreGroup [Source of truth]
+        STORE[("<b>internal/store</b><br/>SQLite (WAL)<br/>runs / resources / edges / scopes")]
     end
 
-    subgraph "Provider-agnostic types"
-        INV["<b>internal/inventory</b><br/>Provider iface · Kind · Resource ·<br/>Detail structs · ResourceRef"]
+    subgraph TypesGroup [Provider-agnostic types]
+        INV["<b>internal/inventory</b><br/>Provider iface, Kind, Resource,<br/>Detail structs, ResourceRef"]
     end
 
-    subgraph "Cloud backend (pluggable)"
-        GCP["<b>internal/providers/gcp</b><br/>Asset Inventory + 10 per-kind<br/>enrichers (compute, sql, gke, …)"]
+    subgraph BackendGroup [Cloud backend - pluggable]
+        GCP["<b>internal/providers/gcp</b><br/>Asset Inventory plus 10 per-kind<br/>enrichers (compute, sql, gke, ...)"]
     end
 
-    subgraph "External"
-        GAPI["☁️ GCP APIs<br/>via Application Default Credentials"]
+    subgraph ExternalGroup [External]
+        GAPI["GCP APIs<br/>via Application Default Credentials"]
     end
 
     CLI --> TUI
     CLI --> EXP
     CLI --> GCP
-    TUI -->|"reads"| STORE
-    EXP -->|"reads"| STORE
-    GCP -->|"writes"| STORE
-    STORE -.->|"types"| INV
-    GCP -.->|"types"| INV
-    TUI -.->|"types"| INV
-    EXP -.->|"types"| INV
-    GCP -->|"REST/gRPC"| GAPI
+    TUI -->|reads| STORE
+    EXP -->|reads| STORE
+    GCP -->|writes| STORE
+    STORE -.->|types| INV
+    GCP -.->|types| INV
+    TUI -.->|types| INV
+    EXP -.->|types| INV
+    GCP -->|REST/gRPC| GAPI
 ```
 
 The dashed lines are import-only relationships; the solid lines are
@@ -94,39 +94,37 @@ fields and `Refs` (interconnection edges).
 sequenceDiagram
     actor User
     participant CLI as cmd/cloudcmder
-    participant Asset as ☁️ Cloud Asset<br/>Inventory
-    participant Enrichers as ⚡ Per-kind enrichers<br/>(4-goroutine pool)
-    participant DB as 💾 SQLite store
+    participant Asset as Cloud Asset Inventory
+    participant Enrichers as Per-kind enrichers (4-goroutine pool)
+    participant DB as SQLite store
 
     User->>CLI: cloudcmder --scan PROJECT_ID
-
-    Note over CLI: signal.NotifyContext wraps ctx —<br/>Ctrl-C cancels cleanly, partial rows survive
-
+    Note over CLI: signal.NotifyContext wraps ctx<br/>Ctrl-C cancels cleanly, partial rows survive
     CLI->>DB: OpenRun (status=running)
 
     rect rgba(70, 90, 120, 0.30)
-    Note over CLI,Asset: Phase 1 — discovery (1 paginated call)
-    CLI->>Asset: SearchAllResources(10 asset types)
+    Note over CLI,Asset: Phase 1 - discovery (1 paginated call)
+    CLI->>Asset: SearchAllResources (10 asset types)
     Asset-->>CLI: stub Resources (Name, Region, Status, Labels)
     CLI->>DB: WriteBatch (200-row chunks)
     end
 
     rect rgba(60, 110, 80, 0.30)
-    Note over CLI,Enrichers: Phase 2 — enrichment (concurrent fan-out)
+    Note over CLI,Enrichers: Phase 2 - enrichment (concurrent fan-out)
     par enrichVMs
-        CLI->>Enrichers: compute.AggregatedList(instances)
-        Enrichers-->>DB: VMDetail + Disk → VM edges
+        CLI->>Enrichers: compute.AggregatedList (instances)
+        Enrichers-->>DB: VMDetail rows
     and enrichDisks
-        Enrichers->>Enrichers: compute.AggregatedList(disks)
-        Enrichers-->>DB: DiskDetail + AttachedTo edges
-    and "8 more"
-        Enrichers->>Enrichers: networks · subnets · firewalls · LBs<br/>SQL · GKE · buckets · functions
-        Enrichers-->>DB: per-kind Detail + Refs
+        Enrichers->>Enrichers: compute.AggregatedList (disks)
+        Enrichers-->>DB: DiskDetail plus AttachedTo edges
+    and 8 other enrichers
+        Enrichers->>Enrichers: networks, subnets, firewalls, LBs,<br/>SQL, GKE, buckets, functions
+        Enrichers-->>DB: per-kind Detail plus Refs
     end
-    Note right of Enrichers: API-disabled or 403 → log & skip;<br/>scan keeps going for other kinds
+    Note right of Enrichers: API disabled or 403 — log and skip<br/>scan continues for other kinds
     end
 
-    CLI->>DB: FinishRun (status=ok | partial)
+    CLI->>DB: FinishRun (status=ok or partial)
     CLI-->>User: run uuid printed to stdout
 ```
 
@@ -142,19 +140,19 @@ Frame; `q` is the only way out.
 
 ```mermaid
 flowchart LR
-    Start(["cloudcmder<br/>(no flags)"]) --> Scopes["<b>ScopeList</b><br/>(every accessible project)"]
+    Start(["cloudcmder<br/>no flags"]) --> Scopes["<b>ScopeList</b><br/>every accessible project"]
     Scopes -->|Enter on a scope| Frame
-    Frame["<b>Frame</b><br/>split-pane commander<br/>(left: list · right: live Detail)"]
-    Frame -->|"Enter on kind row"| Frame
-    Frame -->|"&#8203;: + alias"| Frame
-    Frame -->|"&#8203;: + resource name"| Frame
-    Frame -->|"&#8203;: scopes"| ScopesModal["<b>Scopes modal</b><br/>swap project<br/>without quitting"]
-    ScopesModal -->|"select"| Frame
-    Frame -->|"H"| RunHistory["<b>Run History</b><br/>switch run for<br/>this scope"]
-    Frame -->|"g (full screen)"| Graph["<b>Graph view</b><br/>ASCII connection<br/>tree"]
-    Frame -->|"m (right pane)"| Frame
-    Frame -->|"e"| Excel["📑 ~/.cloudcmder/exports/<br/>SCOPE-UUID.xlsx"]
-    Frame -->|"q / Ctrl+C"| Exit([exit])
+    Frame["<b>Frame</b><br/>split-pane commander<br/>left list, right live Detail"]
+    Frame -->|Enter on kind row| Frame
+    Frame -->|colon plus alias| Frame
+    Frame -->|colon plus resource name| Frame
+    Frame -->|colon scopes| ScopesModal["<b>Scopes modal</b><br/>swap project<br/>without quitting"]
+    ScopesModal -->|select| Frame
+    Frame -->|H| RunHistory["<b>Run History</b><br/>switch run for<br/>this scope"]
+    Frame -->|g full screen| Graph["<b>Graph view</b><br/>ASCII connection tree"]
+    Frame -->|m right pane| Frame
+    Frame -->|e| Excel["~/.cloudcmder/exports/<br/>SCOPE-UUID.xlsx"]
+    Frame -->|q or Ctrl+C| Exit([exit])
 
     classDef modal fill:#1f2335,stroke:#7aa2f7,color:#c0caf5
     class ScopesModal,RunHistory,Graph modal

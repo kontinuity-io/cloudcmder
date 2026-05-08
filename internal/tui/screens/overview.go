@@ -138,6 +138,31 @@ func (o *Overview) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 		}
 		return o, nil
 	}
+	// Vim-style nav: g/G jump to ends, j/k step. No half-page nav since
+	// Overview's kind list is short by definition (≤ 13 entries).
+	if k, ok := msg.(tea.KeyMsg); ok {
+		n := len(o.rows)
+		switch k.String() {
+		case "g", "home":
+			o.tbl.SetCursor(0)
+			return o, nil
+		case "G", "end":
+			if n > 0 {
+				o.tbl.SetCursor(n - 1)
+			}
+			return o, nil
+		case "j":
+			if c := o.tbl.Cursor(); c < n-1 {
+				o.tbl.SetCursor(c + 1)
+			}
+			return o, nil
+		case "k":
+			if c := o.tbl.Cursor(); c > 0 {
+				o.tbl.SetCursor(c - 1)
+			}
+			return o, nil
+		}
+	}
 	var cmd tea.Cmd
 	o.tbl, cmd = o.tbl.Update(msg)
 	return o, cmd

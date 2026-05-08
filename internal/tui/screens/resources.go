@@ -3,6 +3,7 @@ package screens
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -35,7 +36,22 @@ type resourcesLoadedMsg struct {
 }
 
 type resourcesKeymap struct {
-	Filter key.Binding
+	Filter   key.Binding
+	Sort     key.Binding
+	Top      key.Binding
+	Bottom   key.Binding
+	Down     key.Binding
+	Up       key.Binding
+	HalfDown key.Binding
+	HalfUp   key.Binding
+}
+
+// sortState tracks the active column-sort ordering in a ResourceList.
+// column < 0 means "no sort applied" (rows render in their natural order
+// from the store, and fuzzy-matched rows render in score order).
+type sortState struct {
+	column int
+	desc   bool
 }
 
 // ResourceList is a kind-parameterised list pane. As of M6.5 it is a LeftPane
@@ -63,6 +79,8 @@ type ResourceList struct {
 	// before our async load finished; applied as soon as resourcesLoadedMsg
 	// arrives.
 	pendingJumpID string
+
+	sort sortState
 
 	keymap resourcesKeymap
 }
@@ -94,8 +112,16 @@ func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary,
 	return &ResourceList{
 		ctx: ctx, st: st, run: run, kind: kind, cols: cols, tbl: tbl, spin: s,
 		filterIn: in,
+		sort:     sortState{column: -1},
 		keymap: resourcesKeymap{
-			Filter: key.NewBinding(key.WithKeys("/")),
+			Filter:   key.NewBinding(key.WithKeys("/")),
+			Sort:     key.NewBinding(key.WithKeys("s")),
+			Top:      key.NewBinding(key.WithKeys("g", "home")),
+			Bottom:   key.NewBinding(key.WithKeys("G", "end")),
+			Down:     key.NewBinding(key.WithKeys("j")),
+			Up:       key.NewBinding(key.WithKeys("k")),
+			HalfDown: key.NewBinding(key.WithKeys("ctrl+d")),
+			HalfUp:   key.NewBinding(key.WithKeys("ctrl+u")),
 		},
 	}
 }
@@ -213,10 +239,39 @@ func (s *ResourceList) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 	}
 
 	if k, ok := msg.(tea.KeyMsg); ok {
-		if key.Matches(k, s.keymap.Filter) {
+		switch {
+		case key.Matches(k, s.keymap.Filter):
 			s.filterOn = true
 			s.filterIn.SetValue("")
 			s.filterIn.Focus()
+			return s, nil
+		case key.Matches(k, s.keymap.Sort):
+			s.cycleSort()
+			return s, nil
+		case key.Matches(k, s.keymap.Top):
+			s.tbl.SetCursor(0)
+			return s, nil
+		case key.Matches(k, s.keymap.Bottom):
+			if n := len(s.visible); n > 0 {
+				s.tbl.SetCursor(n - 1)
+			}
+			return s, nil
+		case key.Matches(k, s.keymap.Down):
+			n := len(s.visible)
+			if c := s.tbl.Cursor(); c < n-1 {
+				s.tbl.SetCursor(c + 1)
+			}
+			return s, nil
+		case key.Matches(k, s.keymap.Up):
+			if c := s.tbl.Cursor(); c > 0 {
+				s.tbl.SetCursor(c - 1)
+			}
+			return s, nil
+		case key.Matches(k, s.keymap.HalfDown):
+			s.tbl.SetCursor(clampCursor(s.tbl.Cursor()+s.halfPage(), len(s.visible)))
+			return s, nil
+		case key.Matches(k, s.keymap.HalfUp):
+			s.tbl.SetCursor(clampCursor(s.tbl.Cursor()-s.halfPage(), len(s.visible)))
 			return s, nil
 		}
 	}
@@ -224,6 +279,31 @@ func (s *ResourceList) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 	var cmd tea.Cmd
 	s.tbl, cmd = s.tbl.Update(msg)
 	return s, cmd
+}
+
+// halfPage returns the half-page jump distance for Ctrl+u/Ctrl+d. Uses the
+// table's current viewport height when known, falling back to a reasonable
+// default for unsized panes (e.g., immediately after construction).
+func (s *ResourceList) halfPage() int {
+	h := s.height
+	if h <= 0 {
+		h = 20
+	}
+	half := h / 2
+	if half < 1 {
+		half = 1
+	}
+	return half
+}
+
+func clampCursor(c, n int) int {
+	if c < 0 {
+		return 0
+	}
+	if c >= n {
+		return n - 1
+	}
+	return c
 }
 
 func (s *ResourceList) updateFilter(msg tea.Msg) (LeftPane, tea.Cmd) {
@@ -247,11 +327,19 @@ func (s *ResourceList) updateFilter(msg tea.Msg) (LeftPane, tea.Cmd) {
 }
 
 // applyFilter recomputes s.visible and pushes the matching rows into the
-// table. Empty pattern restores the original kind+name order; non-empty
-// pattern fuzzy-ranks rows by score (best first).
+// table. Empty pattern restores the natural order from the store, then
+// applies any active sort. Non-empty pattern fuzzy-ranks rows by score —
+// fuzzy ordering wins over column sort because the user is asking for
+// "what matches", not "ordered by X".
 func (s *ResourceList) applyFilter(pattern string) {
 	if pattern == "" {
-		s.visible = s.rows
+		// Copy so we don't reorder s.rows under sort.
+		visible := make([]rowData, len(s.rows))
+		copy(visible, s.rows)
+		s.visible = visible
+		if s.sort.column >= 0 {
+			s.applySort()
+		}
 	} else {
 		s.visible = s.matchRows(pattern)
 	}
@@ -259,6 +347,49 @@ func (s *ResourceList) applyFilter(pattern string) {
 	if s.height > 0 {
 		s.tbl.SetHeight(tableHeight(len(s.visible), s.height))
 	}
+}
+
+// cycleSort advances the sort state through every column in both
+// directions, wrapping back to "no sort" after the last cycle:
+//
+//   none → col0 asc → col0 desc → col1 asc → col1 desc → ... → none
+//
+// Re-runs applyFilter so the visible rows pick up the new ordering. Sort
+// only takes effect when the filter is empty (fuzzy ranking wins
+// otherwise) — but we still cycle the state so the next empty-filter
+// view picks it up.
+func (s *ResourceList) cycleSort() {
+	switch {
+	case s.sort.column < 0:
+		s.sort = sortState{column: 0, desc: false}
+	case !s.sort.desc:
+		s.sort.desc = true
+	case s.sort.column < len(s.cols)-1:
+		s.sort = sortState{column: s.sort.column + 1, desc: false}
+	default:
+		s.sort = sortState{column: -1}
+	}
+	s.applyFilter(s.filterIn.Value())
+}
+
+// applySort reorders s.visible by the active column extractor. Comparison
+// is lexical on the rendered cell text — adequate for name/region/zone
+// columns; numeric columns (SIZE GB, vCPU) sort by string which puts
+// "100" before "20"; that's a known v1.2 limitation, fixable later via
+// per-column sort keys.
+func (s *ResourceList) applySort() {
+	if s.sort.column < 0 || s.sort.column >= len(s.cols) {
+		return
+	}
+	extract := s.cols[s.sort.column].Extract
+	sort.SliceStable(s.visible, func(i, j int) bool {
+		a := extract(s.visible[i].res, s.visible[i].detail)
+		b := extract(s.visible[j].res, s.visible[j].detail)
+		if s.sort.desc {
+			return a > b
+		}
+		return a < b
+	})
 }
 
 // matchRows fuzzy-scores rows against pattern. The corpus per row is

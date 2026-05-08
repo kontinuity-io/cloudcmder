@@ -1,17 +1,35 @@
 # cloudcmder
 
-**Cloud Commander** — an interactive TUI for inventorying your cloud resources.
+> **A k9s-style TUI for cloud asset inventory.** Scan a GCP project, browse
+> resources by kind, drill into details, follow connections, export to
+> Excel — entirely from the terminal.
 
-> Pronounced "cloud commander". Runs as a single static binary inside GCP CloudShell.
-> No database to install. No SQL to write. No credentials to copy.
+[![CI](https://github.com/kontinuity-io/cloudcmder/actions/workflows/ci.yml/badge.svg)](https://github.com/kontinuity-io/cloudcmder/actions/workflows/ci.yml)
 
-## What it does
+Single static binary. Runs anywhere — CloudShell, your laptop, an audit
+workstation. No database to install. No SQL to write. No credentials to
+copy: cloudcmder reads via Application Default Credentials.
 
-- **Commander dashboard** — k9s/lazygit-style two-pane layout. Cursor in the resource list drives a live detail pane next to it; `:disk` / `:db` / etc. swap the list in place; `Enter` zooms detail to full width.
-- Navigate your GCP projects → resource overview → drill into VMs, disks, databases, networks, load balancers, GKE clusters, and more.
-- See interconnections: which VM is on which subnet, behind which load balancer, attached to which disks — all on one screen.
-- Export a full assessment as a multi-tab Excel workbook.
-- Store every scan in a portable SQLite file you can copy out of CloudShell for offline analysis or audit.
+## Features
+
+- 🔍 **Headless scan** — one command pulls VMs, disks, networks, subnets,
+  firewalls, load balancers, Cloud SQL, GKE clusters, buckets, and Cloud
+  Functions / Cloud Run. ~5 s on a typical 80-resource project.
+- 📊 **Commander TUI** — k9s/lazydocker split-pane: a kind-typed resource
+  list on the left, live Detail rebuild on the right as you move the
+  cursor. `:` opens a fuzzy palette over kind aliases AND every resource
+  in the run.
+- 🔗 **Interconnections** — VM ↔ Disk ↔ Subnet edges captured during the
+  scan; ASCII connection-tree (`g`) per resource.
+- ⚡ **Concurrent enrichment** — 4 per-kind goroutines fan out under a
+  semaphore so a 100-resource project scans in ~5 s.
+- 📑 **Excel export** — one sheet per kind plus Summary; `excelize`
+  streams rows so memory stays bounded on CloudShell.
+- 🔒 **Read-only.** cloudcmder calls list-only GCP APIs and never modifies
+  resources or stores credentials — ADC is the only auth path.
+- 💾 **Portable SQLite store** — every scan is a row in
+  `~/.cloudcmder/cloudcmder.db`; copy the file out for offline analysis
+  or audit replay.
 
 ## Quickstart
 
@@ -137,6 +155,32 @@ Flags:
 ```
 
 The interactive TUI is shipped — invoke `cloudcmder` with no flags.
+
+## FAQ
+
+**Does it work offline?** No — cloudcmder calls Cloud Asset Inventory and
+several per-kind GCP APIs during a scan. After a scan, the TUI reads
+purely from the local SQLite database, so browsing prior runs needs no
+network.
+
+**Where does it store credentials?** It doesn't. Authentication uses
+Application Default Credentials (ADC) — the same mechanism `gcloud` uses.
+cloudcmder never touches `~/.config/gcloud/`.
+
+**Which clouds are supported?** GCP in v1.0. AWS is the v2 milestone; the
+provider abstraction (`internal.inventory.Provider`) is designed to land
+new clouds without changes to the store, TUI, or exporter.
+
+**Where does the database live? Is it safe to share?** A single SQLite
+file at `~/.cloudcmder/cloudcmder.db`. It contains resource metadata
+your credentials could already see (no secrets); copy it out of
+CloudShell after a scan if you want to keep it. `--db /path/to/file.db`
+overrides the default.
+
+**How do I run a scan from CloudShell?** See [Quickstart](#quickstart).
+The `~/.cloudcmder/cloudcmder.db` lives in CloudShell's ephemeral home
+directory, so download it (`Downloads` panel) before the session ends if
+you want it.
 
 ## Development status
 

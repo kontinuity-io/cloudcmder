@@ -31,6 +31,140 @@ copy: cloudcmder reads via Application Default Credentials.
   `~/.cloudcmder/cloudcmder.db`; copy the file out for offline analysis
   or audit replay.
 
+## How it works
+
+cloudcmder is layered: **a TUI / CLI / exporter on top, a SQLite store
+in the middle, a per-cloud Provider at the bottom.** Scans write through
+the store; the TUI and exporter read from it. The TUI never talks to GCP
+directly — that decouples interactive browsing from network calls.
+
+```mermaid
+flowchart TB
+    subgraph "User entry"
+        CLI["<b>cmd/cloudcmder</b><br/>cobra root: --scan, --export,<br/>--list-runs, TUI launch"]
+    end
+
+    subgraph "Read-side consumers"
+        TUI["<b>internal/tui</b><br/>Bubble Tea screens<br/>(Scopes, Frame, Detail, …)"]
+        EXP["<b>internal/export</b><br/>excelize StreamWriter<br/>multi-sheet xlsx"]
+    end
+
+    subgraph "Source of truth"
+        STORE[("<b>internal/store</b><br/>SQLite (WAL)<br/>runs · resources · edges · scopes")]
+    end
+
+    subgraph "Provider-agnostic types"
+        INV["<b>internal/inventory</b><br/>Provider iface · Kind · Resource ·<br/>Detail structs · ResourceRef"]
+    end
+
+    subgraph "Cloud backend (pluggable)"
+        GCP["<b>internal/providers/gcp</b><br/>Asset Inventory + 10 per-kind<br/>enrichers (compute, sql, gke, …)"]
+    end
+
+    subgraph "External"
+        GAPI["☁️ GCP APIs<br/>via Application Default Credentials"]
+    end
+
+    CLI --> TUI
+    CLI --> EXP
+    CLI --> GCP
+    TUI -->|"reads"| STORE
+    EXP -->|"reads"| STORE
+    GCP -->|"writes"| STORE
+    STORE -.->|"types"| INV
+    GCP -.->|"types"| INV
+    TUI -.->|"types"| INV
+    EXP -.->|"types"| INV
+    GCP -->|"REST/gRPC"| GAPI
+```
+
+The dashed lines are import-only relationships; the solid lines are
+runtime data flow. **`internal/tui` and `internal/export` never import
+`internal/providers/*`** — that rule is enforced by a depguard test
+(`internal/tui/depguard_test.go`) and by the layering itself.
+
+### Scan flow
+
+A `--scan` runs in two phases. Phase 1 is a single Cloud Asset Inventory
+listing that produces stub rows for every supported kind. Phase 2 fans
+out per-kind enrichers (4-goroutine semaphore) that fill in `Detail`
+fields and `Refs` (interconnection edges).
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as cmd/cloudcmder
+    participant Asset as ☁️ Cloud Asset<br/>Inventory
+    participant Enrichers as ⚡ Per-kind enrichers<br/>(4-goroutine pool)
+    participant DB as 💾 SQLite store
+
+    User->>CLI: cloudcmder --scan PROJECT_ID
+
+    Note over CLI: signal.NotifyContext wraps ctx —<br/>Ctrl-C cancels cleanly, partial rows survive
+
+    CLI->>DB: OpenRun (status=running)
+
+    rect rgba(70, 90, 120, 0.30)
+    Note over CLI,Asset: Phase 1 — discovery (1 paginated call)
+    CLI->>Asset: SearchAllResources(10 asset types)
+    Asset-->>CLI: stub Resources (Name, Region, Status, Labels)
+    CLI->>DB: WriteBatch (200-row chunks)
+    end
+
+    rect rgba(60, 110, 80, 0.30)
+    Note over CLI,Enrichers: Phase 2 — enrichment (concurrent fan-out)
+    par enrichVMs
+        CLI->>Enrichers: compute.AggregatedList(instances)
+        Enrichers-->>DB: VMDetail + Disk → VM edges
+    and enrichDisks
+        Enrichers->>Enrichers: compute.AggregatedList(disks)
+        Enrichers-->>DB: DiskDetail + AttachedTo edges
+    and "8 more"
+        Enrichers->>Enrichers: networks · subnets · firewalls · LBs<br/>SQL · GKE · buckets · functions
+        Enrichers-->>DB: per-kind Detail + Refs
+    end
+    Note right of Enrichers: API-disabled or 403 → log & skip;<br/>scan keeps going for other kinds
+    end
+
+    CLI->>DB: FinishRun (status=ok | partial)
+    CLI-->>User: run uuid printed to stdout
+```
+
+A typical 80-resource project completes in ~5 s on a 100 Mbps connection.
+
+### TUI navigation
+
+The TUI is a **commander dashboard** (k9s/lazydocker style) — a
+persistent split-pane Frame with a list on the left and a live Detail
+on the right. Modals (Scopes, RunHistory, full-screen Graph) push above
+the Frame; `Esc` walks back through the left-pane history *inside* the
+Frame; `q` is the only way out.
+
+```mermaid
+flowchart LR
+    Start(["cloudcmder<br/>(no flags)"]) --> Scopes["<b>ScopeList</b><br/>(every accessible project)"]
+    Scopes -->|Enter on a scope| Frame
+    Frame["<b>Frame</b><br/>split-pane commander<br/>(left: list · right: live Detail)"]
+    Frame -->|"Enter on kind row"| Frame
+    Frame -->|"&#8203;: + alias"| Frame
+    Frame -->|"&#8203;: + resource name"| Frame
+    Frame -->|"&#8203;: scopes"| ScopesModal["<b>Scopes modal</b><br/>swap project<br/>without quitting"]
+    ScopesModal -->|"select"| Frame
+    Frame -->|"H"| RunHistory["<b>Run History</b><br/>switch run for<br/>this scope"]
+    Frame -->|"g (full screen)"| Graph["<b>Graph view</b><br/>ASCII connection<br/>tree"]
+    Frame -->|"m (right pane)"| Frame
+    Frame -->|"e"| Excel["📑 ~/.cloudcmder/exports/<br/>SCOPE-UUID.xlsx"]
+    Frame -->|"q / Ctrl+C"| Exit([exit])
+
+    classDef modal fill:#1f2335,stroke:#7aa2f7,color:#c0caf5
+    class ScopesModal,RunHistory,Graph modal
+```
+
+The right-pane Detail rebuilds as the cursor moves over the resource
+list. `m` cycles its mode: **Detail / ConnectionsOnly / RawJSON /
+InlineGraph**. The fuzzy palette (`:`) matches kind aliases AND every
+resource name in the run; picking a resource lands the cursor on it.
+
 ## Quickstart
 
 ### Build from source

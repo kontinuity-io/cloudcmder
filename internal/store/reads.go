@@ -145,6 +145,50 @@ func (s *Store) LoadResources(ctx context.Context, runID int64, kinds ...invento
 	return out, rows.Err()
 }
 
+// ResourceIndexEntry is a flat {Kind, ID, Name} triple used by the cmdbar's
+// fuzzy palette to fan resources across kinds without decoding Detail JSON.
+type ResourceIndexEntry struct {
+	Kind inventory.Kind
+	ID   string
+	Name string
+}
+
+// LoadResourceIndex returns every resource in the run as a flat tuple,
+// suitable for cross-kind fuzzy search. Skips Detail/Labels decode.
+func (s *Store) LoadResourceIndex(ctx context.Context, runID int64) ([]ResourceIndexEntry, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT ref, kind, name FROM resources WHERE run_id = ? ORDER BY kind, name`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("store: load resource index: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []ResourceIndexEntry
+	for rows.Next() {
+		var ref, kind, name string
+		if err := rows.Scan(&ref, &kind, &name); err != nil {
+			return nil, fmt.Errorf("store: scan resource index row: %w", err)
+		}
+		out = append(out, ResourceIndexEntry{
+			Kind: inventory.Kind(kind),
+			ID:   idFromRef(ref),
+			Name: name,
+		})
+	}
+	return out, rows.Err()
+}
+
+// idFromRef extracts the bare resource ID (the 4th segment) from a canonical
+// ref string of the form "provider:scope:Kind:id". Returns the input unchanged
+// if it doesn't match — defensive against future ref-format drift.
+func idFromRef(ref string) string {
+	parts := strings.SplitN(ref, ":", 4)
+	if len(parts) != 4 {
+		return ref
+	}
+	return parts[3]
+}
+
 // LoadEdges returns the edge graph for the run. Empty in M2 (no edges yet).
 func (s *Store) LoadEdges(ctx context.Context, runID int64) ([]Edge, error) {
 	rows, err := s.db.QueryContext(ctx,

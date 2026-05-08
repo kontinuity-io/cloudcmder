@@ -221,6 +221,44 @@ func TestWriteBatchPersistsEdges(t *testing.T) {
 	}
 }
 
+func TestLoadResourceIndex(t *testing.T) {
+	ctx := context.Background()
+	s := openMemory(t)
+
+	runID, _, err := s.OpenRun(ctx, "gcp", "p1", "P1", "test")
+	if err != nil {
+		t.Fatalf("OpenRun: %v", err)
+	}
+
+	batch := []inventory.Resource{
+		{Ref: inventory.ResourceRef{Provider: "gcp", ScopeID: "p1", Kind: inventory.KindVM, ID: "vm-a"}, Kind: inventory.KindVM, Name: "vm-a"},
+		{Ref: inventory.ResourceRef{Provider: "gcp", ScopeID: "p1", Kind: inventory.KindVM, ID: "vm-b"}, Kind: inventory.KindVM, Name: "vm-b"},
+		{Ref: inventory.ResourceRef{Provider: "gcp", ScopeID: "p1", Kind: inventory.KindBucket, ID: "b1"}, Kind: inventory.KindBucket, Name: "b1"},
+	}
+	if err := s.WriteBatch(ctx, runID, batch); err != nil {
+		t.Fatalf("WriteBatch: %v", err)
+	}
+
+	idx, err := s.LoadResourceIndex(ctx, runID)
+	if err != nil {
+		t.Fatalf("LoadResourceIndex: %v", err)
+	}
+	if len(idx) != 3 {
+		t.Fatalf("got %d entries, want 3", len(idx))
+	}
+	// ORDER BY kind, name → Bucket("b1") < VM("vm-a") < VM("vm-b").
+	want := []ResourceIndexEntry{
+		{Kind: inventory.KindBucket, ID: "b1", Name: "b1"},
+		{Kind: inventory.KindVM, ID: "vm-a", Name: "vm-a"},
+		{Kind: inventory.KindVM, ID: "vm-b", Name: "vm-b"},
+	}
+	for i, w := range want {
+		if idx[i] != w {
+			t.Errorf("idx[%d] = %+v, want %+v", i, idx[i], w)
+		}
+	}
+}
+
 func TestRunWithoutFinishStaysRunning(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "cc.db")
 	s, err := Open(dbPath)

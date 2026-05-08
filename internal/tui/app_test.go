@@ -21,21 +21,30 @@ func openMemStore(t *testing.T) *store.Store {
 	return s
 }
 
-func TestAppQuitAlwaysQuitsEvenWhenCmdbarOpen(t *testing.T) {
+func TestQQuitsOnlyWhenCmdbarClosed(t *testing.T) {
+	// Locks in the fix for the "q exits while typing 'mysql' in :"
+	// regression. q is a normal keymap binding, NOT a global preempt —
+	// when the cmdbar is open, q types into the search input.
 	app := newApp(context.Background(), openMemStore(t))
 
-	// Sanity: q quits with cmdbar closed.
+	// Cmdbar closed → q quits.
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	require.NotNil(t, cmd)
 	assert.Equal(t, tea.Quit(), cmd(), "q should quit when cmdbar is closed")
 
-	// Open the cmdbar and confirm q STILL quits — it must not be trapped
-	// inside the textinput when the user wants out.
-	app.cmdbar.Open()
-	require.True(t, app.cmdbar.IsOpen())
-	_, cmd = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	require.NotNil(t, cmd)
-	assert.Equal(t, tea.Quit(), cmd(), "q must still quit while cmdbar is open")
+	// Cmdbar open → q must NOT quit; it lands on the textinput instead.
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
+	app = updated.(App)
+	require.True(t, app.cmdbar.IsOpen(), "':' should have opened the cmdbar")
+
+	updated, cmd = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	app = updated.(App)
+	if cmd != nil {
+		got := cmd()
+		require.NotEqual(t, tea.Quit(), got,
+			"q must NOT produce tea.Quit while cmdbar is open; got %T", got)
+	}
+	assert.True(t, app.cmdbar.IsOpen(), "cmdbar should still be open after typing q")
 }
 
 func TestAppCtrlCQuits(t *testing.T) {

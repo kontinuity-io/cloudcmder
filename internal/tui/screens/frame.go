@@ -335,12 +335,21 @@ func (f *Frame) headerView() string {
 
 func (f *Frame) bodyView() string {
 	bodyH := f.bodyHeight()
+	// MaxHeight is critical: lipgloss's Height(N) is a *minimum*, so when
+	// f.right.View() emits more lines than the budget (a VM with many
+	// disks/NICs, a Detail showing a long Connections list), the bordered
+	// box grows past the budget and the layout overflows downward —
+	// breadcrumb and Frame header get pushed off the top of the altscreen
+	// buffer. Pairing Height with MaxHeight forces the box to be exactly
+	// the budget, clipping content that exceeds.
 	if f.zoomed && f.right != nil {
 		w := f.width
 		if w < 4 {
 			w = 80
 		}
-		return style.BorderActive.Width(w - 2).Height(bodyH - 2).Render(f.right.View())
+		return style.BorderActive.
+			Width(w - 2).Height(bodyH - 2).MaxHeight(bodyH).
+			Render(f.right.View())
 	}
 
 	// Empty-state placeholder for the right pane.
@@ -363,10 +372,10 @@ func (f *Frame) bodyView() string {
 		// hasn't changed since the last render, so this is cheap.
 		f.left.SetInnerWidth(leftW - 2)
 		leftBox := f.borderFor(focusLeft).
-			Width(leftW - 2).Height(bodyH - 2).
+			Width(leftW - 2).Height(bodyH - 2).MaxHeight(bodyH).
 			Render(f.left.View())
 		rightBox := f.borderFor(focusRight).
-			Width(rightW - 2).Height(bodyH - 2).
+			Width(rightW - 2).Height(bodyH - 2).MaxHeight(bodyH).
 			Render(rightContent)
 		return lipgloss.JoinHorizontal(lipgloss.Top, leftBox, " ", rightBox)
 	}
@@ -374,10 +383,10 @@ func (f *Frame) bodyView() string {
 	f.left.SetInnerWidth(f.width - 2)
 	half := (bodyH - 1) / 2
 	leftBox := f.borderFor(focusLeft).
-		Width(f.width - 2).Height(half - 2).
+		Width(f.width - 2).Height(half - 2).MaxHeight(half).
 		Render(f.left.View())
 	rightBox := f.borderFor(focusRight).
-		Width(f.width - 2).Height(bodyH - half - 2).
+		Width(f.width - 2).Height(bodyH - half - 2).MaxHeight(bodyH - half).
 		Render(rightContent)
 	return lipgloss.JoinVertical(lipgloss.Left, leftBox, rightBox)
 }

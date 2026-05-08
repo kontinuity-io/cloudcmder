@@ -184,15 +184,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, core.SwapAndJumpCmd(m.Kind, m.ID)
 	}
 
-	// q / Ctrl+C is a global quit — handled BEFORE the cmdbar so a stuck
-	// open cmdbar can never trap the user. (`:` opens the palette; type
-	// queries with non-q characters or use Esc to close it.)
-	if k, ok := msg.(tea.KeyMsg); ok {
-		if key.Matches(k, a.keymap.Quit) {
-			return a, tea.Quit
-		}
-	}
-
+	// Cmdbar gets first crack at any keystroke when open — so the user can
+	// type queries containing `q`, `?`, etc., without Quit/Help intercepts
+	// stealing them. Esc and Enter inside the cmdbar always close cleanly
+	// (constant-height invariant means no stuck-cmdbar trap).
 	if a.cmdbar.IsOpen() {
 		var cmd tea.Cmd
 		a.cmdbar, cmd = a.cmdbar.Update(msg)
@@ -205,6 +200,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if k, ok := msg.(tea.KeyMsg); ok {
 		switch {
+		case key.Matches(k, a.keymap.Quit):
+			return a, tea.Quit
 		case key.Matches(k, a.keymap.Help):
 			a.helpOn = !a.helpOn
 			return a, nil

@@ -3,7 +3,6 @@ package screens
 import (
 	"context"
 	"encoding/json"
-	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -12,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/sahilm/fuzzy"
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
@@ -51,9 +51,8 @@ type ResourceList struct {
 	loadErr error
 	height  int
 
-	filterOn   bool
-	filterIn   textinput.Model
-	regexCache map[string]*regexp.Regexp
+	filterOn bool
+	filterIn textinput.Model
 
 	keymap resourcesKeymap
 }
@@ -81,8 +80,7 @@ func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary,
 
 	return &ResourceList{
 		ctx: ctx, st: st, run: run, kind: kind, cols: cols, tbl: tbl, spin: s,
-		filterIn:   in,
-		regexCache: map[string]*regexp.Regexp{},
+		filterIn: in,
 		keymap: resourcesKeymap{
 			Filter: key.NewBinding(key.WithKeys("/")),
 		},
@@ -195,8 +193,8 @@ func (s *ResourceList) updateFilter(msg tea.Msg) (LeftPane, tea.Cmd) {
 }
 
 // applyFilter recomputes s.visible and pushes the matching rows into the
-// table. Empty pattern clears the filter; invalid regex falls back to a
-// case-insensitive substring match.
+// table. Empty pattern restores the original kind+name order; non-empty
+// pattern fuzzy-ranks rows by score (best first).
 func (s *ResourceList) applyFilter(pattern string) {
 	if pattern == "" {
 		s.visible = s.rows
@@ -209,34 +207,32 @@ func (s *ResourceList) applyFilter(pattern string) {
 	}
 }
 
+// matchRows fuzzy-scores rows against pattern. The corpus per row is
+// "name|region|status|label-vals" so a label or region typo still surfaces
+// the resource. Output is ordered by descending fuzzy score.
 func (s *ResourceList) matchRows(pattern string) []rowData {
-	re := s.compileRegex(pattern)
-	out := make([]rowData, 0, len(s.rows))
-	for _, r := range s.rows {
-		if re != nil {
-			if re.MatchString(r.res.Name) {
-				out = append(out, r)
-			}
-		} else {
-			if strings.Contains(strings.ToLower(r.res.Name), strings.ToLower(pattern)) {
-				out = append(out, r)
-			}
-		}
+	corpus := make([]string, len(s.rows))
+	for i, r := range s.rows {
+		corpus[i] = rowCorpus(r.res)
+	}
+	matches := fuzzy.Find(pattern, corpus)
+	out := make([]rowData, len(matches))
+	for i, m := range matches {
+		out[i] = s.rows[m.Index]
 	}
 	return out
 }
 
-func (s *ResourceList) compileRegex(pattern string) *regexp.Regexp {
-	if re, ok := s.regexCache[pattern]; ok {
-		return re
+// rowCorpus serialises the searchable surface of a Resource for fuzzy
+// matching. Pipe is unlikely to appear inside any of these fields and gives
+// the scorer a soft separator that breaks bridging matches across columns.
+func rowCorpus(r inventory.Resource) string {
+	parts := make([]string, 0, 3+len(r.Labels))
+	parts = append(parts, r.Name, r.Region, r.Status)
+	for _, v := range r.Labels {
+		parts = append(parts, v)
 	}
-	re, err := regexp.Compile("(?i)" + pattern)
-	if err != nil {
-		s.regexCache[pattern] = nil
-		return nil
-	}
-	s.regexCache[pattern] = re
-	return re
+	return strings.Join(parts, "|")
 }
 
 func (s *ResourceList) toTableRows(in []rowData) []table.Row {

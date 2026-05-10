@@ -101,6 +101,58 @@ func TestBuildVMResourceShape(t *testing.T) {
 	if len(subnetRefs) != 1 || subnetRefs[0].ID != "default-uc1" {
 		t.Errorf("Refs[RoutesFrom] = %+v", subnetRefs)
 	}
+	// Debian boot disk → google-free; OSFamily preserved separately.
+	if d.LicenseClass != "google-free" {
+		t.Errorf("LicenseClass = %q, want google-free", d.LicenseClass)
+	}
+	if d.LicenseProject != "debian-cloud" {
+		t.Errorf("LicenseProject = %q, want debian-cloud", d.LicenseProject)
+	}
+}
+
+func TestBuildVMResourceMarketplacePrecedence(t *testing.T) {
+	// Debian boot disk + attached F5 appliance disk → any-marketplace-wins.
+	// OSFamily must still reflect the boot disk's OS label (debian-11).
+	inst := &computepb.Instance{
+		Name:        ptr("vm-mktplace"),
+		Zone:        ptr("zones/us-central1-a"),
+		MachineType: ptr("zones/us-central1-a/machineTypes/n1-standard-4"),
+		Status:      ptr("RUNNING"),
+		Disks: []*computepb.AttachedDisk{
+			{
+				Boot:   ptr(true),
+				Source: ptr("zones/us-central1-a/disks/boot"),
+				Licenses: []string{
+					"https://www.googleapis.com/compute/v1/projects/debian-cloud/global/licenses/debian-11",
+				},
+			},
+			{
+				Boot:   ptr(false),
+				Source: ptr("zones/us-central1-a/disks/f5-data"),
+				Licenses: []string{
+					"projects/f5-7626-networks-public/global/licenses/f5-bigip-best",
+				},
+			},
+		},
+	}
+	resolve := func(_ context.Context, _, mt string) (int32, int64, error) {
+		v, m, _ := parseMachineType(mt)
+		return v, m, nil
+	}
+	r := buildVMResource(context.Background(), "p1", inst, resolve, false)
+	d, ok := r.Detail.(*inventory.VMDetail)
+	if !ok {
+		t.Fatalf("Detail not *VMDetail: %T", r.Detail)
+	}
+	if d.OSFamily != "debian-11" {
+		t.Errorf("OSFamily = %q, want debian-11 (boot disk label must survive marketplace override)", d.OSFamily)
+	}
+	if d.LicenseClass != "marketplace" {
+		t.Errorf("LicenseClass = %q, want marketplace (F5 attached disk must win)", d.LicenseClass)
+	}
+	if d.LicenseProject != "f5-7626-networks-public" {
+		t.Errorf("LicenseProject = %q, want f5-7626-networks-public", d.LicenseProject)
+	}
 }
 
 func TestEnrichVMsStreamsResources(t *testing.T) {

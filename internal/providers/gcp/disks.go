@@ -119,11 +119,15 @@ func buildDiskResource(scopeID string, d *computepb.Disk, dumpNative bool) inven
 		})
 	}
 
+	licNames, licProject, licClass := licenseInfoFromURLs(d.GetLicenses())
 	detail := inventory.DiskDetail{
-		SizeGB:  d.GetSizeGb(),
-		Type:    lastSegment(d.GetType()),
-		Zone:    zone,
-		InUseBy: users,
+		SizeGB:         d.GetSizeGb(),
+		Type:           lastSegment(d.GetType()),
+		Zone:           zone,
+		InUseBy:        users,
+		Licenses:       licNames,
+		LicenseProject: licProject,
+		LicenseClass:   licClass,
 	}
 
 	refs := map[inventory.RefKind][]inventory.ResourceRef{}

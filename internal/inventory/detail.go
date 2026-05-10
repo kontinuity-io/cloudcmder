@@ -14,6 +14,11 @@ type VMDetail struct {
 	AttachedDisks []DiskRef
 	NICs          []NICDetail
 	Zone          string
+	// License fields — populated from all attached disk license URLs.
+	// LicenseClass precedence: "marketplace" > "google-paid" > "google-free" > "".
+	Licenses       []string // last-segment license names aggregated across all attached disks
+	LicenseProject string   // image project of the highest-precedence license
+	LicenseClass   string   // "marketplace" | "google-paid" | "google-free" | ""
 }
 
 // DiskRef is a lightweight pointer to a disk used inside VMDetail; the full
@@ -39,6 +44,10 @@ type DiskDetail struct {
 	Zone     string
 	InUseBy  []ResourceRef
 	Snapshot string
+	// License fields — same three-state classification as VMDetail.
+	Licenses       []string
+	LicenseProject string
+	LicenseClass   string
 }
 
 // DatabaseDetail normalizes managed-database compute and storage shape.

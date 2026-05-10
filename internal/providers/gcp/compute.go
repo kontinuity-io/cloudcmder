@@ -214,22 +214,30 @@ func buildVMResource(ctx context.Context, scopeID string, inst *computepb.Instan
 	detail.NICs = nics
 
 	var attached []inventory.DiskRef
+	var allLicenses []string
 	for _, ad := range inst.GetDisks() {
 		d := inventory.DiskRef{
 			Name:   lastSegment(ad.GetSource()),
 			SizeGB: ad.GetDiskSizeGb(),
 			Type:   ad.GetType(),
 		}
+		diskLicenses := ad.GetLicenses()
 		if ad.GetBoot() {
 			detail.BootDisk = d
-			if licenses := ad.GetLicenses(); len(licenses) > 0 {
-				detail.OSFamily = parseLicenseURL(licenses[0])
+			// OSFamily is derived from the boot disk's first license only —
+			// it is the human-readable OS label (e.g. "debian-11"), orthogonal
+			// to the billing classification in LicenseClass.
+			if len(diskLicenses) > 0 {
+				detail.OSFamily = parseLicenseURL(diskLicenses[0])
 			}
 		} else {
 			attached = append(attached, d)
 		}
+		allLicenses = append(allLicenses, diskLicenses...)
 	}
 	detail.AttachedDisks = attached
+	// Aggregate license info across all disks: any-marketplace-wins precedence.
+	detail.Licenses, detail.LicenseProject, detail.LicenseClass = licenseInfoFromURLs(allLicenses)
 
 	refs := map[inventory.RefKind][]inventory.ResourceRef{}
 	if len(subnetRefs) > 0 {

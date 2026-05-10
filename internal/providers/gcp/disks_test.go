@@ -41,6 +41,37 @@ func TestBuildDiskResource(t *testing.T) {
 	if len(r.Refs[inventory.RefAttachedTo]) != 1 {
 		t.Errorf("Refs[AttachedTo] = %+v", r.Refs)
 	}
+	// No licenses → empty class.
+	if dd.LicenseClass != "" {
+		t.Errorf("LicenseClass = %q, want empty (no licenses on this disk)", dd.LicenseClass)
+	}
+}
+
+func TestBuildDiskResourceWithMarketplaceLicense(t *testing.T) {
+	d := &computepb.Disk{
+		Name:   ptr("disk-f5"),
+		Zone:   ptr("zones/us-central1-a"),
+		SizeGb: ptr(int64(100)),
+		Type:   ptr("zones/us-central1-a/diskTypes/pd-ssd"),
+		Status: ptr("READY"),
+		Licenses: []string{
+			"projects/f5-7626-networks-public/global/licenses/f5-bigip-best",
+		},
+	}
+	r := buildDiskResource("p1", d, false)
+	dd, ok := r.Detail.(*inventory.DiskDetail)
+	if !ok {
+		t.Fatalf("detail not *DiskDetail: %T", r.Detail)
+	}
+	if dd.LicenseClass != "marketplace" {
+		t.Errorf("LicenseClass = %q, want marketplace", dd.LicenseClass)
+	}
+	if dd.LicenseProject != "f5-7626-networks-public" {
+		t.Errorf("LicenseProject = %q, want f5-7626-networks-public", dd.LicenseProject)
+	}
+	if len(dd.Licenses) != 1 || dd.Licenses[0] != "f5-bigip-best" {
+		t.Errorf("Licenses = %v, want [f5-bigip-best]", dd.Licenses)
+	}
 }
 
 func TestEnrichDisksStreams(t *testing.T) {

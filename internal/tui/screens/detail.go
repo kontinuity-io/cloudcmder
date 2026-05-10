@@ -243,6 +243,10 @@ func diskDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Zone", dd.Zone),
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 	}
+	if dd.LicenseClass != "" {
+		out = append(out, kvLine("Marketplace", dd.LicenseClass))
+		out = append(out, kvLine("OS project", dd.LicenseProject))
+	}
 	if len(dd.InUseBy) > 0 {
 		out = append(out, "", style.Accent.Render("Attached to"))
 		for _, ref := range dd.InUseBy {
@@ -418,6 +422,10 @@ func vmDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 		kvLine("Zone", vm.Zone),
 		kvLine("CPU Plat", vm.CPUPlatform),
+	}
+	if vm.LicenseClass != "" {
+		out = append(out, kvLine("Marketplace", vm.LicenseClass))
+		out = append(out, kvLine("License proj", vm.LicenseProject))
 	}
 	if vm.Preemptible || vm.Spot {
 		mods := []string{}

@@ -218,6 +218,12 @@ func vmColumns() []ColumnDef {
 			}
 			return ""
 		}},
+		{Header: "MARKETPLACE", Width: 12, Extract: func(_ inventory.Resource, d any) string {
+			if vm := vmOf(d); vm != nil {
+				return vm.LicenseClass
+			}
+			return ""
+		}},
 		{Header: "STATUS", Width: 10, Extract: statusOf},
 	}
 }
@@ -249,6 +255,18 @@ func diskColumns() []ColumnDef {
 		{Header: "SIZE GB", Width: 8, Extract: func(_ inventory.Resource, d any) string {
 			if dd, ok := d.(*inventory.DiskDetail); ok && dd != nil && dd.SizeGB > 0 {
 				return fmt.Sprintf("%d", dd.SizeGB)
+			}
+			return ""
+		}},
+		{Header: "OS", Width: 10, Extract: func(_ inventory.Resource, d any) string {
+			if dd, ok := d.(*inventory.DiskDetail); ok && dd != nil {
+				return dd.LicenseProject
+			}
+			return ""
+		}},
+		{Header: "MARKETPLACE", Width: 12, Extract: func(_ inventory.Resource, d any) string {
+			if dd, ok := d.(*inventory.DiskDetail); ok && dd != nil {
+				return dd.LicenseClass
 			}
 			return ""
 		}},

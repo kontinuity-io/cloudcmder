@@ -16,6 +16,9 @@ dist/
 *.out
 vendor/
 
+# Worktrees
+.worktrees/
+
 # Editor
 .idea/
 .vscode/

@@ -298,15 +298,16 @@ Flags:
 
 ### Preflight check
 
-Before your first scan, run `--check` to verify every required GCP API is
-enabled in your target projects:
+`--check` calls the Service Usage API to diff required vs enabled APIs.
+With no `--project` flag it runs against **every accessible project** returned
+by your credentials — the same set `--scan-all` would scan:
 
 ```sh
 cloudcmder --check                        # all accessible projects
-cloudcmder --check --project my-proj-123  # single project
+cloudcmder --check --project my-proj-123  # single project only
 ```
 
-Example output when APIs are missing:
+Per-project output when APIs are missing:
 
 ```
 Project: my-proj-123
@@ -322,8 +323,16 @@ Project: my-proj-123
     gcloud services enable apigee.googleapis.com bigtableadmin.googleapis.com cloudkms.googleapis.com composer.googleapis.com dataflow.googleapis.com secretmanager.googleapis.com --project=my-proj-123
 ```
 
-Exits 0 when all APIs are present, non-zero when any are missing — composable
-with `&&`: `cloudcmder --check && cloudcmder --scan my-proj-123`.
+Exits 0 when all projects are clean, non-zero when any APIs are missing anywhere.
+Composable with `&&` for both single-project and multi-project workflows:
+
+```sh
+# Single project
+cloudcmder --check --project my-proj-123 && cloudcmder --scan my-proj-123
+
+# All projects — preflight every project before scanning any
+cloudcmder --check && cloudcmder --scan-all
+```
 
 The required-API list is derived at runtime from cloudcmder's internal
 `assetTypeToKind` map, so it always matches the scan code exactly. The

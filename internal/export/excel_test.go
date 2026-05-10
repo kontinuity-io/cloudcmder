@@ -74,11 +74,13 @@ func TestWriteWorkbookSheetsAndContent(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = wb.Close() })
 
-	wantSheets := []string{
-		sheetSummary, sheetScopes, sheetVMs, sheetDisks, sheetNetworks,
-		sheetSubnets, sheetFirewalls, sheetLoadBalancers, sheetDatabases,
-		sheetClusters, sheetBuckets, sheetFunctions, sheetEdges,
+	// 34 kind sheets + Summary + Scopes + Edges = 37 total.
+	wantSheets := make([]string, 0, 37)
+	wantSheets = append(wantSheets, sheetSummary, sheetScopes)
+	for _, ks := range kindSheets {
+		wantSheets = append(wantSheets, ks.sheet)
 	}
+	wantSheets = append(wantSheets, sheetEdges)
 	gotSheets := wb.GetSheetList()
 	if len(gotSheets) != len(wantSheets) {
 		t.Errorf("got %d sheets, want %d: %v", len(gotSheets), len(wantSheets), gotSheets)

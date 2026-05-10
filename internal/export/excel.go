@@ -16,19 +16,43 @@ import (
 
 // Sheet names — kept as constants so writers and tests agree on spelling.
 const (
-	sheetSummary       = "Summary"
-	sheetScopes        = "Scopes"
-	sheetVMs           = "VMs"
-	sheetDisks         = "Disks"
-	sheetNetworks      = "Networks"
-	sheetSubnets       = "Subnets"
-	sheetFirewalls     = "Firewalls"
-	sheetLoadBalancers = "LoadBalancers"
-	sheetDatabases     = "Databases"
-	sheetClusters      = "Clusters"
-	sheetBuckets       = "Buckets"
-	sheetFunctions     = "Functions"
-	sheetEdges         = "Edges"
+	sheetSummary         = "Summary"
+	sheetScopes          = "Scopes"
+	sheetVMs             = "VMs"
+	sheetDisks           = "Disks"
+	sheetNetworks        = "Networks"
+	sheetSubnets         = "Subnets"
+	sheetFirewalls       = "Firewalls"
+	sheetLoadBalancers   = "LoadBalancers"
+	sheetDatabases       = "Databases"
+	sheetClusters        = "Clusters"
+	sheetBuckets         = "Buckets"
+	sheetFunctions       = "Functions"
+	sheetVertexAI        = "VertexAI"
+	sheetApigee          = "Apigee"
+	sheetFirebase        = "Firebase"
+	sheetAppEngine       = "AppEngine"
+	sheetBigQuery        = "BigQuery"
+	sheetDNS             = "DNS"
+	sheetMemorystore     = "Memorystore"
+	sheetArtifactReg     = "ArtifactRegistry"
+	sheetCloudScheduler  = "CloudScheduler"
+	sheetPubSub          = "PubSub"
+	sheetSpanner         = "Spanner"
+	sheetBigtable        = "Bigtable"
+	sheetKMS             = "KMS"
+	sheetSecretManager   = "SecretManager"
+	sheetDataflow        = "Dataflow"
+	sheetDataproc        = "Dataproc"
+	sheetComposer        = "Composer"
+	sheetCloudTasks      = "CloudTasks"
+	sheetMonitoring      = "Monitoring"
+	sheetLogging         = "Logging"
+	sheetOSConfig        = "OSConfig"
+	sheetVPN             = "VPN"
+	sheetRouter          = "Router"
+	sheetCloudBuild      = "CloudBuild"
+	sheetEdges           = "Edges"
 )
 
 // kindSheets pairs each Kind with its destination sheet name. Order is the
@@ -47,6 +71,41 @@ var kindSheets = []struct {
 	{inventory.KindCluster, sheetClusters},
 	{inventory.KindBucket, sheetBuckets},
 	{inventory.KindFunction, sheetFunctions},
+	{inventory.KindVertexAI, sheetVertexAI},
+	{inventory.KindApigee, sheetApigee},
+	{inventory.KindFirebase, sheetFirebase},
+	{inventory.KindAppEngine, sheetAppEngine},
+	{inventory.KindBigQuery, sheetBigQuery},
+	{inventory.KindDNS, sheetDNS},
+	{inventory.KindMemorystore, sheetMemorystore},
+	{inventory.KindArtifactRegistry, sheetArtifactReg},
+	{inventory.KindCloudScheduler, sheetCloudScheduler},
+	{inventory.KindPubSub, sheetPubSub},
+	{inventory.KindSpanner, sheetSpanner},
+	{inventory.KindBigtable, sheetBigtable},
+	{inventory.KindKMS, sheetKMS},
+	{inventory.KindSecretManager, sheetSecretManager},
+	{inventory.KindDataflow, sheetDataflow},
+	{inventory.KindDataproc, sheetDataproc},
+	{inventory.KindComposer, sheetComposer},
+	{inventory.KindCloudTasks, sheetCloudTasks},
+	{inventory.KindMonitoring, sheetMonitoring},
+	{inventory.KindLogging, sheetLogging},
+	{inventory.KindOSConfig, sheetOSConfig},
+	{inventory.KindVPN, sheetVPN},
+	{inventory.KindRouter, sheetRouter},
+	{inventory.KindCloudBuild, sheetCloudBuild},
+}
+
+// sheetForKind returns the Excel sheet name for a Kind, or the Kind string
+// itself as a fallback for unknown kinds.
+func sheetForKind(k inventory.Kind) string {
+	for _, ks := range kindSheets {
+		if ks.kind == k {
+			return ks.sheet
+		}
+	}
+	return string(k)
 }
 
 // WriteWorkbook materialises a run's resources and edges into a multi-tab

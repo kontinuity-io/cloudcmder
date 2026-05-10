@@ -218,32 +218,51 @@ type fakeAssetClient struct {
 	errAfter error
 }
 
-func (f *fakeAssetClient) SearchAllResources(ctx context.Context, _ *assetpb.SearchAllResourcesRequest, _ ...gaxCallOption) resourceIterator {
-	return &fakeIter{c: f}
+// SearchAllResources mirrors real CAI behaviour: only results whose AssetType
+// appears in req.AssetTypes are returned (empty AssetTypes = all).
+func (f *fakeAssetClient) SearchAllResources(_ context.Context, req *assetpb.SearchAllResourcesRequest, _ ...gaxCallOption) resourceIterator {
+	want := make(map[string]bool, len(req.AssetTypes))
+	for _, at := range req.AssetTypes {
+		want[at] = true
+	}
+	var filtered [][]*assetpb.ResourceSearchResult
+	for _, page := range f.pages {
+		var fp []*assetpb.ResourceSearchResult
+		for _, r := range page {
+			if len(want) == 0 || want[r.AssetType] {
+				fp = append(fp, r)
+			}
+		}
+		if len(fp) > 0 {
+			filtered = append(filtered, fp)
+		}
+	}
+	return &fakeIter{pages: filtered, errAfter: f.errAfter}
 }
 
 func (f *fakeAssetClient) Close() error { return nil }
 
 type fakeIter struct {
-	c    *fakeAssetClient
-	page int
-	idx  int
+	pages    [][]*assetpb.ResourceSearchResult
+	errAfter error
+	page     int
+	idx      int
 }
 
 func (it *fakeIter) Next() (*assetpb.ResourceSearchResult, error) {
-	for it.page < len(it.c.pages) && it.idx >= len(it.c.pages[it.page]) {
+	for it.page < len(it.pages) && it.idx >= len(it.pages[it.page]) {
 		it.page++
 		it.idx = 0
 	}
-	if it.page >= len(it.c.pages) {
-		if it.c.errAfter != nil {
-			err := it.c.errAfter
-			it.c.errAfter = nil
+	if it.page >= len(it.pages) {
+		if it.errAfter != nil {
+			err := it.errAfter
+			it.errAfter = nil
 			return nil, err
 		}
 		return nil, iterator.Done
 	}
-	res := it.c.pages[it.page][it.idx]
+	res := it.pages[it.page][it.idx]
 	it.idx++
 	return res, nil
 }

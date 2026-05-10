@@ -11,6 +11,8 @@ import (
 	"cloud.google.com/go/asset/apiv1/assetpb"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"cloudcmder.com/internal/inventory"
 )
@@ -211,10 +213,36 @@ func runEnrichersWith(ctx context.Context, p *GCPProvider, scope inventory.Scope
 
 // streamAssetStubs runs Phase 1 — the Cloud Asset Inventory listing — and
 // emits one stub Resource per supported asset type encountered.
+//
+// Vertex AI types are sent in a separate request because CAI's searchable-type
+// list is a strict subset of all asset types; unsupported types cause the whole
+// request to fail with InvalidArgument. The Vertex request treats
+// InvalidArgument as a warning (some types may not be searchable yet).
 func streamAssetStubs(ctx context.Context, cli assetSearcher, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr) {
+	all := assetTypesForKinds(kinds)
+	var nonVertex, vertex []string
+	for _, at := range all {
+		if strings.HasPrefix(at, "aiplatform.googleapis.com/") {
+			vertex = append(vertex, at)
+		} else {
+			nonVertex = append(nonVertex, at)
+		}
+	}
+	if len(nonVertex) > 0 {
+		searchAssetPage(ctx, cli, scope, nonVertex, ch, false)
+	}
+	if len(vertex) > 0 && ctx.Err() == nil {
+		searchAssetPage(ctx, cli, scope, vertex, ch, true)
+	}
+}
+
+// searchAssetPage issues one SearchAllResources call for the given asset types.
+// When graceful is true, an InvalidArgument response (unsupported type) is
+// logged and silently skipped instead of propagated as a scan error.
+func searchAssetPage(ctx context.Context, cli assetSearcher, scope inventory.Scope, assetTypes []string, ch chan<- inventory.ResourceOrErr, graceful bool) {
 	req := &assetpb.SearchAllResourcesRequest{
 		Scope:      "projects/" + scope.ID,
-		AssetTypes: assetTypesForKinds(kinds),
+		AssetTypes: assetTypes,
 	}
 	it := cli.SearchAllResources(ctx, req)
 	for {
@@ -223,6 +251,10 @@ func streamAssetStubs(ctx context.Context, cli assetSearcher, scope inventory.Sc
 			return
 		}
 		if err != nil {
+			if graceful && status.Code(err) == codes.InvalidArgument {
+				// One or more types not in CAI's searchable list; skip silently.
+				return
+			}
 			sendOrCancel(ctx, ch, inventory.ResourceOrErr{
 				Err: fmt.Errorf("gcp: search-all-resources: %w", err),
 			})

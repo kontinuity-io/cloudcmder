@@ -27,13 +27,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `:logging`/`:logs` `:osconfig`/`:vmm` `:vpn` `:router` `:build`/`:cb`.
 - Each new Kind surfaces in the Overview count, TUI list (NAME/SUBTYPE/REGION/STATUS),
   right-pane Detail, and Excel export (one sheet per Kind with Name/Region/Status/Subtype/Labels).
-- Each stub Kind now gets its own graceful CAI request — an unsupported asset
-  type for one service no longer silences other Kinds.
+- Each stub asset type gets its own graceful CAI request — an unsupported
+  type silences only that type's rows, not the entire Kind.
 
 #### Vertex AI / Gemini coverage (existing, now using StubDetail)
 
 - `KindVertexAI` with 24 `aiplatform.googleapis.com/*` asset types. No Phase-2
   enricher; `roles/cloudasset.viewer` sufficient. Unknown future types → `Subtype="Other"`.
+
+### Fixed
+
+- **Vertex AI (and all stub Kinds) returning 0 rows.** `SearchAllResources`
+  is all-or-nothing per batch: one unsupported asset type in the request
+  causes the entire batch to return `InvalidArgument`, silently wiping every
+  result for that Kind. Stub asset types now each get their own single-type
+  request, so a newly-GA'd type that CAI hasn't added to the searchable list
+  yet (e.g. `DeploymentResourcePool`, GA 2026-04-28) loses only its own rows
+  rather than all 24 VertexAI rows. Skipped types are now logged as
+  `slog.Warn` entries in `~/.cloudcmder/cloudcmder.log` instead of being
+  swallowed silently.
 
 ### Changed
 

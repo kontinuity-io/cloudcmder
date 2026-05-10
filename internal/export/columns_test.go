@@ -91,7 +91,16 @@ func TestColumnsForCoversAllKinds(t *testing.T) {
 		inventory.KindVM, inventory.KindDisk, inventory.KindNetwork,
 		inventory.KindSubnet, inventory.KindFirewall, inventory.KindLoadBalancer,
 		inventory.KindDatabase, inventory.KindCluster, inventory.KindBucket,
-		inventory.KindFunction, inventory.KindVertexAI,
+		inventory.KindFunction,
+		// stub-only Kinds
+		inventory.KindVertexAI, inventory.KindApigee, inventory.KindFirebase,
+		inventory.KindAppEngine, inventory.KindBigQuery, inventory.KindDNS,
+		inventory.KindMemorystore, inventory.KindArtifactRegistry, inventory.KindCloudScheduler,
+		inventory.KindPubSub, inventory.KindSpanner, inventory.KindBigtable,
+		inventory.KindKMS, inventory.KindSecretManager, inventory.KindDataflow,
+		inventory.KindDataproc, inventory.KindComposer, inventory.KindCloudTasks,
+		inventory.KindMonitoring, inventory.KindLogging, inventory.KindOSConfig,
+		inventory.KindVPN, inventory.KindRouter, inventory.KindCloudBuild,
 	} {
 		if cols := columnsFor(k); len(cols) == 0 {
 			t.Errorf("no columns registered for kind %s", k)

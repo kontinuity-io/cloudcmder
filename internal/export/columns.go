@@ -47,7 +47,30 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return bucketColumns()
 	case inventory.KindFunction:
 		return functionColumns()
-	case inventory.KindVertexAI:
+	case inventory.KindVertexAI,
+		inventory.KindApigee,
+		inventory.KindFirebase,
+		inventory.KindAppEngine,
+		inventory.KindBigQuery,
+		inventory.KindDNS,
+		inventory.KindMemorystore,
+		inventory.KindArtifactRegistry,
+		inventory.KindCloudScheduler,
+		inventory.KindPubSub,
+		inventory.KindSpanner,
+		inventory.KindBigtable,
+		inventory.KindKMS,
+		inventory.KindSecretManager,
+		inventory.KindDataflow,
+		inventory.KindDataproc,
+		inventory.KindComposer,
+		inventory.KindCloudTasks,
+		inventory.KindMonitoring,
+		inventory.KindLogging,
+		inventory.KindOSConfig,
+		inventory.KindVPN,
+		inventory.KindRouter,
+		inventory.KindCloudBuild:
 		return stubColumns()
 	}
 	return nil
@@ -81,7 +104,30 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.BucketDetail{})
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
-	case inventory.KindVertexAI:
+	case inventory.KindVertexAI,
+		inventory.KindApigee,
+		inventory.KindFirebase,
+		inventory.KindAppEngine,
+		inventory.KindBigQuery,
+		inventory.KindDNS,
+		inventory.KindMemorystore,
+		inventory.KindArtifactRegistry,
+		inventory.KindCloudScheduler,
+		inventory.KindPubSub,
+		inventory.KindSpanner,
+		inventory.KindBigtable,
+		inventory.KindKMS,
+		inventory.KindSecretManager,
+		inventory.KindDataflow,
+		inventory.KindDataproc,
+		inventory.KindComposer,
+		inventory.KindCloudTasks,
+		inventory.KindMonitoring,
+		inventory.KindLogging,
+		inventory.KindOSConfig,
+		inventory.KindVPN,
+		inventory.KindRouter,
+		inventory.KindCloudBuild:
 		return unmarshalOrNil(raw, &inventory.StubDetail{})
 	}
 	return nil

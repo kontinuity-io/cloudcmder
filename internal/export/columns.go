@@ -140,6 +140,16 @@ func unmarshalOrNil(raw json.RawMessage, into any) any {
 	return into
 }
 
+// headersOf extracts the Header strings from a ColumnDef slice as an []any
+// suitable for passing to excelize's SetRow.
+func headersOf(cols []ColumnDef) []any {
+	out := make([]any, len(cols))
+	for i, c := range cols {
+		out[i] = c.Header
+	}
+	return out
+}
+
 // --- shared helpers --------------------------------------------------------
 
 func nameOf(r inventory.Resource, _ any) string   { return r.Name }

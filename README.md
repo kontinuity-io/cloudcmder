@@ -277,17 +277,23 @@ Assign these roles to the account you use with `gcloud auth application-default 
 cloudcmder [flags]
 
 Flags:
-  --db string          SQLite assessment database path (default ~/.cloudcmder/cloudcmder.db)
-  --log-level string   debug, info, warn, error (default info)
-  --check              check that required GCP APIs are enabled (read-only; exits non-zero if any missing)
-  --project string     limit --check to a single project ID (default: all accessible projects)
-  --list-scopes        list every accessible GCP project as JSON and exit
-  --scan string        headless scan of a project; prints the run uuid on completion
-  --list-runs          list every stored run as a table
-  --show-run string    print resource counts grouped by kind for the given run uuid
-  --export string      write a multi-tab Excel workbook for a stored run to the given path
-  --run string         run uuid to export (with --export); defaults to the most recent run
-  -v, --version        print version
+  --db string             SQLite assessment database path (default ~/.cloudcmder/cloudcmder.db)
+  --log-level string      debug, info, warn, error (default info)
+  --check                 check that required GCP APIs are enabled (read-only; exits non-zero if any missing)
+  --project string        limit --check to a single project ID (default: all accessible projects)
+  --list-scopes           list every accessible GCP project as JSON and exit
+  --scan string           headless scan of a single project; prints the run uuid on completion
+  --scan-all              scan every accessible GCP project sequentially (one run per project)
+  --scan-projects string  comma-separated list of project IDs to scan sequentially
+  --fail-fast             abort --scan-all/--scan-projects on the first error (default: continue)
+  --list-runs             list every stored run as a table
+  --show-run string       print resource counts grouped by kind for the given run uuid
+  --export string         write a multi-tab Excel workbook for a single stored run
+  --run string            run uuid to export (with --export); defaults to the most recent run
+  --export-multi string   write a combined multi-project workbook to the given path
+  --runs string           comma-separated run UUIDs to include in --export-multi
+  --scopes string         comma-separated scope IDs for --export-multi (latest run per scope)
+  -v, --version           print version
 ```
 
 ### Preflight check
@@ -325,6 +331,60 @@ The required-API list is derived at runtime from cloudcmder's internal
 use `--check` for the live diagnostic.
 
 The interactive TUI is shipped — invoke `cloudcmder` with no flags.
+
+### Scanning multiple projects
+
+To capture your entire GCP estate in one go:
+
+```sh
+# 1. Preflight — verify APIs are enabled across all projects (optional but recommended)
+cloudcmder --check
+
+# 2. Scan every accessible project sequentially (one run row per project)
+cloudcmder --scan-all
+
+# 3. Export a single combined workbook covering all projects
+cloudcmder --export-multi ~/Desktop/full-inventory.xlsx
+```
+
+Output while scanning:
+
+```
+scanning 5 project(s)…
+[1/5] proj-prod-1 … ok (run a1b2c3d4-…)
+[2/5] proj-prod-2 … ok (run e5f6g7h8-…)
+[3/5] proj-staging … ok (run i9j0k1l2-…)
+[4/5] proj-dev … ok (run m3n4o5p6-…)
+[5/5] proj-sandbox … ok (run q7r8s9t0-…)
+```
+
+The combined workbook has:
+
+- **Summary tab** — one row per project with per-kind resource counts and a TOTAL row.
+- **Per-kind tabs** (VMs, Disks, Networks, …, VertexAI, CloudBuild, etc.) — all resources from all projects, with a leading `Project` column.
+- **Scopes** and **Edges** tabs — unioned across all projects.
+
+Targeted sub-selections:
+
+```sh
+# Scan only named projects
+cloudcmder --scan-projects=proj-a,proj-b,proj-c
+
+# Export the latest run for two specific scopes
+cloudcmder --export-multi ~/Desktop/two-projects.xlsx --scopes proj-a,proj-b
+
+# Export specific runs by UUID
+cloudcmder --export-multi ~/Desktop/custom.xlsx --runs uuid1,uuid2,uuid3
+
+# Abort on first failure (default is continue)
+cloudcmder --scan-all --fail-fast
+```
+
+Each project's scan is independent: a failure in one project (e.g. missing
+APIs) is logged as a warning and the loop continues to the next project.
+Exit code is non-zero when any project failed. Already-completed project
+runs survive a Ctrl-C mid-loop — the scan can be re-run for just the
+failed ones with `--scan-projects`.
 
 ## FAQ
 

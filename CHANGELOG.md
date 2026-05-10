@@ -8,6 +8,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### Multi-project scan + combined workbook
+
+- `--scan-all` — sequentially scans every accessible GCP project. Each project
+  gets its own `runs` row. Prints `[i/N] <project> … ok (run <uuid>)` progress.
+- `--scan-projects=a,b,c` — scan only the named comma-separated project IDs.
+- `--fail-fast` — abort `--scan-all`/`--scan-projects` on the first project
+  error (default: log a warning and continue; exit non-zero if any failed).
+- `--export-multi <out.xlsx>` — write a combined workbook covering N projects.
+  Defaults to the latest run per distinct scope across all stored runs. Narrow
+  with `--scopes proj-a,proj-b` (latest run per scope) or
+  `--runs uuid1,uuid2` (exact runs).
+- Combined workbook layout: **Summary** tab with one row per project, one column
+  per resource Kind, and a TOTAL row (TUI Overview-style); **per-kind tabs**
+  (VMs, Disks, Networks, …, all 34 Kinds) each gain a leading `Project` column;
+  **Scopes** and **Edges** tabs are unioned across all included runs.
+
+#### Excel export — stub-kind sheets (bug fix)
+
+All 24 stub-only Kinds (VertexAI, Apigee, Firebase, AppEngine, BigQuery, DNS,
+Memorystore, ArtifactRegistry, CloudScheduler, PubSub, Spanner, Bigtable, KMS,
+SecretManager, Dataflow, Dataproc, Composer, CloudTasks, Monitoring, Logging,
+OSConfig, VPN, Router, CloudBuild) now appear as dedicated sheets in both the
+single-run `--export` workbook and the new `--export-multi` workbook. Previously
+only the 10 core Kinds had sheets despite `columnsFor()` supporting all 34.
+
 #### `--check` preflight command
 
 - `--check` — read-only preflight that calls Service Usage API, diffs required

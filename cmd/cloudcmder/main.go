@@ -141,8 +141,8 @@ func runListScopes(cmd *cobra.Command) error {
 }
 
 // runCheck calls Service Usage to diff required vs enabled APIs per project
-// and prints a copy-paste-ready gcloud enable command for any that are missing.
-// Exits with an error (non-zero) if any APIs are missing — composable with &&.
+// and prints a copy-paste-ready gcloud enable command for any that are not yet
+// enabled. Exits non-zero when any are missing — composable with &&.
 func runCheck(cmd *cobra.Command, projectFilter string) error {
 	ctx := cmd.Context()
 	p, err := gcp.New(ctx)
@@ -176,20 +176,22 @@ func runCheck(cmd *cobra.Command, projectFilter string) error {
 			fmt.Fprintf(w, "Project: %s\n  ERROR: %v\n\n", scope.ID, err)
 			continue
 		}
-		fmt.Fprintf(w, "Project: %s\n  Required: %d  Enabled: %d  Missing: %d\n",
-			scope.ID, len(r.Required), len(r.Enabled), len(r.Missing))
-		for _, m := range r.Missing {
-			fmt.Fprintf(w, "    - %s\n", m)
+		enabledOfRequired := len(r.Required) - len(r.Missing)
+		if len(r.Missing) == 0 {
+			fmt.Fprintf(w, "Project: %s\n  All %d required APIs enabled. ✓\n\n", scope.ID, len(r.Required))
+		} else {
+			fmt.Fprintf(w, "Project: %s\n  %d of %d required APIs enabled — %d not enabled:\n",
+				scope.ID, enabledOfRequired, len(r.Required), len(r.Missing))
+			for _, m := range r.Missing {
+				fmt.Fprintf(w, "    - %s\n", m)
+			}
+			fmt.Fprintf(w, "\n  Run this to enable them:\n    %s\n\n", r.GcloudEnableCommand())
 		}
-		if enable := r.GcloudEnableCommand(); enable != "" {
-			fmt.Fprintf(w, "\n  To enable missing APIs:\n    %s\n", enable)
-		}
-		fmt.Fprintln(w)
 		totalMissing += len(r.Missing)
 	}
 	if totalMissing > 0 {
-		return fmt.Errorf("preflight: %d API(s) missing across %d project(s) — enable them and re-run --check",
-			totalMissing, len(scopes))
+		return fmt.Errorf("preflight: %d required API(s) not enabled — enable them and re-run --check",
+			totalMissing)
 	}
 	return nil
 }

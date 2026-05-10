@@ -38,7 +38,11 @@ var assetTypeToKind = map[string]inventory.Kind{
 	"container.googleapis.com/Cluster":        inventory.KindCluster,
 	"run.googleapis.com/Service":              inventory.KindFunction,
 	"cloudfunctions.googleapis.com/Function":  inventory.KindFunction,
-	// Vertex AI resources via Cloud Asset Inventory (stub-only; no Phase-2 enricher).
+	// --- Stub-only Kinds (CAI Phase 1 only; no Phase-2 enricher) ---------------
+	// All entries below are routed through searchAssetPage(graceful=true).
+	// Types not in CAI's searchable list silently return 0 rows.
+
+	// Vertex AI
 	"aiplatform.googleapis.com/BatchPredictionJob":           inventory.KindVertexAI,
 	"aiplatform.googleapis.com/CachedContent":                inventory.KindVertexAI,
 	"aiplatform.googleapis.com/CustomJob":                    inventory.KindVertexAI,
@@ -63,6 +67,109 @@ var assetTypeToKind = map[string]inventory.Kind{
 	"aiplatform.googleapis.com/Tensorboard":                  inventory.KindVertexAI,
 	"aiplatform.googleapis.com/TrainingPipeline":             inventory.KindVertexAI,
 	"aiplatform.googleapis.com/TuningJob":                    inventory.KindVertexAI,
+
+	// Apigee
+	"apigee.googleapis.com/ApiProxy":         inventory.KindApigee,
+	"apigee.googleapis.com/ApiProxyRevision": inventory.KindApigee,
+	"apigee.googleapis.com/Environment":      inventory.KindApigee,
+	"apigee.googleapis.com/Instance":         inventory.KindApigee,
+	"apigee.googleapis.com/Organization":     inventory.KindApigee,
+
+	// Firebase
+	"firebase.googleapis.com/FirebaseAppInfo": inventory.KindFirebase,
+	"firebase.googleapis.com/FirebaseProject": inventory.KindFirebase,
+
+	// App Engine
+	"appengine.googleapis.com/Application": inventory.KindAppEngine,
+	"appengine.googleapis.com/Service":     inventory.KindAppEngine,
+	"appengine.googleapis.com/Version":     inventory.KindAppEngine,
+
+	// BigQuery
+	"bigquery.googleapis.com/Dataset":         inventory.KindBigQuery,
+	"bigquery.googleapis.com/Model":           inventory.KindBigQuery,
+	"bigquery.googleapis.com/Routine":         inventory.KindBigQuery,
+	"bigquery.googleapis.com/RowAccessPolicy": inventory.KindBigQuery,
+	"bigquery.googleapis.com/Table":           inventory.KindBigQuery,
+
+	// Cloud DNS
+	"dns.googleapis.com/ManagedZone":    inventory.KindDNS,
+	"dns.googleapis.com/Policy":         inventory.KindDNS,
+	"dns.googleapis.com/ResponsePolicy": inventory.KindDNS,
+
+	// Memorystore
+	"memcache.googleapis.com/Instance": inventory.KindMemorystore,
+	"redis.googleapis.com/Cluster":     inventory.KindMemorystore,
+	"redis.googleapis.com/Instance":    inventory.KindMemorystore,
+
+	// Artifact Registry
+	"artifactregistry.googleapis.com/DockerImage": inventory.KindArtifactRegistry,
+	"artifactregistry.googleapis.com/Repository":  inventory.KindArtifactRegistry,
+
+	// Cloud Scheduler
+	"cloudscheduler.googleapis.com/Job": inventory.KindCloudScheduler,
+
+	// Pub/Sub
+	"pubsub.googleapis.com/Schema":       inventory.KindPubSub,
+	"pubsub.googleapis.com/Snapshot":     inventory.KindPubSub,
+	"pubsub.googleapis.com/Subscription": inventory.KindPubSub,
+	"pubsub.googleapis.com/Topic":        inventory.KindPubSub,
+
+	// Spanner
+	"spanner.googleapis.com/Backup":   inventory.KindSpanner,
+	"spanner.googleapis.com/Database": inventory.KindSpanner,
+	"spanner.googleapis.com/Instance": inventory.KindSpanner,
+
+	// Bigtable
+	"bigtableadmin.googleapis.com/Backup":   inventory.KindBigtable,
+	"bigtableadmin.googleapis.com/Cluster":  inventory.KindBigtable,
+	"bigtableadmin.googleapis.com/Instance": inventory.KindBigtable,
+	"bigtableadmin.googleapis.com/Table":    inventory.KindBigtable,
+
+	// Cloud KMS
+	"cloudkms.googleapis.com/CryptoKey": inventory.KindKMS,
+	"cloudkms.googleapis.com/KeyRing":   inventory.KindKMS,
+
+	// Secret Manager
+	"secretmanager.googleapis.com/Secret": inventory.KindSecretManager,
+
+	// Dataflow
+	"dataflow.googleapis.com/Job": inventory.KindDataflow,
+
+	// Dataproc
+	"dataproc.googleapis.com/Cluster": inventory.KindDataproc,
+	"dataproc.googleapis.com/Job":     inventory.KindDataproc,
+
+	// Cloud Composer
+	"composer.googleapis.com/Environment": inventory.KindComposer,
+
+	// Cloud Tasks
+	"cloudtasks.googleapis.com/Queue": inventory.KindCloudTasks,
+
+	// Cloud Monitoring
+	"monitoring.googleapis.com/AlertPolicy":         inventory.KindMonitoring,
+	"monitoring.googleapis.com/NotificationChannel": inventory.KindMonitoring,
+	"monitoring.googleapis.com/Snooze":              inventory.KindMonitoring,
+
+	// Cloud Logging
+	"logging.googleapis.com/LogBucket": inventory.KindLogging,
+	"logging.googleapis.com/LogMetric": inventory.KindLogging,
+	"logging.googleapis.com/LogSink":   inventory.KindLogging,
+
+	// OS Config (VM Manager)
+	"osconfig.googleapis.com/OSPolicyAssignment": inventory.KindOSConfig,
+	"osconfig.googleapis.com/PatchDeployment":    inventory.KindOSConfig,
+
+	// Cloud VPN (compute sub-resources)
+	"compute.googleapis.com/ExternalVpnGateway": inventory.KindVPN,
+	"compute.googleapis.com/VpnGateway":         inventory.KindVPN,
+	"compute.googleapis.com/VpnTunnel":          inventory.KindVPN,
+
+	// Cloud Router (compute sub-resource)
+	"compute.googleapis.com/Router": inventory.KindRouter,
+
+	// Cloud Build
+	"cloudbuild.googleapis.com/Build":        inventory.KindCloudBuild,
+	"cloudbuild.googleapis.com/BuildTrigger": inventory.KindCloudBuild,
 }
 
 // assetTypesForKinds returns the asset.googleapis.com filter strings for the
@@ -214,25 +321,30 @@ func runEnrichersWith(ctx context.Context, p *GCPProvider, scope inventory.Scope
 // streamAssetStubs runs Phase 1 — the Cloud Asset Inventory listing — and
 // emits one stub Resource per supported asset type encountered.
 //
-// Vertex AI types are sent in a separate request because CAI's searchable-type
-// list is a strict subset of all asset types; unsupported types cause the whole
-// request to fail with InvalidArgument. The Vertex request treats
-// InvalidArgument as a warning (some types may not be searchable yet).
+// Non-stub Kinds (the 10 original IaaS types) go in a single strict request.
+// Each stub-only Kind gets its own graceful request so one unsupported CAI
+// type never silences other Kinds — an InvalidArgument on that Kind's request
+// is logged and skipped rather than aborting the whole scan.
 func streamAssetStubs(ctx context.Context, cli assetSearcher, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr) {
 	all := assetTypesForKinds(kinds)
-	var nonVertex, vertex []string
+	var strict []string
+	stubByKind := map[inventory.Kind][]string{}
 	for _, at := range all {
-		if strings.HasPrefix(at, "aiplatform.googleapis.com/") {
-			vertex = append(vertex, at)
+		if isStubKindAssetType(at) {
+			k := assetTypeToKind[at]
+			stubByKind[k] = append(stubByKind[k], at)
 		} else {
-			nonVertex = append(nonVertex, at)
+			strict = append(strict, at)
 		}
 	}
-	if len(nonVertex) > 0 {
-		searchAssetPage(ctx, cli, scope, nonVertex, ch, false)
+	if len(strict) > 0 {
+		searchAssetPage(ctx, cli, scope, strict, ch, false)
 	}
-	if len(vertex) > 0 && ctx.Err() == nil {
-		searchAssetPage(ctx, cli, scope, vertex, ch, true)
+	for _, types := range stubByKind {
+		if ctx.Err() != nil {
+			return
+		}
+		searchAssetPage(ctx, cli, scope, types, ch, true)
 	}
 }
 
@@ -284,7 +396,7 @@ func wantsKind(kinds []inventory.Kind, k inventory.Kind) bool {
 
 // translateResult maps one *assetpb.ResourceSearchResult to a stub Resource.
 // Returns (zero, false) for asset types we do not recognise.
-// For KindVertexAI, Detail is pre-populated with *VertexDetail so the Subtype
+// For stub-only Kinds, Detail is pre-populated with *StubDetail so the Subtype
 // label is available without a Phase-2 enricher.
 func translateResult(scopeID string, res *assetpb.ResourceSearchResult) (inventory.Resource, bool) {
 	kind, ok := assetTypeToKind[res.GetAssetType()]
@@ -300,9 +412,9 @@ func translateResult(scopeID string, res *assetpb.ResourceSearchResult) (invento
 		Status: res.GetState(),
 		Labels: res.GetLabels(),
 	}
-	if vd := vertexDetailFromAssetType(res.GetAssetType()); vd != nil {
-		vd.Region = res.GetLocation()
-		r.Detail = vd
+	if sd := stubDetailForKind(kind, res.GetAssetType()); sd != nil {
+		sd.Region = res.GetLocation()
+		r.Detail = sd
 	}
 	return r, true
 }

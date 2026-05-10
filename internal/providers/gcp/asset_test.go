@@ -15,46 +15,62 @@ import (
 	"cloudcmder.com/internal/inventory"
 )
 
-func TestAssetTypeToKindCovers11Kinds(t *testing.T) {
-	// 11 original GCP asset types + 24 Vertex AI types = 35 total.
-	// Unique kinds: 10 original + KindVertexAI = 11.
-	if len(assetTypeToKind) != 35 {
-		t.Errorf("len(assetTypeToKind) = %d, want 35", len(assetTypeToKind))
+func TestAssetTypeToKindCovers34Kinds(t *testing.T) {
+	// 11 non-stub + 24 VertexAI + 57 new stub types = 92 total.
+	// Unique kinds: 10 original + 1 VertexAI + 23 new stub = 34.
+	if len(assetTypeToKind) != 92 {
+		t.Errorf("len(assetTypeToKind) = %d, want 92", len(assetTypeToKind))
 	}
 
 	uniqueKinds := map[inventory.Kind]struct{}{}
 	for _, k := range assetTypeToKind {
 		uniqueKinds[k] = struct{}{}
 	}
-	if len(uniqueKinds) != 11 {
-		t.Errorf("unique kinds = %d, want 11", len(uniqueKinds))
+	if len(uniqueKinds) != 34 {
+		t.Errorf("unique kinds = %d, want 34", len(uniqueKinds))
 	}
 }
 
-func TestTranslateResultPopulatesVertexDetail(t *testing.T) {
-	res := &assetpb.ResourceSearchResult{
-		Name:        "//aiplatform.googleapis.com/projects/p1/locations/us-central1/endpoints/my-ep",
-		AssetType:   "aiplatform.googleapis.com/Endpoint",
-		DisplayName: "my-ep",
-		Location:    "us-central1",
-		State:       "ACTIVE",
+func TestTranslateResultPopulatesStubDetail(t *testing.T) {
+	cases := []struct {
+		name      string
+		assetType string
+		wantKind  inventory.Kind
+		wantSub   string
+	}{
+		{"VertexAI Endpoint", "aiplatform.googleapis.com/Endpoint", inventory.KindVertexAI, "Endpoint"},
+		{"Apigee Organization", "apigee.googleapis.com/Organization", inventory.KindApigee, "Organization"},
+		{"BigQuery Dataset", "bigquery.googleapis.com/Dataset", inventory.KindBigQuery, "Dataset"},
+		{"PubSub Topic", "pubsub.googleapis.com/Topic", inventory.KindPubSub, "Topic"},
+		{"KMS CryptoKey", "cloudkms.googleapis.com/CryptoKey", inventory.KindKMS, "CryptoKey"},
 	}
-	r, ok := translateResult("p1", res)
-	if !ok {
-		t.Fatalf("translateResult ok = false for Vertex Endpoint")
-	}
-	if r.Kind != inventory.KindVertexAI {
-		t.Errorf("kind = %v, want VertexAI", r.Kind)
-	}
-	vd, ok := r.Detail.(*inventory.VertexDetail)
-	if !ok || vd == nil {
-		t.Fatalf("Detail is not *VertexDetail: %T", r.Detail)
-	}
-	if vd.Subtype != "Endpoint" {
-		t.Errorf("Subtype = %q, want %q", vd.Subtype, "Endpoint")
-	}
-	if vd.Region != "us-central1" {
-		t.Errorf("Region = %q, want %q", vd.Region, "us-central1")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := &assetpb.ResourceSearchResult{
+				Name:        "//x.googleapis.com/projects/p1/locations/us-central1/resources/r1",
+				AssetType:   tc.assetType,
+				DisplayName: "r1",
+				Location:    "us-central1",
+				State:       "ACTIVE",
+			}
+			r, ok := translateResult("p1", res)
+			if !ok {
+				t.Fatalf("translateResult ok = false for %s", tc.assetType)
+			}
+			if r.Kind != tc.wantKind {
+				t.Errorf("kind = %v, want %v", r.Kind, tc.wantKind)
+			}
+			sd, ok := r.Detail.(*inventory.StubDetail)
+			if !ok || sd == nil {
+				t.Fatalf("Detail is not *StubDetail: %T", r.Detail)
+			}
+			if sd.Subtype != tc.wantSub {
+				t.Errorf("Subtype = %q, want %q", sd.Subtype, tc.wantSub)
+			}
+			if sd.Region != "us-central1" {
+				t.Errorf("Region = %q, want %q", sd.Region, "us-central1")
+			}
+		})
 	}
 }
 

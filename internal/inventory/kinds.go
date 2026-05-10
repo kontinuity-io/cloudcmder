@@ -18,6 +18,32 @@ const (
 	KindCluster      Kind = "Cluster"
 	KindFunction     Kind = "Function"
 	KindVertexAI     Kind = "VertexAI"
+
+	// Stub-only Kinds — surfaced via Cloud Asset Inventory Phase 1 only.
+	// No Phase-2 enricher; Detail is *StubDetail{Subtype, Region}.
+	KindApigee           Kind = "Apigee"
+	KindFirebase         Kind = "Firebase"
+	KindAppEngine        Kind = "AppEngine"
+	KindBigQuery         Kind = "BigQuery"
+	KindDNS              Kind = "DNS"
+	KindMemorystore      Kind = "Memorystore"
+	KindArtifactRegistry Kind = "ArtifactRegistry"
+	KindCloudScheduler   Kind = "CloudScheduler"
+	KindPubSub           Kind = "PubSub"
+	KindSpanner          Kind = "Spanner"
+	KindBigtable         Kind = "Bigtable"
+	KindKMS              Kind = "KMS"
+	KindSecretManager    Kind = "SecretManager"
+	KindDataflow         Kind = "Dataflow"
+	KindDataproc         Kind = "Dataproc"
+	KindComposer         Kind = "Composer"
+	KindCloudTasks       Kind = "CloudTasks"
+	KindMonitoring       Kind = "Monitoring"
+	KindLogging          Kind = "Logging"
+	KindOSConfig         Kind = "OSConfig"
+	KindVPN              Kind = "VPN"
+	KindRouter           Kind = "Router"
+	KindCloudBuild       Kind = "CloudBuild"
 )
 
 // RefKind labels the directed edges in the interconnection graph.

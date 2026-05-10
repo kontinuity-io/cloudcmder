@@ -52,7 +52,7 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 	case inventory.KindFunction:
 		cols = functionColumns()
 	case inventory.KindVertexAI:
-		cols = vertexColumns()
+		cols = stubColumns()
 	default:
 		return nil, false
 	}
@@ -131,7 +131,7 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
 	case inventory.KindVertexAI:
-		return unmarshalOrNil(raw, &inventory.VertexDetail{})
+		return unmarshalOrNil(raw, &inventory.StubDetail{})
 	}
 	return nil
 }
@@ -517,14 +517,16 @@ func functionColumns() []ColumnDef {
 	}
 }
 
-// --- VertexAI ---------------------------------------------------------------
+// --- Stub-only Kinds (VertexAI, Apigee, Firebase, BigQuery, …) ----------------
 
-func vertexColumns() []ColumnDef {
+// stubColumns returns the standard 4-column layout shared by all stub-only Kinds:
+// NAME · SUBTYPE · REGION · STATUS.
+func stubColumns() []ColumnDef {
 	return []ColumnDef{
 		{Header: "NAME", Width: 24, Extract: nameOf},
 		{Header: "SUBTYPE", Width: 16, Extract: func(_ inventory.Resource, d any) string {
-			if vd, ok := d.(*inventory.VertexDetail); ok && vd != nil {
-				return vd.Subtype
+			if sd, ok := d.(*inventory.StubDetail); ok && sd != nil {
+				return sd.Subtype
 			}
 			return ""
 		}},

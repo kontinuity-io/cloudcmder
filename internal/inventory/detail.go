@@ -130,10 +130,11 @@ type FunctionDetail struct {
 	Region    string
 }
 
-// VertexDetail describes a Vertex AI resource surfaced via Cloud Asset Inventory.
-// cloudcmder lists these as stubs (name/region/status from CAI) — no Phase-2
-// enricher is registered, so Detail carries only the subtype label.
-type VertexDetail struct {
-	Subtype string // Endpoint | Model | Dataset | Index | IndexEndpoint | PipelineJob | TrainingPipeline | Featurestore | FeatureGroup | NotebookRuntime | ... | Other
+// StubDetail is the shared Detail type for all stub-only Kinds: VertexAI,
+// Apigee, Firebase, AppEngine, BigQuery, and the other 19 CAI-listed Kinds.
+// No Phase-2 enricher is registered for any stub Kind; Detail carries only
+// the Subtype label derived from the CAI asset type string.
+type StubDetail struct {
+	Subtype string // type suffix, e.g. "Endpoint", "Dataset", "Topic", "Organization", …, "Other"
 	Region  string
 }

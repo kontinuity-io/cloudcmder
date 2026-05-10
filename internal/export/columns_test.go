@@ -143,10 +143,13 @@ func TestDiskLicenseColumns(t *testing.T) {
 	}
 }
 
-func TestVertexColumns(t *testing.T) {
+func TestStubColumns(t *testing.T) {
 	r := inventory.Resource{Name: "projects/p1/locations/us-central1/endpoints/123", Region: "us-central1", Status: "ACTIVE"}
-	d := &inventory.VertexDetail{Subtype: "Endpoint", Region: "us-central1"}
-	cols := vertexColumns()
+	d := &inventory.StubDetail{Subtype: "Endpoint", Region: "us-central1"}
+	cols := stubColumns()
+	if len(cols) != 5 {
+		t.Fatalf("stubColumns len = %d, want 5", len(cols))
+	}
 	want := map[string]string{
 		"Name":    r.Name,
 		"Region":  "us-central1",

@@ -48,7 +48,7 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 	case inventory.KindFunction:
 		return functionColumns()
 	case inventory.KindVertexAI:
-		return vertexColumns()
+		return stubColumns()
 	}
 	return nil
 }
@@ -82,7 +82,7 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
 	case inventory.KindVertexAI:
-		return unmarshalOrNil(raw, &inventory.VertexDetail{})
+		return unmarshalOrNil(raw, &inventory.StubDetail{})
 	}
 	return nil
 }
@@ -499,24 +499,25 @@ func fnField(get func(*inventory.FunctionDetail) string) func(inventory.Resource
 	}
 }
 
-// --- VertexAI -----------------------------------------------------------------
+// --- Stub-only Kinds (VertexAI, Apigee, Firebase, BigQuery, …) ----------------
 
-func vertexColumns() []ColumnDef {
+// stubColumns returns the standard 5-column Excel layout shared by all stub-only Kinds.
+func stubColumns() []ColumnDef {
 	return []ColumnDef{
 		{Header: "Name", Extract: nameOf},
 		{Header: "Region", Extract: regionOf},
 		{Header: "Status", Extract: statusOf},
-		{Header: "Subtype", Extract: vxField(func(d *inventory.VertexDetail) string { return d.Subtype })},
+		{Header: "Subtype", Extract: stubField(func(d *inventory.StubDetail) string { return d.Subtype })},
 		{Header: "Labels", Extract: labelsOf},
 	}
 }
 
-func vxField(get func(*inventory.VertexDetail) string) func(inventory.Resource, any) string {
+func stubField(get func(*inventory.StubDetail) string) func(inventory.Resource, any) string {
 	return func(_ inventory.Resource, d any) string {
-		vd, ok := d.(*inventory.VertexDetail)
-		if !ok || vd == nil {
+		sd, ok := d.(*inventory.StubDetail)
+		if !ok || sd == nil {
 			return ""
 		}
-		return get(vd)
+		return get(sd)
 	}
 }

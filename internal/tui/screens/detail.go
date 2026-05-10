@@ -221,7 +221,7 @@ func (d *Detail) detailPane() string {
 	case inventory.KindFunction:
 		rows = append(rows, functionDetailRows(d.res, d.detail)...)
 	case inventory.KindVertexAI:
-		rows = append(rows, vertexDetailRows(d.res, d.detail)...)
+		rows = append(rows, stubDetailRows(d.res, d.detail)...)
 	default:
 		rows = append(rows,
 			kvLine("Name", d.res.Name),
@@ -393,9 +393,9 @@ func functionDetailRows(res inventory.Resource, detail any) []string {
 	}
 }
 
-func vertexDetailRows(res inventory.Resource, detail any) []string {
-	vd, _ := detail.(*inventory.VertexDetail)
-	if vd == nil {
+func stubDetailRows(res inventory.Resource, detail any) []string {
+	sd, _ := detail.(*inventory.StubDetail)
+	if sd == nil {
 		return []string{
 			kvLine("Name", res.Name),
 			kvLine("Region", res.Region),
@@ -403,8 +403,8 @@ func vertexDetailRows(res inventory.Resource, detail any) []string {
 		}
 	}
 	return []string{
-		kvLine("Subtype", vd.Subtype),
-		kvLine("Region", vd.Region),
+		kvLine("Subtype", sd.Subtype),
+		kvLine("Region", sd.Region),
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 	}
 }

@@ -14,7 +14,16 @@ func TestColumnsForReturnsKnownKinds(t *testing.T) {
 		inventory.KindVM, inventory.KindDisk, inventory.KindNetwork,
 		inventory.KindSubnet, inventory.KindFirewall, inventory.KindLoadBalancer,
 		inventory.KindDatabase, inventory.KindCluster, inventory.KindBucket,
-		inventory.KindFunction, inventory.KindVertexAI,
+		inventory.KindFunction,
+		// stub-only Kinds
+		inventory.KindVertexAI, inventory.KindApigee, inventory.KindFirebase,
+		inventory.KindAppEngine, inventory.KindBigQuery, inventory.KindDNS,
+		inventory.KindMemorystore, inventory.KindArtifactRegistry, inventory.KindCloudScheduler,
+		inventory.KindPubSub, inventory.KindSpanner, inventory.KindBigtable,
+		inventory.KindKMS, inventory.KindSecretManager, inventory.KindDataflow,
+		inventory.KindDataproc, inventory.KindComposer, inventory.KindCloudTasks,
+		inventory.KindMonitoring, inventory.KindLogging, inventory.KindOSConfig,
+		inventory.KindVPN, inventory.KindRouter, inventory.KindCloudBuild,
 	} {
 		cols, ok := columnsFor(k, 0)
 		assert.True(t, ok, "kind %s should be registered", k)
@@ -22,6 +31,20 @@ func TestColumnsForReturnsKnownKinds(t *testing.T) {
 	}
 	_, ok := columnsFor("Unknown", 0)
 	assert.False(t, ok)
+}
+
+func TestStubColumnsHasFourColumns(t *testing.T) {
+	cols := stubColumns()
+	require.Len(t, cols, 4)
+	headers := []string{"NAME", "SUBTYPE", "REGION", "STATUS"}
+	for i, h := range headers {
+		assert.Equal(t, h, cols[i].Header)
+	}
+	// Verify SUBTYPE extractor works with *StubDetail.
+	r := inventory.Resource{Region: "us-east1", Status: "ACTIVE"}
+	d := &inventory.StubDetail{Subtype: "Topic", Region: "us-east1"}
+	assert.Equal(t, "Topic", cols[1].Extract(r, d))
+	assert.Equal(t, "", cols[1].Extract(r, nil))
 }
 
 func TestFitColumnWidthsLeavesNaturalWhenItFits(t *testing.T) {

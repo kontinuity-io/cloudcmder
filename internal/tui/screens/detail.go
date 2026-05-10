@@ -220,7 +220,30 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, bucketDetailRows(d.res, d.detail)...)
 	case inventory.KindFunction:
 		rows = append(rows, functionDetailRows(d.res, d.detail)...)
-	case inventory.KindVertexAI:
+	case inventory.KindVertexAI,
+		inventory.KindApigee,
+		inventory.KindFirebase,
+		inventory.KindAppEngine,
+		inventory.KindBigQuery,
+		inventory.KindDNS,
+		inventory.KindMemorystore,
+		inventory.KindArtifactRegistry,
+		inventory.KindCloudScheduler,
+		inventory.KindPubSub,
+		inventory.KindSpanner,
+		inventory.KindBigtable,
+		inventory.KindKMS,
+		inventory.KindSecretManager,
+		inventory.KindDataflow,
+		inventory.KindDataproc,
+		inventory.KindComposer,
+		inventory.KindCloudTasks,
+		inventory.KindMonitoring,
+		inventory.KindLogging,
+		inventory.KindOSConfig,
+		inventory.KindVPN,
+		inventory.KindRouter,
+		inventory.KindCloudBuild:
 		rows = append(rows, stubDetailRows(d.res, d.detail)...)
 	default:
 		rows = append(rows,

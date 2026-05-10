@@ -51,7 +51,30 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 		cols = bucketColumns()
 	case inventory.KindFunction:
 		cols = functionColumns()
-	case inventory.KindVertexAI:
+	case inventory.KindVertexAI,
+		inventory.KindApigee,
+		inventory.KindFirebase,
+		inventory.KindAppEngine,
+		inventory.KindBigQuery,
+		inventory.KindDNS,
+		inventory.KindMemorystore,
+		inventory.KindArtifactRegistry,
+		inventory.KindCloudScheduler,
+		inventory.KindPubSub,
+		inventory.KindSpanner,
+		inventory.KindBigtable,
+		inventory.KindKMS,
+		inventory.KindSecretManager,
+		inventory.KindDataflow,
+		inventory.KindDataproc,
+		inventory.KindComposer,
+		inventory.KindCloudTasks,
+		inventory.KindMonitoring,
+		inventory.KindLogging,
+		inventory.KindOSConfig,
+		inventory.KindVPN,
+		inventory.KindRouter,
+		inventory.KindCloudBuild:
 		cols = stubColumns()
 	default:
 		return nil, false
@@ -130,7 +153,30 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.BucketDetail{})
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
-	case inventory.KindVertexAI:
+	case inventory.KindVertexAI,
+		inventory.KindApigee,
+		inventory.KindFirebase,
+		inventory.KindAppEngine,
+		inventory.KindBigQuery,
+		inventory.KindDNS,
+		inventory.KindMemorystore,
+		inventory.KindArtifactRegistry,
+		inventory.KindCloudScheduler,
+		inventory.KindPubSub,
+		inventory.KindSpanner,
+		inventory.KindBigtable,
+		inventory.KindKMS,
+		inventory.KindSecretManager,
+		inventory.KindDataflow,
+		inventory.KindDataproc,
+		inventory.KindComposer,
+		inventory.KindCloudTasks,
+		inventory.KindMonitoring,
+		inventory.KindLogging,
+		inventory.KindOSConfig,
+		inventory.KindVPN,
+		inventory.KindRouter,
+		inventory.KindCloudBuild:
 		return unmarshalOrNil(raw, &inventory.StubDetail{})
 	}
 	return nil
@@ -169,6 +215,52 @@ func AliasToKind(alias string) (inventory.Kind, bool) {
 		return inventory.KindFunction, true
 	case "vertex", "ai":
 		return inventory.KindVertexAI, true
+	case "apigee":
+		return inventory.KindApigee, true
+	case "firebase", "fb":
+		return inventory.KindFirebase, true
+	case "appengine", "gae", "ae":
+		return inventory.KindAppEngine, true
+	case "bigquery", "bq":
+		return inventory.KindBigQuery, true
+	case "dns":
+		return inventory.KindDNS, true
+	case "memorystore", "redis", "memcache":
+		return inventory.KindMemorystore, true
+	case "artifactregistry", "ar":
+		return inventory.KindArtifactRegistry, true
+	case "scheduler", "cron":
+		return inventory.KindCloudScheduler, true
+	case "pubsub", "ps":
+		return inventory.KindPubSub, true
+	case "spanner":
+		return inventory.KindSpanner, true
+	case "bigtable", "bt":
+		return inventory.KindBigtable, true
+	case "kms":
+		return inventory.KindKMS, true
+	case "secrets", "sm":
+		return inventory.KindSecretManager, true
+	case "dataflow", "df":
+		return inventory.KindDataflow, true
+	case "dataproc", "dp":
+		return inventory.KindDataproc, true
+	case "composer", "airflow":
+		return inventory.KindComposer, true
+	case "tasks":
+		return inventory.KindCloudTasks, true
+	case "monitoring", "stackdriver":
+		return inventory.KindMonitoring, true
+	case "logging", "logs":
+		return inventory.KindLogging, true
+	case "osconfig", "vmm":
+		return inventory.KindOSConfig, true
+	case "vpn":
+		return inventory.KindVPN, true
+	case "router":
+		return inventory.KindRouter, true
+	case "build", "cb":
+		return inventory.KindCloudBuild, true
 	}
 	return "", false
 }
@@ -177,7 +269,25 @@ func AliasToKind(alias string) (inventory.Kind, bool) {
 // cmdbar to seed its fuzzy-suggestion corpus. "scopes" doesn't map to a
 // Kind — App.Update special-cases it and pushes the ScopesModal instead.
 func AllAliases() []string {
-	return []string{"vm", "disk", "db", "lb", "net", "subnet", "fw", "gke", "bucket", "fn", "vertex", "scopes"}
+	return []string{
+		"ae", "apigee", "ar", "ai",
+		"bq", "bigtable", "bt", "bucket", "build",
+		"cb", "cron", "composer",
+		"dataflow", "dataproc", "db", "df", "disk", "dns", "dp",
+		"fb", "firebase", "fn", "fw",
+		"gae", "gke",
+		"kms",
+		"lb", "logging", "logs",
+		"memcache", "memorystore", "monitoring",
+		"net",
+		"osconfig",
+		"ps", "pubsub",
+		"redis", "router",
+		"scheduler", "secrets", "sm", "spanner", "stackdriver", "subnet",
+		"tasks",
+		"vertex", "vmm", "vpn",
+		"scopes",
+	}
 }
 
 // --- VM --------------------------------------------------------------------

@@ -47,6 +47,8 @@ func newRootCmd() *cobra.Command {
 	var (
 		dbPath       string
 		logLevel     string
+		checkFlag    bool
+		checkProject string
 		listScopes   bool
 		scanProject  string
 		listRunsFlag bool
@@ -71,6 +73,8 @@ and the file can be exported for offline analysis.`,
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
+			case checkFlag:
+				return runCheck(cmd, checkProject)
 			case listScopes:
 				return runListScopes(cmd)
 			case scanProject != "":
@@ -92,6 +96,10 @@ and the file can be exported for offline analysis.`,
 	root.PersistentFlags().StringVar(&logLevel, "log-level",
 		"info", "log level: debug, info, warn, error (written to ~/.cloudcmder/cloudcmder.log)")
 
+	root.Flags().BoolVar(&checkFlag, "check", false,
+		"check that required GCP APIs are enabled; prints missing ones and the gcloud command to enable them (read-only)")
+	root.Flags().StringVar(&checkProject, "project", "",
+		"limit --check to a single project ID (default: all accessible projects)")
 	root.Flags().BoolVar(&listScopes, "list-scopes", false,
 		"list all GCP projects accessible to the current credentials and exit (JSON output)")
 	root.Flags().StringVar(&scanProject, "scan", "",
@@ -130,6 +138,60 @@ func runListScopes(cmd *cobra.Command) error {
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
 	return enc.Encode(scopes)
+}
+
+// runCheck calls Service Usage to diff required vs enabled APIs per project
+// and prints a copy-paste-ready gcloud enable command for any that are missing.
+// Exits with an error (non-zero) if any APIs are missing — composable with &&.
+func runCheck(cmd *cobra.Command, projectFilter string) error {
+	ctx := cmd.Context()
+	p, err := gcp.New(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = p.Close() }()
+
+	scopes, err := p.ListScopes(ctx)
+	if err != nil {
+		return fmt.Errorf("preflight: list scopes: %w", err)
+	}
+	if projectFilter != "" {
+		var filtered []inventory.Scope
+		for _, s := range scopes {
+			if s.ID == projectFilter {
+				filtered = append(filtered, s)
+			}
+		}
+		if len(filtered) == 0 {
+			return fmt.Errorf("preflight: project %q not in accessible scopes", projectFilter)
+		}
+		scopes = filtered
+	}
+
+	w := cmd.OutOrStdout()
+	var totalMissing int
+	for _, scope := range scopes {
+		r, err := p.Preflight(ctx, scope)
+		if err != nil {
+			fmt.Fprintf(w, "Project: %s\n  ERROR: %v\n\n", scope.ID, err)
+			continue
+		}
+		fmt.Fprintf(w, "Project: %s\n  Required: %d  Enabled: %d  Missing: %d\n",
+			scope.ID, len(r.Required), len(r.Enabled), len(r.Missing))
+		for _, m := range r.Missing {
+			fmt.Fprintf(w, "    - %s\n", m)
+		}
+		if enable := r.GcloudEnableCommand(); enable != "" {
+			fmt.Fprintf(w, "\n  To enable missing APIs:\n    %s\n", enable)
+		}
+		fmt.Fprintln(w)
+		totalMissing += len(r.Missing)
+	}
+	if totalMissing > 0 {
+		return fmt.Errorf("preflight: %d API(s) missing across %d project(s) — enable them and re-run --check",
+			totalMissing, len(scopes))
+	}
+	return nil
 }
 
 // runScan opens the store, opens a run, and streams Asset Inventory results

@@ -20,6 +20,7 @@ type GCPProvider struct {
 	projects *resourcemanager.ProjectsClient
 	assetState
 	computeState
+	serviceUsageState
 
 	// M6 lazy clients — one named field per kind family (no embedding to
 	// avoid name collisions across the per-client (once, cli, err, factory)

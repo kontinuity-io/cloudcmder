@@ -8,6 +8,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### `--check` preflight command
+
+- `--check` — read-only preflight that calls Service Usage API, diffs required
+  vs enabled APIs per project, and prints a copy-paste-ready
+  `gcloud services enable … --project=ID` command for anything missing.
+  Exits 0 when clean; exits non-zero when any APIs are absent — composable with
+  `cloudcmder --check && cloudcmder --scan <project>`.
+- `--project` — optional flag to limit `--check` to a single project ID
+  (default: all projects accessible to the current credentials).
+- `gcp.RequiredAPIs()` — pure function that derives the required-API list from
+  `assetTypeToKind` at runtime, so adding a new asset type automatically updates
+  the preflight without touching the preflight code.
+
 #### Stub-only Kind expansion — 23 new GCP services via Cloud Asset Inventory
 
 - Generalised the VertexAI stub pattern into a shared `inventory.StubDetail{Subtype, Region}`

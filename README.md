@@ -334,16 +334,19 @@ The interactive TUI is shipped — invoke `cloudcmder` with no flags.
 
 ### Scanning multiple projects
 
-To capture your entire GCP estate in one go:
+#### Default database (recommended)
+
+All commands default to `~/.cloudcmder/cloudcmder.db`. No `--db` flag needed
+for the typical single-machine workflow:
 
 ```sh
-# 1. Preflight — verify APIs are enabled across all projects (optional but recommended)
+# 1. Optional preflight — verify APIs are enabled across all accessible projects
 cloudcmder --check
 
-# 2. Scan every accessible project sequentially (one run row per project)
+# 2. Scan every accessible project (one run row per project, stored in default DB)
 cloudcmder --scan-all
 
-# 3. Export a single combined workbook covering all projects
+# 3. Export a combined workbook from the default DB (latest run per project)
 cloudcmder --export-multi ~/Desktop/full-inventory.xlsx
 ```
 
@@ -358,33 +361,66 @@ scanning 5 project(s)…
 [5/5] proj-sandbox … ok (run q7r8s9t0-…)
 ```
 
-The combined workbook has:
+#### Custom database path
 
-- **Summary tab** — one row per project with per-kind resource counts and a TOTAL row.
-- **Per-kind tabs** (VMs, Disks, Networks, …, VertexAI, CloudBuild, etc.) — all resources from all projects, with a leading `Project` column.
-- **Scopes** and **Edges** tabs — unioned across all projects.
-
-Targeted sub-selections:
+Pass `--db` to both the scan and the export — it must point to the same file:
 
 ```sh
-# Scan only named projects
+# Scan into a custom DB (useful for audit snapshots or CloudShell sessions)
+cloudcmder --scan-all --db /tmp/audit-2026-05.db
+
+# Export from that same custom DB
+cloudcmder --export-multi ~/Desktop/full-inventory.xlsx --db /tmp/audit-2026-05.db
+```
+
+`--db` is a global flag — it applies to every subcommand (`--scan`, `--scan-all`,
+`--export`, `--export-multi`, `--list-runs`, TUI launch, etc.).
+
+#### Combined workbook layout
+
+The exported `.xlsx` contains:
+
+- **Summary** — one row per project; columns: Project, RunUUID, Status, StartedAt,
+  then one count column per resource Kind (VM, Disk, Network, …, CloudBuild), then
+  Total. Last row is a **TOTAL** across all projects.
+- **Per-kind sheets** (VMs, Disks, Networks, Subnets, Firewalls, LoadBalancers,
+  Databases, Clusters, Buckets, Functions, VertexAI, Apigee, … CloudBuild — all
+  34 Kinds) — each sheet has a leading `Project` column followed by the same
+  kind-specific columns as a single-project export.
+- **Scopes** — one row per project listing ScopeID, DisplayName, Parent, Labels.
+- **Edges** — resource-to-resource connections (Disk ↔ VM, VM ↔ Subnet) with a
+  leading `Project` column.
+
+#### Targeted selections
+
+```sh
+# Scan only named projects instead of all accessible ones
 cloudcmder --scan-projects=proj-a,proj-b,proj-c
 
-# Export the latest run for two specific scopes
+# Export latest run for specific scopes only
 cloudcmder --export-multi ~/Desktop/two-projects.xlsx --scopes proj-a,proj-b
 
-# Export specific runs by UUID
-cloudcmder --export-multi ~/Desktop/custom.xlsx --runs uuid1,uuid2,uuid3
+# Export specific run UUIDs (copy UUIDs from --list-runs output)
+cloudcmder --export-multi ~/Desktop/snapshot.xlsx --runs uuid1,uuid2,uuid3
 
-# Abort on first failure (default is continue)
+# Abort the entire scan on first failure instead of continuing
 cloudcmder --scan-all --fail-fast
 ```
 
-Each project's scan is independent: a failure in one project (e.g. missing
-APIs) is logged as a warning and the loop continues to the next project.
-Exit code is non-zero when any project failed. Already-completed project
-runs survive a Ctrl-C mid-loop — the scan can be re-run for just the
-failed ones with `--scan-projects`.
+#### Failure handling
+
+Each project's scan is independent. A failure in one project (e.g. missing API,
+permission denied) is logged as a warning and the loop moves on to the next.
+Exit code is non-zero if any project failed — composable with `&&` for the
+happy path, or inspect with `--list-runs` to see which runs are at
+`status=failed`. Re-run only the failed ones:
+
+```sh
+cloudcmder --scan-projects=failed-proj-1,failed-proj-2
+```
+
+Already-completed runs survive a Ctrl-C mid-loop. The interrupted project's run
+row is left at `status=running` (crash-safety contract) and can be re-scanned.
 
 ## FAQ
 

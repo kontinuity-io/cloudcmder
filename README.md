@@ -279,6 +279,8 @@ cloudcmder [flags]
 Flags:
   --db string          SQLite assessment database path (default ~/.cloudcmder/cloudcmder.db)
   --log-level string   debug, info, warn, error (default info)
+  --check              check that required GCP APIs are enabled (read-only; exits non-zero if any missing)
+  --project string     limit --check to a single project ID (default: all accessible projects)
   --list-scopes        list every accessible GCP project as JSON and exit
   --scan string        headless scan of a project; prints the run uuid on completion
   --list-runs          list every stored run as a table
@@ -287,6 +289,40 @@ Flags:
   --run string         run uuid to export (with --export); defaults to the most recent run
   -v, --version        print version
 ```
+
+### Preflight check
+
+Before your first scan, run `--check` to verify every required GCP API is
+enabled in your target projects:
+
+```sh
+cloudcmder --check                        # all accessible projects
+cloudcmder --check --project my-proj-123  # single project
+```
+
+Example output when APIs are missing:
+
+```
+Project: my-proj-123
+  Required: 32  Enabled: 26  Missing: 6
+    - apigee.googleapis.com
+    - bigtableadmin.googleapis.com
+    - cloudkms.googleapis.com
+    - composer.googleapis.com
+    - dataflow.googleapis.com
+    - secretmanager.googleapis.com
+
+  To enable missing APIs:
+    gcloud services enable apigee.googleapis.com bigtableadmin.googleapis.com cloudkms.googleapis.com composer.googleapis.com dataflow.googleapis.com secretmanager.googleapis.com --project=my-proj-123
+```
+
+Exits 0 when all APIs are present, non-zero when any are missing — composable
+with `&&`: `cloudcmder --check && cloudcmder --scan my-proj-123`.
+
+The required-API list is derived at runtime from cloudcmder's internal
+`assetTypeToKind` map, so it always matches the scan code exactly. The
+`gcloud services enable …` block in this README is the static equivalent;
+use `--check` for the live diagnostic.
 
 The interactive TUI is shipped — invoke `cloudcmder` with no flags.
 

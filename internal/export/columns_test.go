@@ -91,10 +91,73 @@ func TestColumnsForCoversAllKinds(t *testing.T) {
 		inventory.KindVM, inventory.KindDisk, inventory.KindNetwork,
 		inventory.KindSubnet, inventory.KindFirewall, inventory.KindLoadBalancer,
 		inventory.KindDatabase, inventory.KindCluster, inventory.KindBucket,
-		inventory.KindFunction,
+		inventory.KindFunction, inventory.KindVertexAI,
 	} {
 		if cols := columnsFor(k); len(cols) == 0 {
 			t.Errorf("no columns registered for kind %s", k)
+		}
+	}
+}
+
+func TestVMLicenseColumns(t *testing.T) {
+	r := inventory.Resource{Name: "vm-f5"}
+	d := &inventory.VMDetail{
+		Licenses:       []string{"f5-bigip-best", "f5-addon"},
+		LicenseProject: "f5-7626-networks-public",
+		LicenseClass:   "marketplace",
+	}
+	cols := vmColumns()
+	want := map[string]string{
+		"Licenses":       "f5-bigip-best;f5-addon",
+		"LicenseProject": "f5-7626-networks-public",
+		"LicenseClass":   "marketplace",
+	}
+	for _, c := range cols {
+		if expected, ok := want[c.Header]; ok {
+			if got := c.Extract(r, d); got != expected {
+				t.Errorf("%s = %q, want %q", c.Header, got, expected)
+			}
+		}
+	}
+}
+
+func TestDiskLicenseColumns(t *testing.T) {
+	r := inventory.Resource{Name: "disk-rhel"}
+	d := &inventory.DiskDetail{
+		Licenses:       []string{"rhel-9"},
+		LicenseProject: "rhel-cloud",
+		LicenseClass:   "google-paid",
+	}
+	cols := diskColumns()
+	want := map[string]string{
+		"Licenses":       "rhel-9",
+		"LicenseProject": "rhel-cloud",
+		"LicenseClass":   "google-paid",
+	}
+	for _, c := range cols {
+		if expected, ok := want[c.Header]; ok {
+			if got := c.Extract(r, d); got != expected {
+				t.Errorf("%s = %q, want %q", c.Header, got, expected)
+			}
+		}
+	}
+}
+
+func TestVertexColumns(t *testing.T) {
+	r := inventory.Resource{Name: "projects/p1/locations/us-central1/endpoints/123", Region: "us-central1", Status: "ACTIVE"}
+	d := &inventory.VertexDetail{Subtype: "Endpoint", Region: "us-central1"}
+	cols := vertexColumns()
+	want := map[string]string{
+		"Name":    r.Name,
+		"Region":  "us-central1",
+		"Status":  "ACTIVE",
+		"Subtype": "Endpoint",
+	}
+	for _, c := range cols {
+		if expected, ok := want[c.Header]; ok {
+			if got := c.Extract(r, d); got != expected {
+				t.Errorf("%s = %q, want %q", c.Header, got, expected)
+			}
 		}
 	}
 }

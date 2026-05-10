@@ -47,6 +47,8 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return bucketColumns()
 	case inventory.KindFunction:
 		return functionColumns()
+	case inventory.KindVertexAI:
+		return vertexColumns()
 	}
 	return nil
 }
@@ -79,6 +81,8 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.BucketDetail{})
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
+	case inventory.KindVertexAI:
+		return unmarshalOrNil(raw, &inventory.VertexDetail{})
 	}
 	return nil
 }
@@ -143,6 +147,9 @@ func vmColumns() []ColumnDef {
 		{Header: "CPUPlatform", Extract: vmField(func(d *inventory.VMDetail) string { return d.CPUPlatform })},
 		{Header: "OSFamily", Extract: vmField(func(d *inventory.VMDetail) string { return d.OSFamily })},
 		{Header: "OSImage", Extract: vmField(func(d *inventory.VMDetail) string { return d.OSImage })},
+		{Header: "Licenses", Extract: vmField(func(d *inventory.VMDetail) string { return strings.Join(d.Licenses, ";") })},
+		{Header: "LicenseProject", Extract: vmField(func(d *inventory.VMDetail) string { return d.LicenseProject })},
+		{Header: "LicenseClass", Extract: vmField(func(d *inventory.VMDetail) string { return d.LicenseClass })},
 		{Header: "Preemptible", Extract: vmField(func(d *inventory.VMDetail) string { return boolStr(d.Preemptible) })},
 		{Header: "Spot", Extract: vmField(func(d *inventory.VMDetail) string { return boolStr(d.Spot) })},
 		{Header: "Zone", Extract: vmField(func(d *inventory.VMDetail) string { return d.Zone })},
@@ -218,6 +225,9 @@ func diskColumns() []ColumnDef {
 			return strings.Join(parts, ";")
 		})},
 		{Header: "Snapshot", Extract: diskField(func(d *inventory.DiskDetail) string { return d.Snapshot })},
+		{Header: "Licenses", Extract: diskField(func(d *inventory.DiskDetail) string { return strings.Join(d.Licenses, ";") })},
+		{Header: "LicenseProject", Extract: diskField(func(d *inventory.DiskDetail) string { return d.LicenseProject })},
+		{Header: "LicenseClass", Extract: diskField(func(d *inventory.DiskDetail) string { return d.LicenseClass })},
 		{Header: "Labels", Extract: labelsOf},
 	}
 }
@@ -486,5 +496,27 @@ func fnField(get func(*inventory.FunctionDetail) string) func(inventory.Resource
 			return ""
 		}
 		return get(f)
+	}
+}
+
+// --- VertexAI -----------------------------------------------------------------
+
+func vertexColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Status", Extract: statusOf},
+		{Header: "Subtype", Extract: vxField(func(d *inventory.VertexDetail) string { return d.Subtype })},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func vxField(get func(*inventory.VertexDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		vd, ok := d.(*inventory.VertexDetail)
+		if !ok || vd == nil {
+			return ""
+		}
+		return get(vd)
 	}
 }

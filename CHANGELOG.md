@@ -8,21 +8,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-#### Vertex AI / Gemini coverage
+#### Stub-only Kind expansion — 23 new GCP services via Cloud Asset Inventory
 
-- New `KindVertexAI` with `VertexDetail{Subtype, Region}`. Stub-only via Cloud
-  Asset Inventory — no additional SDK dependency or IAM beyond
-  `roles/cloudasset.viewer`. Requires `aiplatform.googleapis.com` enabled on
-  the target project.
-- 24 `aiplatform.googleapis.com/*` asset types recognised (Endpoint, Model,
-  Dataset, Index, IndexEndpoint, PipelineJob, TrainingPipeline, Featurestore,
-  FeatureGroup, FeatureOnlineStore, NotebookRuntime, NotebookRuntimeTemplate,
-  MetadataStore, Schedule, BatchPredictionJob, CustomJob,
-  HyperparameterTuningJob, ModelDeploymentMonitoringJob, Tensorboard,
-  TuningJob, ReasoningEngine, CachedContent, DeploymentResourcePool,
-  SpecialistPool). Unknown future types collapse to `Subtype="Other"`.
-- TUI `:vertex` / `:ai` alias and `SUBTYPE`/`REGION`/`STATUS` columns.
-- Excel `VertexAI` sheet with Name, Region, Status, Subtype, Labels columns.
+- Generalised the VertexAI stub pattern into a shared `inventory.StubDetail{Subtype, Region}`
+  and a `subtypeMaps[Kind][assetType]` lookup table (`internal/providers/gcp/stubs.go`).
+  All 24 stub-only Kinds (VertexAI + 23 new) reuse the same Detail struct.
+- 23 new mega-Kinds, all stub-only, all backed by `roles/cloudasset.viewer` only:
+  **Apigee**, **Firebase**, **AppEngine**, **BigQuery**, **DNS**,
+  **Memorystore** (Redis + Memcache), **ArtifactRegistry**, **CloudScheduler**,
+  **PubSub**, **Spanner**, **Bigtable**, **KMS**, **SecretManager**,
+  **Dataflow**, **Dataproc**, **Composer**, **CloudTasks**, **Monitoring**,
+  **Logging**, **OSConfig** (VM Manager), **VPN**, **Router**, **CloudBuild**.
+- TUI cmdbar aliases: `:apigee` `:firebase`/`:fb` `:appengine`/`:ae`/`:gae`
+  `:bigquery`/`:bq` `:dns` `:memorystore`/`:redis`/`:memcache`
+  `:artifactregistry`/`:ar` `:scheduler`/`:cron` `:pubsub`/`:ps`
+  `:spanner` `:bigtable`/`:bt` `:kms` `:secrets`/`:sm` `:dataflow`/`:df`
+  `:dataproc`/`:dp` `:composer`/`:airflow` `:tasks` `:monitoring`/`:stackdriver`
+  `:logging`/`:logs` `:osconfig`/`:vmm` `:vpn` `:router` `:build`/`:cb`.
+- Each new Kind surfaces in the Overview count, TUI list (NAME/SUBTYPE/REGION/STATUS),
+  right-pane Detail, and Excel export (one sheet per Kind with Name/Region/Status/Subtype/Labels).
+- Each stub Kind now gets its own graceful CAI request — an unsupported asset
+  type for one service no longer silences other Kinds.
+
+#### Vertex AI / Gemini coverage (existing, now using StubDetail)
+
+- `KindVertexAI` with 24 `aiplatform.googleapis.com/*` asset types. No Phase-2
+  enricher; `roles/cloudasset.viewer` sufficient. Unknown future types → `Subtype="Other"`.
+
+### Changed
+
+- `inventory.VertexDetail` renamed to `inventory.StubDetail`. Field shape
+  (`Subtype string`, `Region string`) and JSON wire format are unchanged.
+  All stored scan data remains readable without migration.
 
 #### Marketplace ISV attribution
 

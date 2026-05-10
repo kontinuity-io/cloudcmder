@@ -258,7 +258,8 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | `?` | Toggle contextual help |
 | `/` | Fuzzy filter the current list. Matches across name, region, status, and labels; rows reorder by best-score-first. Matched runes bolded+underlined in the NAME cell. |
 | `:` | Open the fuzzy palette. Type a kind alias (`vm`, `bucket`, …), a resource name, or `scopes`; ↑/↓ to pick, Enter to commit. Resource picks swap the left pane and land the cursor on the match. |
-| `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | Direct kind aliases — Enter swaps the left pane to that kind's resource list |
+| `:vm` `:disk` `:db` `:lb` `:net` `:subnet` `:fw` `:bucket` `:gke` `:fn` | IaaS/platform kind aliases — swap left pane to that kind's resource list |
+| `:vertex` `:apigee` `:firebase` `:bq` `:pubsub` `:kms` `:secrets` `:bigtable` `:spanner` `:dataflow` `:dataproc` `:composer` `:scheduler` `:tasks` `:monitoring` `:logging` `:osconfig` `:vpn` `:router` `:build` `:dns` `:memorystore` `:appengine` `:ar` | Stub-only Kind aliases |
 | `:scopes` | Open ScopeList as a modal over the current Frame — pick a different project without `q` and relaunch |
 | `j` / `k` | Move cursor down / up (vim alias for ↓ / ↑) |
 | `g` / `G` | Jump cursor to top / bottom of the list (vim) |
@@ -355,20 +356,65 @@ gcloud services enable \
   run.googleapis.com \
   cloudfunctions.googleapis.com \
   aiplatform.googleapis.com \
+  apigee.googleapis.com \
+  firebase.googleapis.com \
+  appengine.googleapis.com \
+  bigquery.googleapis.com \
+  dns.googleapis.com \
+  redis.googleapis.com \
+  memcache.googleapis.com \
+  artifactregistry.googleapis.com \
+  cloudscheduler.googleapis.com \
+  pubsub.googleapis.com \
+  spanner.googleapis.com \
+  bigtableadmin.googleapis.com \
+  cloudkms.googleapis.com \
+  secretmanager.googleapis.com \
+  dataflow.googleapis.com \
+  dataproc.googleapis.com \
+  composer.googleapis.com \
+  cloudtasks.googleapis.com \
+  monitoring.googleapis.com \
+  logging.googleapis.com \
+  osconfig.googleapis.com \
+  cloudbuild.googleapis.com \
   --project=$PROJECT
 ```
 
-| API | Used for |
+Only enable APIs for services you actually use — disabled APIs produce 0 rows for that Kind (logged as a warning, scan continues).
+
+| API | cloudcmder Kind |
 |---|---|
-| `cloudresourcemanager.googleapis.com` | `--list-scopes`; project listing |
-| `cloudasset.googleapis.com` | Cloud Asset Inventory discovery (Phase 1 of every scan) |
-| `compute.googleapis.com` | VMs, Disks, Networks, Subnets, Firewalls, Load Balancers |
-| `sqladmin.googleapis.com` | Cloud SQL Databases |
-| `container.googleapis.com` | GKE Clusters |
-| `storage.googleapis.com` | GCS Buckets (list + IAM check for `PublicAccess`) |
-| `run.googleapis.com` | Cloud Run services (rendered as `Function`) |
-| `cloudfunctions.googleapis.com` | Cloud Functions Gen2 (rendered as `Function`) |
-| `aiplatform.googleapis.com` | Vertex AI / Gemini resources (stub listing via Cloud Asset Inventory) |
+| `cloudresourcemanager.googleapis.com` | (scope listing — `--list-scopes`) |
+| `cloudasset.googleapis.com` | Phase 1 discovery for all Kinds |
+| `compute.googleapis.com` | VM, Disk, Network, Subnet, Firewall, LoadBalancer, VPN, Router |
+| `sqladmin.googleapis.com` | Database |
+| `container.googleapis.com` | Cluster |
+| `storage.googleapis.com` | Bucket |
+| `run.googleapis.com` | Function (Cloud Run) |
+| `cloudfunctions.googleapis.com` | Function (Cloud Functions) |
+| `aiplatform.googleapis.com` | VertexAI (stub) |
+| `apigee.googleapis.com` | Apigee (stub) |
+| `firebase.googleapis.com` | Firebase (stub) |
+| `appengine.googleapis.com` | AppEngine (stub) |
+| `bigquery.googleapis.com` | BigQuery (stub) |
+| `dns.googleapis.com` | DNS (stub) |
+| `redis.googleapis.com` / `memcache.googleapis.com` | Memorystore (stub) |
+| `artifactregistry.googleapis.com` | ArtifactRegistry (stub) |
+| `cloudscheduler.googleapis.com` | CloudScheduler (stub) |
+| `pubsub.googleapis.com` | PubSub (stub) |
+| `spanner.googleapis.com` | Spanner (stub) |
+| `bigtableadmin.googleapis.com` | Bigtable (stub) |
+| `cloudkms.googleapis.com` | KMS (stub) |
+| `secretmanager.googleapis.com` | SecretManager (stub) |
+| `dataflow.googleapis.com` | Dataflow (stub) |
+| `dataproc.googleapis.com` | Dataproc (stub) |
+| `composer.googleapis.com` | Composer (stub) |
+| `cloudtasks.googleapis.com` | CloudTasks (stub) |
+| `monitoring.googleapis.com` | Monitoring (stub) |
+| `logging.googleapis.com` | Logging (stub) |
+| `osconfig.googleapis.com` | OSConfig / VM Manager (stub) |
+| `cloudbuild.googleapis.com` | CloudBuild (stub) |
 
 To turn them off again (no resources are deleted; the project just loses API access):
 

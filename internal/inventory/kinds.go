@@ -17,6 +17,7 @@ const (
 	KindFirewall     Kind = "Firewall"
 	KindCluster      Kind = "Cluster"
 	KindFunction     Kind = "Function"
+	KindVertexAI     Kind = "VertexAI"
 )
 
 // RefKind labels the directed edges in the interconnection graph.

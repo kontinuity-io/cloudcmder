@@ -51,6 +51,8 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 		cols = bucketColumns()
 	case inventory.KindFunction:
 		cols = functionColumns()
+	case inventory.KindVertexAI:
+		cols = vertexColumns()
 	default:
 		return nil, false
 	}
@@ -128,6 +130,8 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.BucketDetail{})
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
+	case inventory.KindVertexAI:
+		return unmarshalOrNil(raw, &inventory.VertexDetail{})
 	}
 	return nil
 }
@@ -163,6 +167,8 @@ func AliasToKind(alias string) (inventory.Kind, bool) {
 		return inventory.KindBucket, true
 	case "fn":
 		return inventory.KindFunction, true
+	case "vertex", "ai":
+		return inventory.KindVertexAI, true
 	}
 	return "", false
 }
@@ -171,7 +177,7 @@ func AliasToKind(alias string) (inventory.Kind, bool) {
 // cmdbar to seed its fuzzy-suggestion corpus. "scopes" doesn't map to a
 // Kind — App.Update special-cases it and pushes the ScopesModal instead.
 func AllAliases() []string {
-	return []string{"vm", "disk", "db", "lb", "net", "subnet", "fw", "gke", "bucket", "fn", "scopes"}
+	return []string{"vm", "disk", "db", "lb", "net", "subnet", "fw", "gke", "bucket", "fn", "vertex", "scopes"}
 }
 
 // --- VM --------------------------------------------------------------------
@@ -490,6 +496,22 @@ func functionColumns() []ColumnDef {
 			}
 			return ""
 		}},
+	}
+}
+
+// --- VertexAI ---------------------------------------------------------------
+
+func vertexColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "NAME", Width: 24, Extract: nameOf},
+		{Header: "SUBTYPE", Width: 16, Extract: func(_ inventory.Resource, d any) string {
+			if vd, ok := d.(*inventory.VertexDetail); ok && vd != nil {
+				return vd.Subtype
+			}
+			return ""
+		}},
+		{Header: "REGION", Width: 14, Extract: func(r inventory.Resource, _ any) string { return r.Region }},
+		{Header: "STATUS", Width: 10, Extract: statusOf},
 	}
 }
 

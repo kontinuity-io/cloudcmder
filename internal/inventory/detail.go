@@ -120,3 +120,11 @@ type FunctionDetail struct {
 	MaxInst   int32
 	Region    string
 }
+
+// VertexDetail describes a Vertex AI resource surfaced via Cloud Asset Inventory.
+// cloudcmder lists these as stubs (name/region/status from CAI) — no Phase-2
+// enricher is registered, so Detail carries only the subtype label.
+type VertexDetail struct {
+	Subtype string // Endpoint | Model | Dataset | Index | IndexEndpoint | PipelineJob | TrainingPipeline | Featurestore | FeatureGroup | NotebookRuntime | ... | Other
+	Region  string
+}

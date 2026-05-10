@@ -36,6 +36,31 @@ var assetTypeToKind = map[string]inventory.Kind{
 	"container.googleapis.com/Cluster":        inventory.KindCluster,
 	"run.googleapis.com/Service":              inventory.KindFunction,
 	"cloudfunctions.googleapis.com/Function":  inventory.KindFunction,
+	// Vertex AI resources via Cloud Asset Inventory (stub-only; no Phase-2 enricher).
+	"aiplatform.googleapis.com/BatchPredictionJob":           inventory.KindVertexAI,
+	"aiplatform.googleapis.com/CachedContent":                inventory.KindVertexAI,
+	"aiplatform.googleapis.com/CustomJob":                    inventory.KindVertexAI,
+	"aiplatform.googleapis.com/Dataset":                      inventory.KindVertexAI,
+	"aiplatform.googleapis.com/DeploymentResourcePool":       inventory.KindVertexAI,
+	"aiplatform.googleapis.com/Endpoint":                     inventory.KindVertexAI,
+	"aiplatform.googleapis.com/Featurestore":                 inventory.KindVertexAI,
+	"aiplatform.googleapis.com/FeatureGroup":                 inventory.KindVertexAI,
+	"aiplatform.googleapis.com/FeatureOnlineStore":           inventory.KindVertexAI,
+	"aiplatform.googleapis.com/HyperparameterTuningJob":      inventory.KindVertexAI,
+	"aiplatform.googleapis.com/Index":                        inventory.KindVertexAI,
+	"aiplatform.googleapis.com/IndexEndpoint":                inventory.KindVertexAI,
+	"aiplatform.googleapis.com/MetadataStore":                inventory.KindVertexAI,
+	"aiplatform.googleapis.com/Model":                        inventory.KindVertexAI,
+	"aiplatform.googleapis.com/ModelDeploymentMonitoringJob": inventory.KindVertexAI,
+	"aiplatform.googleapis.com/NotebookRuntime":              inventory.KindVertexAI,
+	"aiplatform.googleapis.com/NotebookRuntimeTemplate":      inventory.KindVertexAI,
+	"aiplatform.googleapis.com/PipelineJob":                  inventory.KindVertexAI,
+	"aiplatform.googleapis.com/ReasoningEngine":              inventory.KindVertexAI,
+	"aiplatform.googleapis.com/Schedule":                     inventory.KindVertexAI,
+	"aiplatform.googleapis.com/SpecialistPool":               inventory.KindVertexAI,
+	"aiplatform.googleapis.com/Tensorboard":                  inventory.KindVertexAI,
+	"aiplatform.googleapis.com/TrainingPipeline":             inventory.KindVertexAI,
+	"aiplatform.googleapis.com/TuningJob":                    inventory.KindVertexAI,
 }
 
 // assetTypesForKinds returns the asset.googleapis.com filter strings for the
@@ -227,20 +252,27 @@ func wantsKind(kinds []inventory.Kind, k inventory.Kind) bool {
 
 // translateResult maps one *assetpb.ResourceSearchResult to a stub Resource.
 // Returns (zero, false) for asset types we do not recognise.
+// For KindVertexAI, Detail is pre-populated with *VertexDetail so the Subtype
+// label is available without a Phase-2 enricher.
 func translateResult(scopeID string, res *assetpb.ResourceSearchResult) (inventory.Resource, bool) {
 	kind, ok := assetTypeToKind[res.GetAssetType()]
 	if !ok {
 		return inventory.Resource{}, false
 	}
 	id := lastSegment(res.GetName())
-	return inventory.Resource{
+	r := inventory.Resource{
 		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: kind, ID: id},
 		Kind:   kind,
 		Name:   nonEmpty(res.GetDisplayName(), id),
 		Region: res.GetLocation(),
 		Status: res.GetState(),
 		Labels: res.GetLabels(),
-	}, true
+	}
+	if vd := vertexDetailFromAssetType(res.GetAssetType()); vd != nil {
+		vd.Region = res.GetLocation()
+		r.Detail = vd
+	}
+	return r, true
 }
 
 // lastSegment returns the substring after the final slash, the GCP

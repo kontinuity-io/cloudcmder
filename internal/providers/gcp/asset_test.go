@@ -15,19 +15,46 @@ import (
 	"cloudcmder.com/internal/inventory"
 )
 
-func TestAssetTypeToKindCovers10Types(t *testing.T) {
-	// Architecture.md lists 11 GCP asset types mapping to 10 Kinds (Cloud Run
-	// Service and Cloud Function both fold to KindFunction).
-	if len(assetTypeToKind) != 11 {
-		t.Errorf("len(assetTypeToKind) = %d, want 11", len(assetTypeToKind))
+func TestAssetTypeToKindCovers11Kinds(t *testing.T) {
+	// 11 original GCP asset types + 24 Vertex AI types = 35 total.
+	// Unique kinds: 10 original + KindVertexAI = 11.
+	if len(assetTypeToKind) != 35 {
+		t.Errorf("len(assetTypeToKind) = %d, want 35", len(assetTypeToKind))
 	}
 
 	uniqueKinds := map[inventory.Kind]struct{}{}
 	for _, k := range assetTypeToKind {
 		uniqueKinds[k] = struct{}{}
 	}
-	if len(uniqueKinds) != 10 {
-		t.Errorf("unique kinds = %d, want 10", len(uniqueKinds))
+	if len(uniqueKinds) != 11 {
+		t.Errorf("unique kinds = %d, want 11", len(uniqueKinds))
+	}
+}
+
+func TestTranslateResultPopulatesVertexDetail(t *testing.T) {
+	res := &assetpb.ResourceSearchResult{
+		Name:        "//aiplatform.googleapis.com/projects/p1/locations/us-central1/endpoints/my-ep",
+		AssetType:   "aiplatform.googleapis.com/Endpoint",
+		DisplayName: "my-ep",
+		Location:    "us-central1",
+		State:       "ACTIVE",
+	}
+	r, ok := translateResult("p1", res)
+	if !ok {
+		t.Fatalf("translateResult ok = false for Vertex Endpoint")
+	}
+	if r.Kind != inventory.KindVertexAI {
+		t.Errorf("kind = %v, want VertexAI", r.Kind)
+	}
+	vd, ok := r.Detail.(*inventory.VertexDetail)
+	if !ok || vd == nil {
+		t.Fatalf("Detail is not *VertexDetail: %T", r.Detail)
+	}
+	if vd.Subtype != "Endpoint" {
+		t.Errorf("Subtype = %q, want %q", vd.Subtype, "Endpoint")
+	}
+	if vd.Region != "us-central1" {
+		t.Errorf("Region = %q, want %q", vd.Region, "us-central1")
 	}
 }
 

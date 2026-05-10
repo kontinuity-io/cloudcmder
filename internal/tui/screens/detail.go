@@ -220,6 +220,8 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, bucketDetailRows(d.res, d.detail)...)
 	case inventory.KindFunction:
 		rows = append(rows, functionDetailRows(d.res, d.detail)...)
+	case inventory.KindVertexAI:
+		rows = append(rows, vertexDetailRows(d.res, d.detail)...)
 	default:
 		rows = append(rows,
 			kvLine("Name", d.res.Name),
@@ -383,6 +385,22 @@ func functionDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("CPUs", cpu),
 		kvLine("Max inst", fmt.Sprintf("%d", fd.MaxInst)),
 		kvLine("Region", fd.Region),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+}
+
+func vertexDetailRows(res inventory.Resource, detail any) []string {
+	vd, _ := detail.(*inventory.VertexDetail)
+	if vd == nil {
+		return []string{
+			kvLine("Name", res.Name),
+			kvLine("Region", res.Region),
+			kvLine("Status", style.Status(res.Status).Render(res.Status)),
+		}
+	}
+	return []string{
+		kvLine("Subtype", vd.Subtype),
+		kvLine("Region", vd.Region),
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 	}
 }

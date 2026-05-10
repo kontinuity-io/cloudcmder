@@ -39,7 +39,7 @@ func (s *Store) ListRuns(ctx context.Context) ([]RunSummary, error) {
 		`SELECT id, uuid, provider, scope_id, COALESCE(scope_name, ''), started_at,
 		        finished_at, status, cloudcmder_v, COALESCE(notes, '')
 		 FROM runs
-		 ORDER BY started_at DESC`)
+		 ORDER BY started_at DESC, id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("store: list runs: %w", err)
 	}
@@ -64,7 +64,7 @@ func (s *Store) LatestRunForScope(ctx context.Context, scopeID string) (*RunSumm
 		        finished_at, status, cloudcmder_v, COALESCE(notes, '')
 		 FROM runs
 		 WHERE scope_id = ?
-		 ORDER BY started_at DESC
+		 ORDER BY started_at DESC, id DESC
 		 LIMIT 1`, scopeID)
 	r, err := scanRunSummary(row)
 	if errors.Is(err, sql.ErrNoRows) {

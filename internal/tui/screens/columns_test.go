@@ -14,7 +14,7 @@ func TestColumnsForReturnsKnownKinds(t *testing.T) {
 		inventory.KindVM, inventory.KindDisk, inventory.KindNetwork,
 		inventory.KindSubnet, inventory.KindFirewall, inventory.KindLoadBalancer,
 		inventory.KindDatabase, inventory.KindCluster, inventory.KindBucket,
-		inventory.KindFunction,
+		inventory.KindFunction, inventory.KindVertexAI,
 	} {
 		cols, ok := columnsFor(k, 0)
 		assert.True(t, ok, "kind %s should be registered", k)

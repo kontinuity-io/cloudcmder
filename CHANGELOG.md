@@ -6,6 +6,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+#### Vertex AI / Gemini coverage
+
+- New `KindVertexAI` with `VertexDetail{Subtype, Region}`. Stub-only via Cloud
+  Asset Inventory — no additional SDK dependency or IAM beyond
+  `roles/cloudasset.viewer`. Requires `aiplatform.googleapis.com` enabled on
+  the target project.
+- 24 `aiplatform.googleapis.com/*` asset types recognised (Endpoint, Model,
+  Dataset, Index, IndexEndpoint, PipelineJob, TrainingPipeline, Featurestore,
+  FeatureGroup, FeatureOnlineStore, NotebookRuntime, NotebookRuntimeTemplate,
+  MetadataStore, Schedule, BatchPredictionJob, CustomJob,
+  HyperparameterTuningJob, ModelDeploymentMonitoringJob, Tensorboard,
+  TuningJob, ReasoningEngine, CachedContent, DeploymentResourcePool,
+  SpecialistPool). Unknown future types collapse to `Subtype="Other"`.
+- TUI `:vertex` / `:ai` alias and `SUBTYPE`/`REGION`/`STATUS` columns.
+- Excel `VertexAI` sheet with Name, Region, Status, Subtype, Labels columns.
+
+#### Marketplace ISV attribution
+
+- License URI classification (`marketplace.go`): extracts the image project
+  from `compute.googleapis.com/Instance` and `compute.googleapis.com/Disk`
+  license URLs and classifies as `"marketplace"` | `"google-paid"` |
+  `"google-free"` | `""` with any-marketplace-wins precedence across all
+  attached disks.
+- `VMDetail` and `DiskDetail` gain three new fields: `Licenses []string`,
+  `LicenseProject string`, `LicenseClass string`.
+- TUI VM list adds a `MARKETPLACE` column; Disk list adds `OS` (license
+  project) and `MARKETPLACE` columns. Detail panes show license fields when
+  non-empty.
+- Excel VM and Disk sheets gain `Licenses`, `LicenseProject`, `LicenseClass`
+  columns.
+
 ## [1.0.0] - 2026-05-08
 
 First stable release. Single cloud (GCP); 10 normalized resource kinds; SQLite

@@ -241,8 +241,9 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | Role | Purpose |
 |---|---|
 | `roles/viewer` | Read most resource types (compute, sql, gke, run, cloud functions, storage list) |
-| `roles/cloudasset.viewer` | Cloud Asset Inventory discovery |
+| `roles/cloudasset.viewer` | Cloud Asset Inventory discovery (covers VertexAI stub listing via `aiplatform.*` asset types) |
 | `roles/storage.legacyBucketReader` *(optional)* | Accurate `PublicAccess` on Cloud Storage buckets — without it, the IAM check is skipped and buckets default to `PublicAccess=false` |
+| `roles/aiplatform.viewer` *(optional, future)* | Reserved for a future Phase-2 Vertex enricher; not required for current stub-only listing |
 
 > Read-only. cloudcmder never modifies resources. The list of APIs that must be enabled on the target project is in [Troubleshooting](#troubleshooting); a disabled API is logged as a warning and that kind is skipped — the rest of the scan still completes.
 
@@ -353,6 +354,7 @@ gcloud services enable \
   storage.googleapis.com \
   run.googleapis.com \
   cloudfunctions.googleapis.com \
+  aiplatform.googleapis.com \
   --project=$PROJECT
 ```
 
@@ -366,6 +368,7 @@ gcloud services enable \
 | `storage.googleapis.com` | GCS Buckets (list + IAM check for `PublicAccess`) |
 | `run.googleapis.com` | Cloud Run services (rendered as `Function`) |
 | `cloudfunctions.googleapis.com` | Cloud Functions Gen2 (rendered as `Function`) |
+| `aiplatform.googleapis.com` | Vertex AI / Gemini resources (stub listing via Cloud Asset Inventory) |
 
 To turn them off again (no resources are deleted; the project just loses API access):
 

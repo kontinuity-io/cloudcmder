@@ -11,6 +11,8 @@ import (
 	"cloud.google.com/go/asset/apiv1/assetpb"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"cloudcmder.com/internal/inventory"
 )
@@ -232,11 +234,25 @@ func TestListResourcesRequiresScope(t *testing.T) {
 type fakeAssetClient struct {
 	pages    [][]*assetpb.ResourceSearchResult
 	errAfter error
+	// typeErrors maps a single asset type string to the error that should be
+	// returned immediately on Next() when that type is the sole request type.
+	// Used to simulate per-type InvalidArgument responses from CAI.
+	typeErrors map[string]error
+	// callCount is incremented atomically for each SearchAllResources call.
+	callCount int32
 }
 
 // SearchAllResources mirrors real CAI behaviour: only results whose AssetType
-// appears in req.AssetTypes are returned (empty AssetTypes = all).
+// appears in req.AssetTypes are returned (empty AssetTypes = all). When
+// typeErrors is set and the request is for a single matching type, returns an
+// iterator that immediately yields the mapped error on Next().
 func (f *fakeAssetClient) SearchAllResources(_ context.Context, req *assetpb.SearchAllResourcesRequest, _ ...gaxCallOption) resourceIterator {
+	atomic.AddInt32(&f.callCount, 1)
+	if len(req.AssetTypes) == 1 && f.typeErrors != nil {
+		if err, ok := f.typeErrors[req.AssetTypes[0]]; ok {
+			return &fakeIter{errAfter: err}
+		}
+	}
 	want := make(map[string]bool, len(req.AssetTypes))
 	for _, at := range req.AssetTypes {
 		want[at] = true
@@ -326,6 +342,67 @@ func sleeper(d time.Duration) func(context.Context, *GCPProvider, inventory.Scop
 func counter(c *int32) func(context.Context, *GCPProvider, inventory.Scope, chan<- inventory.ResourceOrErr) {
 	return func(_ context.Context, _ *GCPProvider, _ inventory.Scope, _ chan<- inventory.ResourceOrErr) {
 		atomic.AddInt32(c, 1)
+	}
+}
+
+func TestStreamAssetStubsOneCallPerType(t *testing.T) {
+	// streamAssetStubs must send one SearchAllResources call per stub asset type,
+	// not one batch per Kind. VertexAI has 24 asset types in subtypeMaps; expect
+	// exactly 24 calls so one unsupported type can't silence the whole Kind.
+	fake := &fakeAssetClient{} // no pages: every call returns iterator.Done immediately
+	ch := make(chan inventory.ResourceOrErr, 256)
+	streamAssetStubs(context.Background(), fake, inventory.Scope{ID: "p1"},
+		[]inventory.Kind{inventory.KindVertexAI}, ch)
+	close(ch)
+
+	wantCalls := len(subtypeMaps[inventory.KindVertexAI])
+	if got := atomic.LoadInt32(&fake.callCount); int(got) != wantCalls {
+		t.Errorf("SearchAllResources calls = %d, want %d (one per VertexAI asset type)", got, wantCalls)
+	}
+	for x := range ch {
+		if x.Err != nil {
+			t.Errorf("unexpected error: %v", x.Err)
+		}
+	}
+}
+
+func TestStreamAssetStubsIsolatesPerTypeFailures(t *testing.T) {
+	// When one stub asset type returns InvalidArgument, other types in the same
+	// Kind must still surface. Before the per-type fix, a single bad type caused
+	// the entire Kind's batch to return 0 rows silently.
+	endpointRow := &assetpb.ResourceSearchResult{
+		Name:        "//aiplatform.googleapis.com/projects/p1/locations/us-central1/endpoints/ep-1",
+		AssetType:   "aiplatform.googleapis.com/Endpoint",
+		DisplayName: "ep-1",
+		Location:    "us-central1",
+		State:       "ACTIVE",
+	}
+	fake := &fakeAssetClient{
+		pages: [][]*assetpb.ResourceSearchResult{{endpointRow}},
+		typeErrors: map[string]error{
+			"aiplatform.googleapis.com/DeploymentResourcePool": status.Error(codes.InvalidArgument, "not in searchable list"),
+		},
+	}
+
+	ch := make(chan inventory.ResourceOrErr, 256)
+	streamAssetStubs(context.Background(), fake, inventory.Scope{ID: "p1"},
+		[]inventory.Kind{inventory.KindVertexAI}, ch)
+	close(ch)
+
+	var got []string
+	var errs []error
+	for x := range ch {
+		if x.Err != nil {
+			errs = append(errs, x.Err)
+		} else {
+			got = append(got, x.Resource.Name)
+		}
+	}
+	if len(errs) != 0 {
+		t.Errorf("unexpected errors: %v", errs)
+	}
+	if len(got) != 1 || got[0] != "ep-1" {
+		t.Errorf("resources = %v, want [ep-1]", got)
 	}
 }
 

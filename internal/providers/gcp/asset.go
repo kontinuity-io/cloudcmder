@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -322,17 +323,18 @@ func runEnrichersWith(ctx context.Context, p *GCPProvider, scope inventory.Scope
 // emits one stub Resource per supported asset type encountered.
 //
 // Non-stub Kinds (the 10 original IaaS types) go in a single strict request.
-// Each stub-only Kind gets its own graceful request so one unsupported CAI
-// type never silences other Kinds — an InvalidArgument on that Kind's request
-// is logged and skipped rather than aborting the whole scan.
+// Each stub-only asset type gets its own graceful request so one unsupported
+// CAI type never silences the whole Kind — SearchAllResources is all-or-nothing
+// per batch, so a single unsupported type would zero-out all results for the
+// batch. Per-type calls ensure an InvalidArgument on one type only loses that
+// type's rows (typically none), not the entire Kind.
 func streamAssetStubs(ctx context.Context, cli assetSearcher, scope inventory.Scope, kinds []inventory.Kind, ch chan<- inventory.ResourceOrErr) {
 	all := assetTypesForKinds(kinds)
 	var strict []string
-	stubByKind := map[inventory.Kind][]string{}
+	var stub []string
 	for _, at := range all {
 		if isStubKindAssetType(at) {
-			k := assetTypeToKind[at]
-			stubByKind[k] = append(stubByKind[k], at)
+			stub = append(stub, at)
 		} else {
 			strict = append(strict, at)
 		}
@@ -340,17 +342,19 @@ func streamAssetStubs(ctx context.Context, cli assetSearcher, scope inventory.Sc
 	if len(strict) > 0 {
 		searchAssetPage(ctx, cli, scope, strict, ch, false)
 	}
-	for _, types := range stubByKind {
+	for _, at := range stub {
 		if ctx.Err() != nil {
 			return
 		}
-		searchAssetPage(ctx, cli, scope, types, ch, true)
+		searchAssetPage(ctx, cli, scope, []string{at}, ch, true)
 	}
 }
 
 // searchAssetPage issues one SearchAllResources call for the given asset types.
-// When graceful is true, an InvalidArgument response (unsupported type) is
-// logged and silently skipped instead of propagated as a scan error.
+// When graceful is true, an InvalidArgument response (any type in the batch not
+// in CAI's searchable list) is logged as a warning and the batch is dropped.
+// Callers should pass single-element AssetTypes slices in graceful mode so one
+// unsupported type doesn't silence the whole batch.
 func searchAssetPage(ctx context.Context, cli assetSearcher, scope inventory.Scope, assetTypes []string, ch chan<- inventory.ResourceOrErr, graceful bool) {
 	req := &assetpb.SearchAllResourcesRequest{
 		Scope:      "projects/" + scope.ID,
@@ -364,7 +368,10 @@ func searchAssetPage(ctx context.Context, cli assetSearcher, scope inventory.Sco
 		}
 		if err != nil {
 			if graceful && status.Code(err) == codes.InvalidArgument {
-				// One or more types not in CAI's searchable list; skip silently.
+				slog.Warn("gcp: asset type not searchable in CAI; skipping",
+					"scope", scope.ID,
+					"asset_types", assetTypes,
+					"error", err.Error())
 				return
 			}
 			sendOrCancel(ctx, ch, inventory.ResourceOrErr{

@@ -192,9 +192,73 @@ CGO_ENABLED=0 go build -o cloudcmder ./cmd/cloudcmder
 ./cloudcmder
 ```
 
+> **Building for a different machine?** A `go build` on macOS produces
+> a Mach-O binary that **cannot run on Linux** (and vice versa). CloudShell
+> is `linux/amd64`, so if you intend to run there, cross-compile — see
+> [Running in CloudShell](#running-in-cloudshell) below.
+
+### Running in CloudShell
+
+CloudShell is the typical home for cloudcmder: it's the same Linux VM
+that has `gcloud` and ADC already wired up, so you can scan a project
+without leaving the browser. Two ways to get the binary onto it.
+
+#### Option A — cross-compile on your laptop, upload to CloudShell
+
+This is the fastest path if you've already cloned the repo locally
+(e.g., on a Mac). Go cross-compiles by default — no extra toolchain
+needed.
+
+```sh
+# On your Mac/Windows laptop, inside the cloudcmder repo:
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+  go build -o cloudcmder-linux-amd64 ./cmd/cloudcmder
+
+# Sanity-check before uploading — should say ELF 64-bit / x86-64 / statically linked.
+file cloudcmder-linux-amd64
+```
+
+Upload `cloudcmder-linux-amd64` via the CloudShell file menu
+(**⋮ → Upload**), then in the CloudShell terminal:
+
+```sh
+chmod +x cloudcmder-linux-amd64
+./cloudcmder-linux-amd64 --list-scopes
+./cloudcmder-linux-amd64 --scan <your-project-id>
+./cloudcmder-linux-amd64
+```
+
+> **`Exec format error`?** The uploaded binary is for the wrong OS /
+> architecture (most often a macOS Mach-O binary on Linux). Re-build with
+> the `GOOS=linux GOARCH=amd64` env vars above, verify with `file`, then
+> re-upload. `chmod +x` alone won't fix it — the kernel needs the right
+> binary format.
+
+#### Option B — build directly inside CloudShell
+
+CloudShell ships with Go pre-installed. If the repo is reachable from
+inside CloudShell (public, or you have SSH keys configured), just clone
+and build there — no cross-compile needed:
+
+```sh
+# In CloudShell:
+git clone https://github.com/kontinuity-io/cloudcmder
+cd cloudcmder
+CGO_ENABLED=0 go build -o cloudcmder ./cmd/cloudcmder
+./cloudcmder --list-scopes
+./cloudcmder --scan <your-project-id>
+./cloudcmder
+```
+
+> **Don't forget to copy your data out.** CloudShell's `$HOME` is
+> ephemeral — when the session ends, `~/.cloudcmder/cloudcmder.db` and
+> any `.xlsx` exports vanish. Use the CloudShell **⋮ → Download** menu
+> to pull files off before disconnecting.
+
 ### Release binary (post-v1.0.0)
 
-Once v1.0.0 ships you can skip the build step:
+Once v1.0.0 ships you can skip the build step entirely — pull the
+prebuilt Linux binary straight into CloudShell:
 
 ```sh
 curl -Lo cloudcmder https://github.com/kontinuity-io/cloudcmder/releases/latest/download/cloudcmder_linux_amd64.tar.gz \
@@ -202,6 +266,10 @@ curl -Lo cloudcmder https://github.com/kontinuity-io/cloudcmder/releases/latest/
 ./cloudcmder --scan <your-project-id>
 ./cloudcmder
 ```
+
+The release pipeline publishes four platforms — `linux_amd64`,
+`linux_arm64`, `darwin_amd64`, `darwin_arm64` — so a single tag covers
+CloudShell, x86 Linux servers, Intel Macs, and Apple Silicon Macs.
 
 ### Day-to-day usage
 
@@ -452,10 +520,21 @@ your credentials could already see (no secrets); copy it out of
 CloudShell after a scan if you want to keep it. `--db /path/to/file.db`
 overrides the default.
 
-**How do I run a scan from CloudShell?** See [Quickstart](#quickstart).
-The `~/.cloudcmder/cloudcmder.db` lives in CloudShell's ephemeral home
-directory, so download it (`Downloads` panel) before the session ends if
-you want it.
+**How do I run a scan from CloudShell?** See
+[Running in CloudShell](#running-in-cloudshell). Either cross-compile on
+your laptop with `GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build` and
+upload the binary, or `git clone` and build inside CloudShell directly
+(Go is preinstalled). The `~/.cloudcmder/cloudcmder.db` lives in
+CloudShell's ephemeral home directory — download it from the file menu
+before the session ends if you want to keep it.
+
+**Why does my binary fail with `Exec format error` on CloudShell?**
+You built it on macOS (or another non-Linux host) and the binary is the
+wrong format for CloudShell's Linux kernel. `chmod +x` doesn't help —
+the kernel needs an ELF/x86-64 binary. Re-build with
+`GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o cloudcmder ./cmd/cloudcmder`
+and re-upload. Verify with `file cloudcmder` before uploading: it should
+say `ELF 64-bit LSB executable, x86-64, ..., statically linked`.
 
 ## Development status
 

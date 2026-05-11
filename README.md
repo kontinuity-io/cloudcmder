@@ -303,8 +303,8 @@ With no `--project` flag it runs against **every accessible project** returned
 by your credentials — the same set `--scan-all` would scan:
 
 ```sh
-cloudcmder --check                        # all accessible projects
-cloudcmder --check --project my-proj-123  # single project only
+./cloudcmder --check                        # all accessible projects
+./cloudcmder --check --project my-proj-123  # single project only
 ```
 
 Per-project output when APIs are missing:
@@ -328,10 +328,10 @@ Composable with `&&` for both single-project and multi-project workflows:
 
 ```sh
 # Single project
-cloudcmder --check --project my-proj-123 && cloudcmder --scan my-proj-123
+./cloudcmder --check --project my-proj-123 && cloudcmder --scan my-proj-123
 
 # All projects — preflight every project before scanning any
-cloudcmder --check && cloudcmder --scan-all
+./cloudcmder --check && cloudcmder --scan-all
 ```
 
 The required-API list is derived at runtime from cloudcmder's internal
@@ -350,13 +350,13 @@ for the typical single-machine workflow:
 
 ```sh
 # 1. Optional preflight — verify APIs are enabled across all accessible projects
-cloudcmder --check
+./cloudcmder --check
 
 # 2. Scan every accessible project (one run row per project, stored in default DB)
-cloudcmder --scan-all
+./cloudcmder --scan-all
 
 # 3. Export a combined workbook from the default DB (latest run per project)
-cloudcmder --export-multi ~/Desktop/full-inventory.xlsx
+./cloudcmder --export-multi ~/Desktop/full-inventory.xlsx
 ```
 
 Output while scanning:
@@ -376,10 +376,10 @@ Pass `--db` to both the scan and the export — it must point to the same file:
 
 ```sh
 # Scan into a custom DB (useful for audit snapshots or CloudShell sessions)
-cloudcmder --scan-all --db /tmp/audit-2026-05.db
+./cloudcmder --scan-all --db /tmp/audit-2026-05.db
 
 # Export from that same custom DB
-cloudcmder --export-multi ~/Desktop/full-inventory.xlsx --db /tmp/audit-2026-05.db
+./cloudcmder --export-multi ~/Desktop/full-inventory.xlsx --db /tmp/audit-2026-05.db
 ```
 
 `--db` is a global flag — it applies to every subcommand (`--scan`, `--scan-all`,
@@ -404,16 +404,16 @@ The exported `.xlsx` contains:
 
 ```sh
 # Scan only named projects instead of all accessible ones
-cloudcmder --scan-projects=proj-a,proj-b,proj-c
+./cloudcmder --scan-projects=proj-a,proj-b,proj-c
 
 # Export latest run for specific scopes only
-cloudcmder --export-multi ~/Desktop/two-projects.xlsx --scopes proj-a,proj-b
+./cloudcmder --export-multi ~/Desktop/two-projects.xlsx --scopes proj-a,proj-b
 
 # Export specific run UUIDs (copy UUIDs from --list-runs output)
-cloudcmder --export-multi ~/Desktop/snapshot.xlsx --runs uuid1,uuid2,uuid3
+./cloudcmder --export-multi ~/Desktop/snapshot.xlsx --runs uuid1,uuid2,uuid3
 
 # Abort the entire scan on first failure instead of continuing
-cloudcmder --scan-all --fail-fast
+./cloudcmder --scan-all --fail-fast
 ```
 
 #### Failure handling
@@ -425,7 +425,7 @@ happy path, or inspect with `--list-runs` to see which runs are at
 `status=failed`. Re-run only the failed ones:
 
 ```sh
-cloudcmder --scan-projects=failed-proj-1,failed-proj-2
+./cloudcmder --scan-projects=failed-proj-1,failed-proj-2
 ```
 
 Already-completed runs survive a Ctrl-C mid-loop. The interrupted project's run

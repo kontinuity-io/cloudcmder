@@ -31,6 +31,52 @@ copy: cloudcmder reads via Application Default Credentials.
   `~/.cloudcmder/cloudcmder.db`; copy the file out for offline analysis
   or audit replay.
 
+## Read-only by design
+
+cloudcmder uses **only** GCP read APIs. It cannot create, modify, or delete
+a resource — there is no code path for it. This is enforced three ways.
+
+**1. The code only calls read methods.** Every GCP API invocation under
+`internal/providers/gcp/` is a `List` / `Get` / `Search` / `AggregatedList`
+verb. Quick audit you can run yourself — should return zero matches:
+
+```sh
+grep -rnE '\.(Create|Insert|Patch|Update|Delete|SetIamPolicy|EnableService|DisableService|Reset|Reboot|Stop|Start)(\(|[A-Z])' \
+  internal/providers/gcp/ --include='*.go' | grep -v _test.go
+```
+
+The full list of GCP methods cloudcmder calls, grouped by service:
+
+| Service | Methods called | All read? |
+|---|---|---|
+| Cloud Resource Manager | `SearchProjects` | ✅ |
+| Cloud Asset Inventory | `SearchAllResources` | ✅ |
+| Compute Engine | `AggregatedList`, `List`, `Get` (instances, disks, networks, subnetworks, firewalls, forwarding rules, machine types) | ✅ |
+| Cloud SQL Admin | `Instances.List` | ✅ |
+| GKE | `ListClusters` | ✅ |
+| Cloud Storage | `Buckets`, `Bucket.IAM.Policy` (= `GetIamPolicy`) | ✅ |
+| Cloud Run | `ListServices` | ✅ |
+| Cloud Functions | `ListFunctions` | ✅ |
+| Service Usage (used by `--check`) | `Services.List(filter=state:ENABLED)` | ✅ |
+
+**2. The IAM roles documented in [Required IAM roles](#required-iam-roles)
+are all read roles** — `roles/viewer`, `roles/cloudasset.viewer`, and the
+optional `roles/storage.legacyBucketReader`. None grant write or delete
+permissions. If you provision a custom role for cloudcmder, the only
+permissions it needs are `*.list`, `*.get`, and `storage.buckets.getIamPolicy`.
+
+**3. OAuth scope request.** cloudcmder requests the
+`https://www.googleapis.com/auth/cloud-platform.read-only` scope on every
+client (`internal/providers/gcp/auth.go`). On a laptop after
+`gcloud auth application-default login`, this is honoured by ADC and any
+mutation call would be rejected at the token layer. On CloudShell the
+session token's broader scope wins (CloudShell's behaviour, not ours), so
+the OAuth scope there is informational — but point 1 above means no
+mutation call is ever attempted regardless of environment.
+
+**The local SQLite database** (`~/.cloudcmder/cloudcmder.db`) is the only
+thing cloudcmder writes. It writes there, never back to GCP.
+
 ## How it works
 
 cloudcmder is layered: **a TUI / CLI / exporter on top, a SQLite store

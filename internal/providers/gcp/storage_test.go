@@ -30,7 +30,7 @@ func TestBuildBucketResourcePublicAccessTruthTable(t *testing.T) {
 				Location:               "US",
 				PublicAccessPrevention: tc.pap,
 			}
-			r := buildBucketResource("p1", b, tc.publicIAM, false)
+			r := buildBucketResource("p1", b, tc.publicIAM, bucketMetrics{}, false)
 			d := r.Detail.(*inventory.BucketDetail)
 			if d.PublicAccess != tc.want {
 				t.Errorf("PublicAccess = %v, want %v", d.PublicAccess, tc.want)
@@ -46,13 +46,16 @@ func TestBuildBucketResourceFields(t *testing.T) {
 		StorageClass:      "STANDARD",
 		VersioningEnabled: true,
 	}
-	r := buildBucketResource("p1", b, false, false)
+	r := buildBucketResource("p1", b, false, bucketMetrics{SizeBytes: 1024, ObjectCount: 4}, false)
 	if r.Ref.String() != "gcp:p1:Bucket:my-bucket" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}
 	d := r.Detail.(*inventory.BucketDetail)
 	if d.Location != "US" || d.StorageClass != "STANDARD" || !d.Versioning {
 		t.Errorf("detail = %+v", d)
+	}
+	if d.SizeBytes != 1024 || d.ObjectCount != 4 {
+		t.Errorf("metrics not plumbed through: SizeBytes=%d ObjectCount=%d", d.SizeBytes, d.ObjectCount)
 	}
 }
 

@@ -19,6 +19,11 @@ var alwaysRequired = []string{
 	"cloudresourcemanager.googleapis.com",
 	"cloudasset.googleapis.com",
 	"serviceusage.googleapis.com",
+	// monitoring.googleapis.com powers the storage/total_bytes and
+	// storage/object_count metrics. Missing API → bucket size/count = 0
+	// (scan continues), so this is "always required" only in the sense
+	// that --check should flag it; the runtime tolerates absence.
+	"monitoring.googleapis.com",
 }
 
 // RequiredAPIs returns the deduplicated, sorted list of GCP APIs cloudcmder

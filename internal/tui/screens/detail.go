@@ -384,12 +384,18 @@ func bucketDetailRows(_ inventory.Resource, detail any) []string {
 	if bd == nil {
 		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
 	}
-	return []string{
+	rows := []string{
 		kvLine("Location", bd.Location),
 		kvLine("Class", bd.StorageClass),
 		kvLine("Public", boolStr(bd.PublicAccess)),
 		kvLine("Versioning", boolStr(bd.Versioning)),
+		kvLine("Size", formatBytes(bd.SizeBytes)),
+		kvLine("Objects", formatCount(bd.ObjectCount)),
 	}
+	if bd.SizeBytes == 0 && bd.ObjectCount == 0 {
+		rows = append(rows, style.Dim.Render("(Cloud Monitoring updates daily; buckets <~24h old show 0)"))
+	}
+	return rows
 }
 
 func functionDetailRows(res inventory.Resource, detail any) []string {

@@ -500,6 +500,9 @@ func bucketColumns() []ColumnDef {
 		{Header: "StorageClass", Extract: bkField(func(d *inventory.BucketDetail) string { return d.StorageClass })},
 		{Header: "PublicAccess", Extract: bkField(func(d *inventory.BucketDetail) string { return boolStr(d.PublicAccess) })},
 		{Header: "Versioning", Extract: bkField(func(d *inventory.BucketDetail) string { return boolStr(d.Versioning) })},
+		// Raw integers so Excel SUM / sort works without parsing display strings.
+		{Header: "SizeBytes", Extract: bkField(func(d *inventory.BucketDetail) string { return fmt.Sprintf("%d", d.SizeBytes) })},
+		{Header: "ObjectCount", Extract: bkField(func(d *inventory.BucketDetail) string { return fmt.Sprintf("%d", d.ObjectCount) })},
 		{Header: "Labels", Extract: labelsOf},
 	}
 }

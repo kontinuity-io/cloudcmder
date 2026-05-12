@@ -34,6 +34,7 @@ type GCPProvider struct {
 	sql       sqlClientState
 	gke       gkeClientState
 	buckets   bucketsClientState
+	metrics   metricsClientState
 	runsvc    runClientState
 	funcs     functionsClientState
 
@@ -91,6 +92,7 @@ func (p *GCPProvider) Close() error {
 		p.closeSQLClient,
 		p.closeGKEClient,
 		p.closeBucketsClient,
+		p.closeMetricsClient,
 		p.closeRunClient,
 		p.closeFunctionsClient,
 	} {

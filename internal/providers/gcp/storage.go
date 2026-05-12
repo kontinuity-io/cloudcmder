@@ -99,6 +99,11 @@ func enrichBuckets(ctx context.Context, p *GCPProvider, scope inventory.Scope, c
 		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Err: fmt.Errorf("gcp: storage client: %w", err)})
 		return
 	}
+	// Pre-fetch Cloud Monitoring size/object_count for all buckets in this
+	// project in one call. Failure is non-fatal: missing entries fall back
+	// to zero so a disabled Monitoring API (or a missing permission) does
+	// not abort the entire bucket scan.
+	metricsMap := loadBucketMetrics(ctx, p, scope.ID)
 	it := bc.List(ctx, scope.ID)
 	for {
 		attrs, err := it.Next()
@@ -121,12 +126,37 @@ func enrichBuckets(ctx context.Context, p *GCPProvider, scope inventory.Scope, c
 			publicIAM = false
 		}
 		sendOrCancel(ctx, ch, inventory.ResourceOrErr{
-			Resource: buildBucketResource(scope.ID, attrs, publicIAM, p.dumpNative),
+			Resource: buildBucketResource(scope.ID, attrs, publicIAM, metricsMap[attrs.Name], p.dumpNative),
 		})
 	}
 }
 
-func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool, dumpNative bool) inventory.Resource {
+// loadBucketMetrics returns size + object count keyed by bucket name. A nil
+// or empty map means the Monitoring call did not yield data — typically
+// the API is disabled, the caller lacks monitoring.timeSeries.list, or
+// the project has no buckets old enough for the first daily sample. The
+// scan continues regardless; affected buckets show 0.
+func loadBucketMetrics(ctx context.Context, p *GCPProvider, projectID string) map[string]bucketMetrics {
+	mc, err := p.metricsClient(ctx)
+	if err != nil {
+		slog.Warn("scan: monitoring client unavailable; bucket size = 0",
+			"project", projectID, "error", err)
+		return nil
+	}
+	m, err := mc.ListBucketMetrics(ctx, projectID)
+	if err != nil {
+		level := "warn"
+		if !IsRecoverableScanErr(err) {
+			level = "error"
+		}
+		slog.Warn("scan: bucket metrics unavailable; bucket size = 0",
+			"project", projectID, "severity", level, "error", err)
+		return nil
+	}
+	return m
+}
+
+func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool, m bucketMetrics, dumpNative bool) inventory.Resource {
 	// A bucket is reachable from the public internet iff the IAM policy has
 	// an `allUsers`/`allAuthenticatedUsers` binding AND PublicAccessPrevention
 	// is not enforced (because enforcement overrides any IAM binding). Match
@@ -137,7 +167,8 @@ func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool,
 		StorageClass: b.StorageClass,
 		PublicAccess: publicAccess,
 		Versioning:   b.VersioningEnabled,
-		// SizeBytes populated in v1.1 via Cloud Monitoring; 0 in v1.
+		SizeBytes:    m.SizeBytes,
+		ObjectCount:  m.ObjectCount,
 	}
 	return inventory.Resource{
 		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindBucket, ID: b.Name},

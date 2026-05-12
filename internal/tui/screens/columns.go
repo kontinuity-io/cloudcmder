@@ -591,6 +591,18 @@ func bucketColumns() []ColumnDef {
 			}
 			return ""
 		}},
+		{Header: "SIZE", Width: 9, Extract: func(_ inventory.Resource, d any) string {
+			if bd, ok := d.(*inventory.BucketDetail); ok && bd != nil {
+				return formatBytes(bd.SizeBytes)
+			}
+			return ""
+		}},
+		{Header: "OBJECTS", Width: 10, Extract: func(_ inventory.Resource, d any) string {
+			if bd, ok := d.(*inventory.BucketDetail); ok && bd != nil {
+				return formatCount(bd.ObjectCount)
+			}
+			return ""
+		}},
 	}
 }
 
@@ -683,4 +695,44 @@ func boolStr(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// formatBytes renders byte counts as "1.2 TB", "256 MB", etc. Returns "—"
+// for zero — Cloud Monitoring values are daily aggregates, so a bucket
+// younger than the first sample window legitimately has no data; the dash
+// signals "not yet measured" rather than "zero bytes."
+func formatBytes(n int64) string {
+	if n <= 0 {
+		return "—"
+	}
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	// IEC units to match cloud-console display conventions.
+	suffixes := []string{"KB", "MB", "GB", "TB", "PB", "EB"}
+	div, exp := int64(unit), 0
+	for v := n / unit; v >= unit && exp < len(suffixes)-1; v /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %s", float64(n)/float64(div), suffixes[exp])
+}
+
+// formatCount renders integer counts as 1.2K / 3.4M / 5.6B. Same em-dash
+// fallback for zero as formatBytes.
+func formatCount(n int64) string {
+	if n <= 0 {
+		return "—"
+	}
+	switch {
+	case n < 1_000:
+		return fmt.Sprintf("%d", n)
+	case n < 1_000_000:
+		return fmt.Sprintf("%.1fK", float64(n)/1_000)
+	case n < 1_000_000_000:
+		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
+	default:
+		return fmt.Sprintf("%.1fB", float64(n)/1_000_000_000)
+	}
 }

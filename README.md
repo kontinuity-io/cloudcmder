@@ -57,13 +57,15 @@ The full list of GCP methods cloudcmder calls, grouped by service:
 | Cloud Storage | `Buckets`, `Bucket.IAM.Policy` (= `GetIamPolicy`) | ✅ |
 | Cloud Run | `ListServices` | ✅ |
 | Cloud Functions | `ListFunctions` | ✅ |
+| Cloud Monitoring (bucket size/object count) | `ListTimeSeries` | ✅ |
 | Service Usage (used by `--check`) | `Services.List(filter=state:ENABLED)` | ✅ |
 
 **2. The IAM roles documented in [Required IAM roles](#required-iam-roles)
 are all read roles** — `roles/viewer`, `roles/cloudasset.viewer`, and the
 optional `roles/storage.legacyBucketReader`. None grant write or delete
 permissions. If you provision a custom role for cloudcmder, the only
-permissions it needs are `*.list`, `*.get`, and `storage.buckets.getIamPolicy`.
+permissions it needs are `*.list`, `*.get`, `storage.buckets.getIamPolicy`,
+and `monitoring.timeSeries.list`.
 
 **3. OAuth scope request.** cloudcmder requests the
 `https://www.googleapis.com/auth/cloud-platform.read-only` scope on every
@@ -354,12 +356,14 @@ Assign these roles to the account you use with `gcloud auth application-default 
 
 | Role | Purpose |
 |---|---|
-| `roles/viewer` | Read most resource types (compute, sql, gke, run, cloud functions, storage list) |
+| `roles/viewer` | Read most resource types (compute, sql, gke, run, cloud functions, storage list) — also covers `monitoring.timeSeries.list` used for bucket size and object count |
 | `roles/cloudasset.viewer` | Cloud Asset Inventory discovery (covers VertexAI stub listing via `aiplatform.*` asset types) |
 | `roles/storage.legacyBucketReader` *(optional)* | Accurate `PublicAccess` on Cloud Storage buckets — without it, the IAM check is skipped and buckets default to `PublicAccess=false` |
 | `roles/aiplatform.viewer` *(optional, future)* | Reserved for a future Phase-2 Vertex enricher; not required for current stub-only listing |
 
 > Read-only. cloudcmder never modifies resources. The list of APIs that must be enabled on the target project is in [Troubleshooting](#troubleshooting); a disabled API is logged as a warning and that kind is skipped — the rest of the scan still completes.
+>
+> **Bucket size / object count** come from Cloud Monitoring (`monitoring.googleapis.com` must be enabled — `--check` flags it if not). The metric is a daily aggregate, so freshly-created buckets show `Size: —` / `Objects: —` for ~24h. If the API is disabled or the call fails, cloudcmder logs a warning and falls back to zero for those columns — the bucket is still listed.
 
 ## Keybindings
 

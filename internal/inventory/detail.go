@@ -68,7 +68,11 @@ type BucketDetail struct {
 	StorageClass string
 	PublicAccess bool
 	Versioning   bool
-	SizeBytes    int64
+	// SizeBytes and ObjectCount come from Cloud Monitoring (the GCS API
+	// itself does not expose either). The metric is a daily aggregate, so
+	// freshly created buckets show 0 for ~24h until the first sample lands.
+	SizeBytes   int64
+	ObjectCount int64
 }
 
 // LoadBalancerDetail flattens GCP's multi-resource LB composition into one row.

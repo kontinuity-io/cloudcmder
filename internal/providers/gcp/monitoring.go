@@ -24,6 +24,16 @@ const (
 	metricBucketObjectCount = "storage.googleapis.com/storage/object_count"
 )
 
+// bucketMetricsFilter is the Cloud Monitoring filter for bucket size + count.
+// Uses one_of(...) because the API rejects `metric.type = A OR metric.type = B`
+// with "Within the 'metric' prefix, OR can only be used to connect a list of
+// 'labels' restrictions" (observed against monitoring.googleapis.com v3,
+// 2026-05). See https://cloud.google.com/monitoring/api/v3/filters.
+var bucketMetricsFilter = fmt.Sprintf(
+	`metric.type = one_of(%q, %q)`,
+	metricBucketTotalBytes, metricBucketObjectCount,
+)
+
 // bucketMetrics is the (size, count) tuple Monitoring returns for one bucket.
 type bucketMetrics struct {
 	SizeBytes   int64
@@ -47,10 +57,8 @@ func (r *realMetricsClient) ListBucketMetrics(ctx context.Context, projectID str
 	// unrelated GCS metrics.
 	now := time.Now()
 	req := &monitoringpb.ListTimeSeriesRequest{
-		Name: "projects/" + projectID,
-		Filter: fmt.Sprintf(
-			`metric.type = starts_with("storage.googleapis.com/storage/") AND (metric.type = %q OR metric.type = %q)`,
-			metricBucketTotalBytes, metricBucketObjectCount),
+		Name:   "projects/" + projectID,
+		Filter: bucketMetricsFilter,
 		Interval: &monitoringpb.TimeInterval{
 			// 26h window gives the 24h-delayed daily sample headroom even if
 			// the metric pipeline is slightly behind.

@@ -26,6 +26,20 @@ func timeSeriesFor(bucket, metricType string, value int64) *monitoringpb.TimeSer
 	}
 }
 
+// TestBucketMetricsFilterShape pins the Monitoring API filter to a form the
+// server accepts. History: an earlier attempt used `metric.type = A OR
+// metric.type = B` which the API rejected with InvalidArgument ("Within
+// the 'metric' prefix, OR can only be used to connect a list of 'labels'
+// restrictions"). one_of(...) is the documented operator for multi-type
+// filters. The server is the only authoritative validator, but this string
+// shape test stops a naive refactor from reintroducing the rejected form.
+func TestBucketMetricsFilterShape(t *testing.T) {
+	assert.NotContains(t, bucketMetricsFilter, " OR ", "OR is rejected between metric.type restrictions")
+	assert.Contains(t, bucketMetricsFilter, "one_of", "must use one_of for multi-metric filter")
+	assert.Contains(t, bucketMetricsFilter, metricBucketTotalBytes)
+	assert.Contains(t, bucketMetricsFilter, metricBucketObjectCount)
+}
+
 func TestParseBucketTimeSeries(t *testing.T) {
 	cases := []struct {
 		name   string

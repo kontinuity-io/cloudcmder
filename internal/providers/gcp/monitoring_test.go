@@ -26,18 +26,19 @@ func timeSeriesFor(bucket, metricType string, value int64) *monitoringpb.TimeSer
 	}
 }
 
-// TestBucketMetricsFilterShape pins the Monitoring API filter to a form the
-// server accepts. History: an earlier attempt used `metric.type = A OR
-// metric.type = B` which the API rejected with InvalidArgument ("Within
-// the 'metric' prefix, OR can only be used to connect a list of 'labels'
-// restrictions"). one_of(...) is the documented operator for multi-type
-// filters. The server is the only authoritative validator, but this string
-// shape test stops a naive refactor from reintroducing the rejected form.
-func TestBucketMetricsFilterShape(t *testing.T) {
-	assert.NotContains(t, bucketMetricsFilter, " OR ", "OR is rejected between metric.type restrictions")
-	assert.Contains(t, bucketMetricsFilter, "one_of", "must use one_of for multi-metric filter")
-	assert.Contains(t, bucketMetricsFilter, metricBucketTotalBytes)
-	assert.Contains(t, bucketMetricsFilter, metricBucketObjectCount)
+// TestBucketMetricTypesIterableSingly pins the API contract that drove this
+// design: each ListTimeSeries call may match exactly one metric.type.
+// History: an earlier attempt combined both metrics in one filter (first
+// with OR, then with one_of) — the API rejected both forms ("Within the
+// 'metric' prefix, OR can only be used to connect a list of 'labels'
+// restrictions", then "TimeSeries data are limited to a single metric per
+// request"). If somebody collapses bucketMetricTypes back into a single
+// multi-metric filter, the second rejection comes back.
+func TestBucketMetricTypesIterableSingly(t *testing.T) {
+	assert.Len(t, bucketMetricTypes, 2,
+		"must iterate one call per metric; consolidating triggers API rejection")
+	assert.Contains(t, bucketMetricTypes, metricBucketTotalBytes)
+	assert.Contains(t, bucketMetricTypes, metricBucketObjectCount)
 }
 
 func TestParseBucketTimeSeries(t *testing.T) {

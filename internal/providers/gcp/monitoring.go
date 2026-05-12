@@ -24,15 +24,19 @@ const (
 	metricBucketObjectCount = "storage.googleapis.com/storage/object_count"
 )
 
-// bucketMetricsFilter is the Cloud Monitoring filter for bucket size + count.
-// Uses one_of(...) because the API rejects `metric.type = A OR metric.type = B`
-// with "Within the 'metric' prefix, OR can only be used to connect a list of
-// 'labels' restrictions" (observed against monitoring.googleapis.com v3,
-// 2026-05). See https://cloud.google.com/monitoring/api/v3/filters.
-var bucketMetricsFilter = fmt.Sprintf(
-	`metric.type = one_of(%q, %q)`,
-	metricBucketTotalBytes, metricBucketObjectCount,
-)
+// bucketMetricTypes is iterated one-call-per-metric because the Monitoring
+// API rejects multi-metric filters with InvalidArgument:
+//
+//	"The provided filter matches more than one metric. TimeSeries data
+//	 are limited to a single metric per request."
+//
+// (observed against monitoring.googleapis.com v3, 2026-05). An earlier
+// attempt used `metric.type = one_of(A, B)` which is syntactically valid
+// per the filter grammar but still rejected by ListTimeSeries' contract.
+var bucketMetricTypes = []string{
+	metricBucketTotalBytes,
+	metricBucketObjectCount,
+}
 
 // bucketMetrics is the (size, count) tuple Monitoring returns for one bucket.
 type bucketMetrics struct {
@@ -52,13 +56,27 @@ type realMetricsClient struct {
 }
 
 func (r *realMetricsClient) ListBucketMetrics(ctx context.Context, projectID string) (map[string]bucketMetrics, error) {
-	// Query both metrics in a single ListTimeSeries call. The "starts_with"
-	// filter narrows the response on the server side so we don't pay for
-	// unrelated GCS metrics.
+	// One ListTimeSeries call per metric type (see bucketMetricTypes doc).
+	// parseBucketTimeSeries is metric-type-aware so the concatenated series
+	// from both calls merge into one (size, count) row per bucket.
 	now := time.Now()
+	var all []*monitoringpb.TimeSeries
+	for _, mt := range bucketMetricTypes {
+		s, err := r.fetchMetricSeries(ctx, projectID, mt, now)
+		if err != nil {
+			return nil, fmt.Errorf("list time series %s: %w", mt, err)
+		}
+		all = append(all, s...)
+	}
+	return parseBucketTimeSeries(all), nil
+}
+
+func (r *realMetricsClient) fetchMetricSeries(
+	ctx context.Context, projectID, metricType string, now time.Time,
+) ([]*monitoringpb.TimeSeries, error) {
 	req := &monitoringpb.ListTimeSeriesRequest{
 		Name:   "projects/" + projectID,
-		Filter: bucketMetricsFilter,
+		Filter: fmt.Sprintf(`metric.type = %q`, metricType),
 		Interval: &monitoringpb.TimeInterval{
 			// 26h window gives the 24h-delayed daily sample headroom even if
 			// the metric pipeline is slightly behind.
@@ -71,7 +89,7 @@ func (r *realMetricsClient) ListBucketMetrics(ctx context.Context, projectID str
 		},
 		View: monitoringpb.ListTimeSeriesRequest_FULL,
 	}
-	var series []*monitoringpb.TimeSeries
+	var out []*monitoringpb.TimeSeries
 	it := r.c.ListTimeSeries(ctx, req)
 	for {
 		ts, err := it.Next()
@@ -81,9 +99,9 @@ func (r *realMetricsClient) ListBucketMetrics(ctx context.Context, projectID str
 		if err != nil {
 			return nil, err
 		}
-		series = append(series, ts)
+		out = append(out, ts)
 	}
-	return parseBucketTimeSeries(series), nil
+	return out, nil
 }
 
 func (r *realMetricsClient) Close() error { return r.c.Close() }

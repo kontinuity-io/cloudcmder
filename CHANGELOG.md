@@ -8,6 +8,46 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### `--single-view` 4-pane TUI mode
+
+- New CLI flag activates an alternative TUI layout that renders Scopes,
+  kind Summary, Resources, and Detail simultaneously in a 2×2 grid (top
+  25/75, bottom 70/30, body height 50/50). `Tab` cycles focus forward
+  through the four panes; `Shift+Tab` cycles back; nil downstream panes
+  are skipped so cycling works before the first scope is resolved.
+- Cursor moves in any pane cascade downstream automatically: scope →
+  summary → resources → detail. Cascades fire as atomic core messages
+  (`ScopeSelectedMsg`, `KindSelectedMsg`, `ResourceSelectedMsg`)
+  sequenced via `tea.Sequence` so a downstream pane never binds to a
+  half-built upstream pane.
+- Cmdbar `:alias` (`:vm`, `:bucket`, …) still works inside single-view:
+  jumps the bottom-left ResourceList to the requested kind and focuses
+  it, with the JumpID queued before Init for atomic swap-and-jump.
+- `Esc` and `q` both quit. Requires ≥100-column terminal; narrower
+  terminals show a resize hint.
+- The existing screen-stack TUI is untouched; both modes coexist and
+  the user picks one at app start via the `--single-view` flag.
+
+#### Scrollable Detail pane
+
+- Detail content now renders through a `bubbles/viewport` so resources
+  whose detail exceeds the pane height stay reachable instead of
+  clipping at the bottom border. VMs with many attached disks/NICs are
+  the obvious case; narrow Detail columns in single-view hit it too.
+- Scrolling keys: `↑` `↓` `j` `k` `PgUp` `PgDn` `Ctrl-u` `Ctrl-d` `f`
+  `b` `Home` `End` (viewport's default pager bindings). Horizontal
+  bindings disabled — kv-line content has nothing to scroll
+  horizontally. `m` (mode cycle) resets scroll to top.
+- Applies to both screen-stack and `--single-view` modes.
+
+#### Overview `SetChromeBudget(int)`
+
+- New method lets callers override the kind-count table's chrome
+  assumption. Default 12 unchanged (Frame's full-height left pane
+  keeps existing behaviour); single-view's half-height top-right
+  pane calls with 7 so the table fills the box rather than starving
+  at 5 rows.
+
 #### GCS bucket size + object count (Cloud Monitoring)
 
 - `BucketDetail` gains `SizeBytes` and `ObjectCount`, populated from Cloud

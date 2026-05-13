@@ -19,6 +19,10 @@ copy: cloudcmder reads via Application Default Credentials.
   list on the left, live Detail rebuild on the right as you move the
   cursor. `:` opens a fuzzy palette over kind aliases AND every resource
   in the run.
+- 🪟 **Single-view mode** — `--single-view` opens an alternative 4-pane
+  layout (Scopes + Summary + Resources + Detail) with Tab / Shift+Tab
+  cycling focus between panes. Useful when you want "everything visible
+  at once" instead of the screen-stack drill-down.
 - 🔗 **Interconnections** — VM ↔ Disk ↔ Subnet edges captured during the
   scan; ASCII connection-tree (`g`) per resource.
 - ⚡ **Concurrent enrichment** — 4 per-kind goroutines fan out under a
@@ -210,6 +214,37 @@ The right-pane Detail rebuilds as the cursor moves over the resource
 list. `m` cycles its mode: **Detail / ConnectionsOnly / RawJSON /
 InlineGraph**. The fuzzy palette (`:`) matches kind aliases AND every
 resource name in the run; picking a resource lands the cursor on it.
+Detail content scrolls via `↑/↓ · PgUp/PgDn · Ctrl-u/Ctrl-d` when it
+exceeds the pane height — useful for VMs with many disks/NICs or any
+resource viewed in a narrow column.
+
+### Single-view mode (`--single-view`)
+
+Alternative TUI layout — same data, all four panes visible at once
+instead of a screen stack:
+
+```
+┌──────────┬───────────────────────────────────┐
+│ Scopes   │ Summary of resources in scope     │
+│          │ (kind counts)                      │
+├──────────┴────────────────────────┬──────────┤
+│ List of resources in selected     │ Specific │
+│ kind                              │ resource │
+│                                   │ details  │
+└───────────────────────────────────┴──────────┘
+```
+
+`Tab` cycles focus forward (Scopes → Summary → Resources → Detail);
+`Shift+Tab` cycles back. Cursor moves cascade downstream automatically:
+picking a scope refreshes the kind summary, picking a kind refreshes
+the resource list, picking a resource refreshes Detail. `:alias`
+(`:vm`, `:bucket`, …) still jumps the resource pane to that kind
+without leaving single-view. `Esc` and `q` both quit. Requires a
+terminal at least 100 columns wide — narrower terminals get a resize
+hint.
+
+The default screen-stack TUI is unchanged; pass `--single-view` at
+launch to opt in. Both modes share the same SQLite store.
 
 ## Quickstart
 
@@ -371,7 +406,8 @@ Assign these roles to the account you use with `gcloud auth application-default 
 |---|---|
 | `Enter` | On a kind row: open that kind's resource list in the left pane. On a resource row: zoom Detail to full width. |
 | `Esc` | Unzoom Detail; walk back through left-pane history; close a modal. No-op at the root pane — `q` is the only way out of the Frame. |
-| `Tab` | Cycle focus between the list (left) and detail (right) panes |
+| `Tab` | Default TUI: cycle focus between list (left) and detail (right). `--single-view`: cycle focus Scopes → Summary → Resources → Detail. |
+| `Shift+Tab` | (`--single-view` only) reverse-cycle focus through the four panes |
 | `q` / `Ctrl+C` | Quit (always wins, even with the cmdbar open) |
 | `?` | Toggle contextual help |
 | `/` | Fuzzy filter the current list. Matches across name, region, status, and labels; rows reorder by best-score-first. Matched runes bolded+underlined in the NAME cell. |
@@ -384,6 +420,7 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | `Ctrl+u` / `Ctrl+d` | Half-page scroll up / down (vim) |
 | `s` | Cycle sort: column 0 asc → desc → column 1 asc → desc → … → no sort. Active only when the `/` filter is empty. |
 | `m` | (in right pane) Cycle Detail mode: Full → Connections-only → Raw JSON → Inline Graph |
+| `↑` / `↓` · `PgUp` / `PgDn` · `Ctrl+u` / `Ctrl+d` | (Detail pane focused) Scroll Detail content when it exceeds the pane height |
 | `g` | (in right pane via global) Open the full-screen ASCII connection-graph for the focused resource |
 | `H` | Run history modal — pick a different run for this scope |
 | `e` | Export current run to Excel — lands in `~/.cloudcmder/exports/<scope>-<short-uuid>.xlsx` |
@@ -397,6 +434,7 @@ cloudcmder [flags]
 Flags:
   --db string             SQLite assessment database path (default ~/.cloudcmder/cloudcmder.db)
   --log-level string      debug, info, warn, error (default info)
+  --single-view           open the alternative 4-pane TUI layout (Scopes / Summary / Resources / Detail visible at once)
   --check                 check that required GCP APIs are enabled (read-only; exits non-zero if any missing)
   --project string        limit --check to a single project ID (default: all accessible projects)
   --list-scopes           list every accessible GCP project as JSON and exit

@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -39,7 +40,11 @@ type edgesLoadedMsg struct {
 	err   error
 }
 
-// Detail is the two-pane drill-down screen for a single Resource.
+// Detail is the two-pane drill-down screen for a single Resource. Content
+// renders through a bubbles/viewport so resources whose details exceed the
+// pane height (VMs with many disks/NICs, Detail panes in narrow terminals)
+// stay navigable instead of clipping. Scrollable via ↑/↓ · PgUp/PgDn ·
+// Ctrl-u/Ctrl-d (the viewport's default pager bindings).
 type Detail struct {
 	ctx    context.Context
 	st     *store.Store
@@ -59,6 +64,9 @@ type Detail struct {
 	modeKey key.Binding
 
 	graphKey key.Binding
+
+	vp           viewport.Model
+	contentDirty bool // when true, View() re-renders and pushes into vp before drawing
 }
 
 // NewDetail constructs the Detail screen for the supplied resource. The
@@ -67,10 +75,18 @@ type Detail struct {
 func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res inventory.Resource, detail any) *Detail {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
+	vp := viewport.New(0, 0)
+	// Horizontal scroll is meaningless for kvLine output (each line is a
+	// short key:value pair); strip the bindings so Left/Right/h/l don't
+	// behave inconsistently when the user lands on Detail.
+	vp.KeyMap.Left = key.NewBinding(key.WithDisabled())
+	vp.KeyMap.Right = key.NewBinding(key.WithDisabled())
 	return &Detail{
 		ctx: ctx, st: st, run: run, res: res, detail: detail, spin: s,
-		modeKey:  key.NewBinding(key.WithKeys("m")),
-		graphKey: key.NewBinding(key.WithKeys("g")),
+		modeKey:      key.NewBinding(key.WithKeys("m")),
+		graphKey:     key.NewBinding(key.WithKeys("g")),
+		vp:           vp,
+		contentDirty: true,
 	}
 }
 
@@ -79,6 +95,8 @@ func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res i
 // (the user holds Tab+m vs. just m depending on focus).
 func (d *Detail) CycleMode() {
 	d.mode = (d.mode + 1) % detailModeCount
+	d.contentDirty = true
+	d.vp.GotoTop()
 }
 
 // Title satisfies core.Screen.
@@ -94,17 +112,22 @@ func (d *Detail) Init() tea.Cmd {
 	return tea.Batch(load, d.spin.Tick)
 }
 
-// Update handles load completion, resize, and the `g` (GraphView) push.
+// Update handles load completion, resize, mode/graph keys, and forwards
+// remaining keys to the viewport so the content scrolls.
 func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	switch m := msg.(type) {
 	case edgesLoadedMsg:
 		d.loaded = true
 		d.loadErr = m.err
 		d.edges = m.edges
+		d.contentDirty = true
 		return d, nil
 	case tea.WindowSizeMsg:
 		d.width = m.Width
 		d.height = m.Height
+		d.vp.Width = m.Width
+		d.vp.Height = m.Height
+		d.contentDirty = true
 		return d, nil
 	case spinner.TickMsg:
 		if !d.loaded {
@@ -121,6 +144,11 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		case key.Matches(m, d.graphKey):
 			return d, core.PushScreenCmd(NewGraphView(d.res, d.edges))
 		}
+		// Everything else (↑/↓, PgUp/PgDn, Ctrl-u/Ctrl-d, j/k, etc.) →
+		// scroll the viewport.
+		var cmd tea.Cmd
+		d.vp, cmd = d.vp.Update(msg)
+		return d, cmd
 	}
 	return d, nil
 }
@@ -129,11 +157,10 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 // belongs to.
 func (d *Detail) CurrentRun() *store.RunSummary { return &d.run }
 
-// View renders Detail content. The active DetailMode controls layout:
-// Full (default) shows kind-specific fields above the connections list;
-// ConnectionsOnly hides the kind-specific block; RawJSON pretty-prints
-// the decoded Detail; InlineGraph embeds the GraphView ASCII tree.
-// Frame draws the surrounding border.
+// View renders Detail content through the viewport so content that
+// overflows the pane height is scrollable. The viewport is fed by
+// renderContent() — recomputed lazily when content changes (mode cycle,
+// edges loaded, resize). Frame / SingleView draws the surrounding border.
 func (d *Detail) View() string {
 	if !d.loaded {
 		return d.spin.View() + style.Dim.Render(" loading detail…")
@@ -142,6 +169,22 @@ func (d *Detail) View() string {
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading edges: " + d.loadErr.Error())
 	}
+	if d.contentDirty || d.vp.Width == 0 {
+		d.vp.SetContent(d.renderContent())
+		d.contentDirty = false
+	}
+	if d.vp.Width == 0 || d.vp.Height == 0 {
+		// Pre-size fallback: caller hasn't told us our budget yet, render
+		// the raw content (lipgloss will clip downstream). Once a
+		// WindowSizeMsg arrives the viewport takes over.
+		return d.renderContent()
+	}
+	return d.vp.View()
+}
+
+// renderContent produces the current mode's full content string. Called by
+// View() on demand; result is fed into the viewport.
+func (d *Detail) renderContent() string {
 	switch d.mode {
 	case DetailModeConnectionsOnly:
 		return d.connectionsPane()

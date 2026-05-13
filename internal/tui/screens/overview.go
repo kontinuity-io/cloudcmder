@@ -47,6 +47,14 @@ type Overview struct {
 	loadErr error
 	run     *store.RunSummary
 	rows    []KindCount
+
+	// chromeBudget is how many rows of m.Height are NOT available to the
+	// kind-count table — i.e. header + separators + total line + box
+	// border + any surrounding chrome from the parent screen. Default 12
+	// works for Frame, which forwards the App's bodyBudget unchanged.
+	// SingleView calls SetChromeBudget(7) because its top-right pane is
+	// roughly half-height and the default leaves the table starved.
+	chromeBudget int
 }
 
 // NewOverview builds an Overview pane for the given run UUID.
@@ -77,6 +85,24 @@ func (o *Overview) AbsorbingKeys() bool { return false }
 // fixed-shape and small enough to fit any reasonable terminal. The pane
 // width controls border drawing, not table layout.
 func (o *Overview) SetInnerWidth(_ int) {}
+
+// SetChromeBudget overrides the number of rows of m.Height reserved for
+// non-table content (header, separators, total, surrounding border).
+// Default is 12 (Frame's full-height pane). SingleView calls with 7 so
+// the kind table fills the smaller top-right pane. n<=0 restores default.
+func (o *Overview) SetChromeBudget(n int) {
+	o.chromeBudget = n
+	if o.height > 0 {
+		o.tbl.SetHeight(max(5, o.height-o.effectiveChrome()))
+	}
+}
+
+func (o *Overview) effectiveChrome() int {
+	if o.chromeBudget > 0 {
+		return o.chromeBudget
+	}
+	return 12
+}
 
 // SelectedResource is always nil — Overview operates on Kinds, not resources.
 func (o *Overview) SelectedResource() *rowData { return nil }
@@ -128,7 +154,7 @@ func (o *Overview) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		o.width = m.Width
 		o.height = m.Height
-		o.tbl.SetHeight(max(5, m.Height-12))
+		o.tbl.SetHeight(max(5, m.Height-o.effectiveChrome()))
 		return o, nil
 	case spinner.TickMsg:
 		if !o.loaded {

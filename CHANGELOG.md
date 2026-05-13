@@ -8,6 +8,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### GCS bucket size + object count (Cloud Monitoring)
+
+- `BucketDetail` gains `SizeBytes` and `ObjectCount`, populated from Cloud
+  Monitoring's `storage/total_bytes` and `storage/object_count` metrics.
+  Autoclass buckets (which emit one series per storage class) are summed
+  per bucket. TUI Bucket list adds `SIZE` and `OBJECTS` columns; right-pane
+  Detail shows both with a daily-aggregate hint when both are 0. Excel
+  bucket sheet gains raw-integer `SizeBytes` and `ObjectCount` columns.
+- New required API: `monitoring.googleapis.com`. `--check` flags it if missing.
+- Failure is recoverable per the scan contract: if Monitoring rejects (API
+  disabled, no IAM, project too young), warn and fall back to 0 — scan
+  continues.
+- Implementation note pinned by `TestBucketMetricTypesIterableSingly`:
+  `ListTimeSeries` only returns one metric.type per call, so the fetch
+  loops one call per metric. Earlier attempts (multi-metric `OR`,
+  `one_of(...)`) were rejected with `InvalidArgument`.
+
+### Fixed
+
+- **TUI: Esc at Frame root now returns to the Scopes picker.** Previously
+  `Esc` on a Frame with no pane-history was a no-op, trapping the user on
+  the resources summary view when multiple scopes existed. `Esc` now reads
+  consistently as "back through context" all the way out; `q` remains the
+  program-level quit.
+
 #### Multi-project scan + combined workbook
 
 - `--scan-all` — sequentially scans every accessible GCP project. Each project

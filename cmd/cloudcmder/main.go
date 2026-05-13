@@ -62,6 +62,7 @@ func newRootCmd() *cobra.Command {
 		exportRunIDs string
 		exportScopes string
 		dumpNative   bool
+		singleView   bool
 	)
 
 	root := &cobra.Command{
@@ -98,7 +99,7 @@ and the file can be exported for offline analysis.`,
 			case exportPath != "":
 				return runExport(cmd, dbPath, exportPath, exportRunID)
 			default:
-				return runTUI(cmd, dbPath)
+				return runTUI(cmd, dbPath, singleView)
 			}
 		},
 	}
@@ -107,6 +108,8 @@ and the file can be exported for offline analysis.`,
 		defaultDBPath(), "path to the SQLite assessment database")
 	root.PersistentFlags().StringVar(&logLevel, "log-level",
 		"info", "log level: debug, info, warn, error (written to ~/.cloudcmder/cloudcmder.log)")
+	root.PersistentFlags().BoolVar(&singleView, "single-view", false,
+		"open the alternative single-screen 4-pane TUI layout (only meaningful for the default TUI action)")
 
 	root.Flags().BoolVar(&checkFlag, "check", false,
 		"check that required GCP APIs are enabled; prints missing ones and the gcloud command to enable them (read-only)")
@@ -595,12 +598,16 @@ func resolveRunsForExport(ctx context.Context, st *store.Store, runsCSV, scopesC
 
 // runTUI opens the store and hands it to the Bubble Tea app. The TUI never
 // imports providers/* — it reads only from the store, per architecture.md.
-func runTUI(cmd *cobra.Command, dbPath string) error {
+// singleView selects the alternative 4-pane single-screen layout.
+func runTUI(cmd *cobra.Command, dbPath string, singleView bool) error {
 	st, err := store.Open(dbPath)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = st.Close() }()
+	if singleView {
+		return tui.RunSingleView(cmd.Context(), st)
+	}
 	return tui.Run(cmd.Context(), st)
 }
 

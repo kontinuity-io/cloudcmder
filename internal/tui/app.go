@@ -65,8 +65,22 @@ func Run(ctx context.Context, st *store.Store) error {
 	return err
 }
 
-func newApp(ctx context.Context, st *store.Store) App {
-	app := App{
+// RunSingleView is the alternative entry point used when `--single-view` is
+// passed on the CLI. Identical to Run() but seeds the stack with the
+// SingleView 4-pane layout instead of the standard Scopes picker.
+func RunSingleView(ctx context.Context, st *store.Store) error {
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
+	app := newSingleViewApp(ctx, st)
+	prog := tea.NewProgram(app, tea.WithAltScreen(), tea.WithContext(ctx))
+	_, err := prog.Run()
+	return err
+}
+
+// newAppCore builds the App with all chrome (cmdbar, statusbar, help, etc.)
+// but no root screen on the stack. The two entry-point constructors below
+// add the appropriate root.
+func newAppCore(ctx context.Context, st *store.Store) App {
+	return App{
 		ctx:    ctx,
 		st:     st,
 		keymap: DefaultKeymap(),
@@ -81,7 +95,17 @@ func newApp(ctx context.Context, st *store.Store) App {
 		),
 		version: version.String(),
 	}
+}
+
+func newApp(ctx context.Context, st *store.Store) App {
+	app := newAppCore(ctx, st)
 	app.stack = []core.Screen{screens.NewScopes(ctx, st)}
+	return app
+}
+
+func newSingleViewApp(ctx context.Context, st *store.Store) App {
+	app := newAppCore(ctx, st)
+	app.stack = []core.Screen{screens.NewSingleView(ctx, st)}
 	return app
 }
 

@@ -91,6 +91,30 @@ type SwapLeftPaneMsg struct {
 // stack — replaces the Frame's run in place instead of pushing a new Frame.
 type SwitchRunMsg struct{ Run store.RunSummary }
 
+// ScopeSelectedMsg fires inside the single-view mode when the top-left scope
+// cursor lands on a new row. Carries the resolved RunSummary (resolved off
+// the UI goroutine via store.LatestRunForScope) so the downstream panes can
+// re-init synchronously without a second store hop. Run is nil if the scope
+// has no recorded runs yet.
+type ScopeSelectedMsg struct {
+	ScopeID string
+	Run     *store.RunSummary
+}
+
+// KindSelectedMsg fires inside the single-view mode when the top-right
+// Overview cursor lands on a new Kind. The active Run is held by SingleView,
+// so the message itself only needs the Kind.
+type KindSelectedMsg struct{ Kind inventory.Kind }
+
+// ResourceSelectedMsg fires inside the single-view mode when the bottom-left
+// ResourceList cursor lands on a new resource row. Carries the pre-decoded
+// kind-specific Detail so the bottom-right pane does not re-unmarshal the
+// JSON the store already handed us.
+type ResourceSelectedMsg struct {
+	Resource inventory.Resource
+	Detail   any
+}
+
 
 // SwapLeftPaneCmd is the conventional helper for alias-only swaps
 // (`:vm`, `:bucket`, …) where there's no specific resource to jump to.
@@ -108,4 +132,21 @@ func SwapAndJumpCmd(kind inventory.Kind, jumpID string) tea.Cmd {
 // SwitchRunCmd is the conventional helper.
 func SwitchRunCmd(run store.RunSummary) tea.Cmd {
 	return func() tea.Msg { return SwitchRunMsg{Run: run} }
+}
+
+// ScopeSelectedCmd is the conventional helper for the single-view scope
+// cascade.
+func ScopeSelectedCmd(scopeID string, run *store.RunSummary) tea.Cmd {
+	return func() tea.Msg { return ScopeSelectedMsg{ScopeID: scopeID, Run: run} }
+}
+
+// KindSelectedCmd is the conventional helper for the single-view kind cascade.
+func KindSelectedCmd(k inventory.Kind) tea.Cmd {
+	return func() tea.Msg { return KindSelectedMsg{Kind: k} }
+}
+
+// ResourceSelectedCmd is the conventional helper for the single-view
+// resource cascade.
+func ResourceSelectedCmd(r inventory.Resource, d any) tea.Cmd {
+	return func() tea.Msg { return ResourceSelectedMsg{Resource: r, Detail: d} }
 }

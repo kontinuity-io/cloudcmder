@@ -8,6 +8,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### Charm v2 migration + Catppuccin Mocha overhaul
+
+- Migrated `bubbletea`, `bubbles`, `lipgloss` to v2 under the
+  `charm.land/...` import paths. Dropped `muesli/termenv`.
+- Catppuccin Mocha palette applied across every screen via tokens in
+  `internal/tui/style/style.go`. Selected-row uses Surface0 (`#313244`)
+  so the cursor reads at a glance.
+- Status `●` bullets re-enabled in row tables (`bubbles/v2/table` is
+  ANSI-aware in row width math; v1 limitation removed).
+- Overview rewritten to a hand-rolled lipgloss health dashboard:
+  per-Kind count bars (`████░░░░`), 5-dot health indicators (`●●●○○`),
+  gradient counts, `[OK]` / `[CRIT: N]` status badges.
+- New `store.KindStats(ctx, runID)` query aggregates per-Kind health
+  buckets (healthy/warning/critical/unknown) in one `GROUP BY` pass.
+- Binary size delta +1.8% vs v1.0 release (DoD was ≤ +15%).
+
 #### `--single-view` 4-pane TUI mode
 
 - New CLI flag activates an alternative TUI layout that renders Scopes,

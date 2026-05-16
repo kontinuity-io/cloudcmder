@@ -34,6 +34,10 @@ copy: cloudcmder reads via Application Default Credentials.
 - 💾 **Portable SQLite store** — every scan is a row in
   `~/.cloudcmder/cloudcmder.db`; copy the file out for offline analysis
   or audit replay.
+- 🎨 **Catppuccin Mocha palette** — TUI uses the Mocha colour scheme
+  (blue accents, green/yellow/red health indicators, Surface0 selected-row
+  contrast). Terminal background is inherited; only foregrounds and
+  selected-row bg are overridden.
 
 ## Read-only by design
 
@@ -640,8 +644,8 @@ say `ELF 64-bit LSB executable, x86-64, ..., statically linked`.
 | M8 Concurrency + polish | ✅ |
 | v1.1 Fuzzy command palette | ✅ |
 | v1.2 TUI polish (lazydocker-rich) | ✅ |
-| M9 Release v1.0.0 | 🔲 |
-| M9.5 Charm v2 upgrade | 🔲 |
+| M9 Release v1.0.0 | ✅ |
+| M9.5 Charm v2 + Catppuccin Mocha | ✅ |
 | v1.3 Telemetry overlay | 🔲 |
 
 See `plan.md` for full milestone details and acceptance criteria.

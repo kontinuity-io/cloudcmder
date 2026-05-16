@@ -25,3 +25,14 @@ vendor/
 *.swp
 *.swo
 
+# Release artefacts (goreleaser --snapshot output at repo root)
+/checksums.txt
+/cloudcmder_*.tar.gz
+
+# Website distribution staging (serve via GitHub Releases, not git)
+/website/downloads/
+
+# Operator scan outputs that land in the workdir
+/inventory.xlsx
+/docs/sku_billing_Reports*.xlsx
+

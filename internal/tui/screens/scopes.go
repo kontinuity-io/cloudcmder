@@ -89,7 +89,7 @@ func NewScopes(ctx context.Context, st *store.Store) *Scopes {
 	}
 }
 
-// NewScopesModal returns a Scopes screen configured for "switch project
+// NewScopesModal returns a Scopes screen configured for "switch scope
 // without exiting the current Frame" — pushed by App on `:scopes`. Esc
 // pops the modal; Enter on a row emits SwitchRunMsg + PopScreenMsg so
 // the Frame underneath swaps to the picked scope.
@@ -181,7 +181,7 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 				return s, core.PushScreenCmd(NewRunHistory(s.ctx, s.st, row.ScopeID))
 			}
 		case key.Matches(m, s.keymap.Rescan):
-			return s, core.ToastCmd("use cloudcmder --scan <project-id> from CLI for now (M8 wires this in TUI)")
+			return s, core.ToastCmd("use cloudcmder --scan <scope-id> from CLI for now (M8 wires this in TUI)")
 		case key.Matches(m, s.keymap.Export):
 			if len(s.rows) == 0 {
 				return s, nil
@@ -213,7 +213,7 @@ func (s *Scopes) View() string {
 			Render("error loading scopes: " + s.loadErr.Error())
 	case len(s.rows) == 0:
 		return style.Dim.Render(
-			"\n  no scans yet — quit (q) and run:\n    cloudcmder --scan <project-id>\n")
+			"\n  no scans yet — quit (q) and run:\n    cloudcmder --scan <scope-id>\n")
 	default:
 		return style.BorderActive.Render(s.tbl.View())
 	}

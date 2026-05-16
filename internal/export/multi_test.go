@@ -80,9 +80,9 @@ func TestWriteMultiWorkbookShape(t *testing.T) {
 	if len(sumRows) != 5 {
 		t.Fatalf("Summary rows = %d, want 5", len(sumRows))
 	}
-	// Header should start with Project, RunUUID, Status, StartedAt.
+	// Header should start with Scope, RunUUID, Status, StartedAt.
 	hdr := sumRows[0]
-	for i, want := range []string{"Project", "RunUUID", "Status", "StartedAt"} {
+	for i, want := range []string{"Scope", "RunUUID", "Status", "StartedAt"} {
 		if i >= len(hdr) || hdr[i] != want {
 			t.Errorf("Summary header col %d = %q, want %q", i, func() string {
 				if i < len(hdr) {
@@ -106,9 +106,9 @@ func TestWriteMultiWorkbookShape(t *testing.T) {
 	if len(vmRows) != 7 {
 		t.Fatalf("VMs rows = %d, want 7 (header+6)", len(vmRows))
 	}
-	// First column of header should be "Project".
-	if vmRows[0][0] != "Project" {
-		t.Errorf("VMs header[0] = %q, want Project", vmRows[0][0])
+	// First column of header should be "Scope".
+	if vmRows[0][0] != "Scope" {
+		t.Errorf("VMs header[0] = %q, want Scope", vmRows[0][0])
 	}
 	// Data rows carry the scope ID in col 0.
 	scopesSeen := map[string]int{}

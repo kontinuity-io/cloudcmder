@@ -185,7 +185,7 @@ func (s *ScopeListPane) View() string {
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error: " + s.loadErr.Error())
 	case len(s.rows) == 0:
-		return style.Dim.Render("no scans yet — run\ncloudcmder --scan <project>")
+		return style.Dim.Render("no scans yet — run\ncloudcmder --scan <scope-id>")
 	default:
 		return s.tbl.View()
 	}

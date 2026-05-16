@@ -13,7 +13,7 @@ import (
 )
 
 // WriteMultiWorkbook writes a single .xlsx combining N runs. Per-kind sheets
-// gain a leading "Project" column (populated with run.ScopeID). The Summary
+// gain a leading "Scope" column (populated with run.ScopeID). The Summary
 // tab has one row per run with per-kind counts plus a TOTAL row. Failed runs
 // show "-" in kind count cells and their rows are skipped from kind sheets.
 func WriteMultiWorkbook(ctx context.Context, st *store.Store, runs []store.RunSummary, outPath string) error {
@@ -64,12 +64,12 @@ func WriteMultiWorkbook(ctx context.Context, st *store.Store, runs []store.RunSu
 	return nil
 }
 
-// writeMultiSummary writes the Summary sheet with one row per run (Project |
+// writeMultiSummary writes the Summary sheet with one row per run (Scope |
 // RunUUID | Status | StartedAt | <K1 count> | … | Total) and a final TOTAL
 // row. Failed runs show "-" in all count cells.
 func writeMultiSummary(f *excelize.File, runs []store.RunSummary, counts []map[inventory.Kind]int) error {
 	// Build header: fixed cols + one per kind + Total.
-	headers := []any{"Project", "RunUUID", "Status", "StartedAt"}
+	headers := []any{"Scope", "RunUUID", "Status", "StartedAt"}
 	for _, ks := range kindSheets {
 		headers = append(headers, string(ks.kind))
 	}
@@ -134,7 +134,7 @@ func writeMultiScopes(ctx context.Context, f *excelize.File, st *store.Store, ru
 	if _, err := f.NewSheet(sheetScopes); err != nil {
 		return err
 	}
-	headers := []any{"Project", "ScopeID", "DisplayName", "Parent", "Labels"}
+	headers := []any{"Scope", "ScopeID", "DisplayName", "Parent", "Labels"}
 	for j, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(j+1, 1)
 		if err := f.SetCellValue(sheetScopes, cell, h); err != nil {
@@ -178,7 +178,7 @@ func writeMultiKindSheet(ctx context.Context, f *excelize.File, st *store.Store,
 		return err
 	}
 
-	headers := append([]any{"Project"}, headersOf(cols)...)
+	headers := append([]any{"Scope"}, headersOf(cols)...)
 	if err := sw.SetRow("A1", headers); err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func writeMultiEdges(ctx context.Context, f *excelize.File, st *store.Store, run
 	if err != nil {
 		return err
 	}
-	if err := sw.SetRow("A1", []any{"Project", "FromRef", "RefKind", "ToRef"}); err != nil {
+	if err := sw.SetRow("A1", []any{"Scope", "FromRef", "RefKind", "ToRef"}); err != nil {
 		return err
 	}
 

@@ -8,6 +8,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### v1.5.6 — Scan UI scaling
+
+- Scan progress view now uses a fixed-height compact aggregate layout: progress bar + ok/fail/running/queued counts + active scope row + rolling tail of last 5 completions. Fixes top-row truncation and flicker on terminals with fewer rows than scopes (confirmed failure mode at 94 scopes on a 40-row terminal). Tail depth auto-scales with terminal height; layout is stable at any terminal width ≥ 50 columns.
+- `charm.land/bubbles/v2/progress` and `github.com/charmbracelet/harmonica` added as direct dependencies (were already in the module graph transitively).
+
+#### v1.5.5 — Scan progress UI
+
+- `--scan-all` / `--scan-scopes` now show a live Bubble Tea progress view on interactive terminals: spinner on the active scope, per-scope resource counter, elapsed time per scope, ✓/✗ status glyphs on completion. Non-TTY output (CI, piped, `> file`) is byte-identical to the previous plain-text `[i/N] scope … ok (run UUID)` format.
+- `golang.org/x/term` promoted to a direct dependency (was already a transitive dep via Bubble Tea).
+
 #### v1.5 — Cross-cloud decoupling (pre-AWS gate)
 
 - `--provider {gcp,aws}` PersistentFlag added (default: `gcp` — fully backward-compatible). `--provider aws` returns a clear "not yet implemented" error until v2 ships.

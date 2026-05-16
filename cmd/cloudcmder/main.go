@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"cloudcmder.com/internal/export"
 	"cloudcmder.com/internal/inventory"
@@ -295,7 +297,7 @@ func runScan(cmd *cobra.Command, dbPath, providerName, scopeID string, dumpNativ
 		return err
 	}
 
-	scanErr := drainAndWrite(ctx, st, runID, ch)
+	scanErr := drainAndWrite(ctx, st, runID, ch, nil)
 	switch {
 	case errors.Is(scanErr, context.Canceled):
 		// Leave status='running' so a future "resume" feature can pick it up.
@@ -309,7 +311,7 @@ func runScan(cmd *cobra.Command, dbPath, providerName, scopeID string, dumpNativ
 	}
 }
 
-func drainAndWrite(ctx context.Context, st *store.Store, runID int64, ch <-chan inventory.ResourceOrErr) error {
+func drainAndWrite(ctx context.Context, st *store.Store, runID int64, ch <-chan inventory.ResourceOrErr, onResource func(inventory.Kind)) error {
 	batch := make([]inventory.Resource, 0, scanBatchSize)
 	flush := func() error {
 		if len(batch) == 0 {
@@ -342,6 +344,9 @@ func drainAndWrite(ctx context.Context, st *store.Store, runID int64, ch <-chan 
 				}
 				return x.Err
 			}
+			if onResource != nil {
+				onResource(x.Resource.Kind)
+			}
 			batch = append(batch, x.Resource)
 			if len(batch) >= scanBatchSize {
 				if err := flush(); err != nil {
@@ -350,6 +355,45 @@ func drainAndWrite(ctx context.Context, st *store.Store, runID int64, ch <-chan 
 			}
 		}
 	}
+}
+
+// scanOneScope runs a single scope: OpenRun → ListResources → drainAndWrite → FinishRun.
+// On context cancellation the run row is left at status='running' (crash-safety contract).
+// The onResource callback (may be nil) fires once per resource as it is received.
+func scanOneScope(ctx context.Context, st *store.Store, p inventory.Provider, scope inventory.Scope, onResource func(inventory.Kind)) (string, error) {
+	runID, runUUID, err := st.OpenRun(ctx, p.Name(), scope.ID, scope.DisplayName, version.Version)
+	if err != nil {
+		return "", fmt.Errorf("open run: %w", err)
+	}
+	ch, err := p.ListResources(ctx, scope, nil)
+	if err != nil {
+		_ = st.FinishRun(context.Background(), runID, "failed", err.Error())
+		return "", fmt.Errorf("list resources: %w", err)
+	}
+	scanErr := drainAndWrite(ctx, st, runID, ch, onResource)
+	switch {
+	case errors.Is(scanErr, context.Canceled):
+		return "", scanErr
+	case scanErr != nil:
+		_ = st.FinishRun(context.Background(), runID, "failed", scanErr.Error())
+		return "", scanErr
+	default:
+		if err := st.FinishRun(ctx, runID, "ok", ""); err != nil {
+			return runUUID, fmt.Errorf("finish run: %w", err)
+		}
+		return runUUID, nil
+	}
+}
+
+// isTerminal reports whether w is an interactive terminal. Non-file writers
+// (bytes.Buffer, cobra test writers, pipes) all return false and route
+// runScanMany to the plain-text fprintf path.
+func isTerminal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	return term.IsTerminal(int(f.Fd()))
 }
 
 // runListRuns prints all runs as a fixed-width table.
@@ -450,9 +494,10 @@ func runExport(cmd *cobra.Command, dbPath, outPath, runUUID string) error {
 }
 
 // runScanMany scans each scope in scopesCSV (comma-separated) sequentially,
-// or every accessible scope when scopesCSV is empty. Each scope gets its
-// own run row. On per-scope error: logs a warning and continues unless
-// failFast is true. Returns non-zero when any scope failed.
+// or every accessible scope when scopesCSV is empty. Each scope gets its own
+// run row. On a TTY it renders a live Bubble Tea progress view; on a non-TTY
+// (CI, piped, redirected) it falls back to plain fprintf output so existing
+// scripts and log collectors are unaffected.
 func runScanMany(cmd *cobra.Command, dbPath, providerName, scopesCSV string, dumpNative, failFast bool) error {
 	ctx := cmd.Context()
 
@@ -490,54 +535,31 @@ func runScanMany(cmd *cobra.Command, dbPath, providerName, scopesCSV string, dum
 		d.SetDumpNative(dumpNative)
 	}
 
+	if isTerminal(cmd.OutOrStdout()) {
+		return runScanManyUI(ctx, st, p, scopes, failFast)
+	}
+
+	// Plain-text path: CI, piped, redirected — byte-identical to pre-v1.5.5.
 	w := cmd.OutOrStdout()
 	fmt.Fprintf(w, "scanning %d scope(s)…\n", len(scopes))
 
 	var failed []string
 	for i, scope := range scopes {
 		fmt.Fprintf(w, "[%d/%d] %s … ", i+1, len(scopes), scope.ID)
-
-		runID, runUUID, err := st.OpenRun(ctx, p.Name(), scope.ID, scope.DisplayName, version.Version)
-		if err != nil {
-			fmt.Fprintf(w, "open: %v\n", err)
-			slog.Warn("scan-many: open run failed", "scope", scope.ID, "error", err)
-			failed = append(failed, scope.ID)
-			if failFast {
-				return err
-			}
-			continue
-		}
-
-		ch, err := p.ListResources(ctx, scope, nil)
-		if err != nil {
-			_ = st.FinishRun(context.Background(), runID, "failed", err.Error())
-			fmt.Fprintf(w, "list: %v\n", err)
-			slog.Warn("scan-many: list resources failed", "scope", scope.ID, "error", err)
-			failed = append(failed, scope.ID)
-			if failFast {
-				return err
-			}
-			continue
-		}
-
-		scanErr := drainAndWrite(ctx, st, runID, ch)
+		runUUID, err := scanOneScope(ctx, st, p, scope, nil)
 		switch {
-		case errors.Is(scanErr, context.Canceled):
-			// Leave status='running' per crash-safety contract.
-			return scanErr
-		case scanErr != nil:
-			_ = st.FinishRun(context.Background(), runID, "failed", scanErr.Error())
-			fmt.Fprintf(w, "scan: %v\n", scanErr)
-			slog.Warn("scan-many: drain failed", "scope", scope.ID, "error", scanErr)
+		case errors.Is(err, context.Canceled):
+			return err
+		case err != nil:
+			fmt.Fprintf(w, "scan: %v\n", err)
+			slog.Warn("scan-many: scope failed", "scope", scope.ID, "error", err)
 			failed = append(failed, scope.ID)
 			if failFast {
-				return scanErr
+				return err
 			}
-			continue
+		default:
+			fmt.Fprintf(w, "ok (run %s)\n", runUUID)
 		}
-
-		_ = st.FinishRun(ctx, runID, "ok", "")
-		fmt.Fprintf(w, "ok (run %s)\n", runUUID)
 	}
 
 	if len(failed) > 0 {

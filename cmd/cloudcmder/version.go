@@ -57,8 +57,8 @@ func renderBanner(w io.Writer) {
 		lipgloss.NewStyle().Foreground(style.ColorDim).Render("Inventory · navigate · export your GCP estate"),
 		lipgloss.NewStyle().Foreground(style.ColorDim).Render("Docs:  ")+
 			lipgloss.NewStyle().Foreground(style.ColorSapphire).Render("https://cloudcmder.com/docs.html"),
-		lipgloss.NewStyle().Foreground(style.ColorDim).Render("Bugs:  ")+
-			lipgloss.NewStyle().Foreground(style.ColorSapphire).Render("https://github.com/kontinuity-io/cloudcmder/issues"),
+		lipgloss.NewStyle().Foreground(style.ColorDim).Render("Web:   ")+
+			lipgloss.NewStyle().Foreground(style.ColorSapphire).Render("https://cloudcmder.com"),
 	)
 
 	fmt.Fprintln(w, style.BorderBanner.Render(meta))

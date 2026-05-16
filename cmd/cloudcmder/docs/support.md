@@ -2,7 +2,7 @@
 
 ## Reporting bugs
 
-Open an issue at https://github.com/kontinuity-io/cloudcmder/issues
+Open an issue or send feedback via https://cloudcmder.com
 
 Please include:
 

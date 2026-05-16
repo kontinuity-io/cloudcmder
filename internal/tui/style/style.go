@@ -18,6 +18,14 @@ var (
 	ColorDim        = lipgloss.Color("#6c7086") // Overlay0
 	ColorAccent     = lipgloss.Color("#89b4fa") // Blue
 	ColorSelectedBg = lipgloss.Color("#313244") // Surface0
+
+	// Extended Mocha accents — used by the version banner and future polish.
+	ColorMauve    = lipgloss.Color("#cba6f7") // Mauve
+	ColorPink     = lipgloss.Color("#f5c2e7") // Pink
+	ColorPeach    = lipgloss.Color("#fab387") // Peach
+	ColorSapphire = lipgloss.Color("#74c7ec") // Sapphire
+	ColorTeal     = lipgloss.Color("#94e2d5") // Teal
+	ColorLavender = lipgloss.Color("#b4befe") // Lavender
 )
 
 var (
@@ -28,6 +36,12 @@ var (
 	BorderInactive = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorDim)
+
+	// BorderBanner is the rounded-border box used by version / about / support output.
+	BorderBanner = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(ColorMauve).
+			Padding(0, 2)
 
 	Dim    = lipgloss.NewStyle().Foreground(ColorDim)
 	Accent = lipgloss.NewStyle().Foreground(ColorAccent)

@@ -24,6 +24,7 @@ builds:
       - -s -w
       - -X cloudcmder.com/internal/version.Version={{.Version}}
       - -X cloudcmder.com/internal/version.Commit={{.ShortCommit}}
+      - -X cloudcmder.com/internal/version.Date={{.Date}}
 
 archives:
   - id: cloudcmder

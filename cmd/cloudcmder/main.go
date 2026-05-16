@@ -142,8 +142,20 @@ and the file can be exported for offline analysis.`,
 	root.Flags().BoolVar(&dumpNative, "dump-native", false,
 		"store raw GCP API payloads in native_json (off by default; roughly doubles DB size)")
 
-	root.Version = version.String()
-	root.SetVersionTemplate("{{.Version}}\n")
+	var versionFlag bool
+	root.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version banner and exit")
+
+	root.AddCommand(newVersionCmd(), newAboutCmd(), newSupportCmd())
+
+	// Promote --version flag to print the full banner (same output as `cloudcmder version`).
+	origRunE := root.RunE
+	root.RunE = func(cmd *cobra.Command, args []string) error {
+		if versionFlag {
+			renderBanner(cmd.OutOrStdout())
+			return nil
+		}
+		return origRunE(cmd, args)
+	}
 
 	return root
 }

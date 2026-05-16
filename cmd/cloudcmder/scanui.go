@@ -174,9 +174,9 @@ func (m scanModel) tailBudget() int {
 	if m.height == 0 {
 		return recentCap
 	}
-	// fixed chrome: banner(2) blank(1) header(1) blank(1) bar(1) blank(1) active(1) blank+heading(2) blank(1) footer(1) = 12
-	// plus 1 guard for terminal prompt = 13 reserved
-	avail := m.height - 13
+	// fixed chrome: banner(4) blank(1) header(1) blank(1) bar(1) blank(1) active(1) blank+heading(2) blank(1) footer(1) = 14
+	// plus 1 guard for terminal prompt = 15 reserved
+	avail := m.height - 15
 	if avail < 1 {
 		return 1
 	}

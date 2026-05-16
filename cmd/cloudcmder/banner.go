@@ -20,14 +20,7 @@ func providerBanner(providerID string) string {
 		}
 		var buf strings.Builder
 		_ = figurine.Write(&buf, text, "ANSI Regular.flf")
-		// ANSI Regular renders 6 rows; keep only the first 4 for a compact banner.
-		// Each line carries independent ANSI escape codes so line-splitting is safe.
-		output := strings.TrimRight(buf.String(), "\n")
-		lines := strings.Split(output, "\n")
-		if len(lines) > 4 {
-			lines = lines[:4]
-		}
-		return strings.Join(lines, "\n")
+		return strings.TrimRight(buf.String(), "\n")
 	default:
 		return text
 	}

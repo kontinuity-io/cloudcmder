@@ -40,5 +40,11 @@ func (k Keymap) FullHelp() [][]key.Binding {
 		{k.Help, k.Back, k.Quit},
 		{k.Filter, k.Cmd, k.History},
 		{k.Export, k.Rescan},
+		// Advisory — actual handling lives in screens/detail.go.
+		{
+			key.NewBinding(key.WithKeys("shift+left", "shift+right"), key.WithHelp("⇧←/⇧→", "prev/next tab")),
+			key.NewBinding(key.WithKeys("1", "2", "3", "4"), key.WithHelp("1–4", "jump to tab")),
+			key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "cycle tabs (alias)")),
+		},
 	}
 }

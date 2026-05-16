@@ -26,11 +26,14 @@ func newTestDetail() *Detail {
 			Region: "us-central1",
 			Status: "RUNNING",
 		},
-		detail:   &inventory.VMDetail{MachineType: "e2-standard-2", Zone: "us-central1-a"},
-		spin:     spinner.New(),
-		loaded:   true,
-		modeKey:  key.NewBinding(key.WithKeys("m")),
-		graphKey: key.NewBinding(key.WithKeys("g")),
+		detail:     &inventory.VMDetail{MachineType: "e2-standard-2", Zone: "us-central1-a"},
+		spin:       spinner.New(),
+		loaded:     true,
+		modeKey:    key.NewBinding(key.WithKeys("m")),
+		prevTabKey: key.NewBinding(key.WithKeys("shift+left")),
+		nextTabKey: key.NewBinding(key.WithKeys("shift+right")),
+		jumpTabKey: key.NewBinding(key.WithKeys("1", "2", "3", "4")),
+		graphKey:   key.NewBinding(key.WithKeys("g")),
 	}
 }
 
@@ -52,13 +55,14 @@ func TestDetailViewSwitchesByMode(t *testing.T) {
 
 	d.mode = DetailModeFull
 	full := d.View()
-	assert.Contains(t, full, "DETAIL")
-	assert.Contains(t, full, "CONNECTIONS")
+	assert.Contains(t, full, "Overview")    // active tab label
+	assert.Contains(t, full, "Connections") // inactive tab label in strip
 
 	d.mode = DetailModeConnectionsOnly
+	d.contentDirty = true
 	conn := d.View()
-	assert.Contains(t, conn, "CONNECTIONS")
-	assert.NotContains(t, conn, "DETAIL —")
+	assert.Contains(t, conn, "Connections") // active tab label
+	assert.NotContains(t, conn, "DETAIL —") // header removed
 
 	d.mode = DetailModeRawJSON
 	raw := d.View()
@@ -114,6 +118,44 @@ func TestDetailViewportScrolls(t *testing.T) {
 
 	_, _ = d.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
 	assert.Greater(t, d.vp.YOffset(), before, "pgdn must advance further")
+}
+
+// TestDetailShiftRightCyclesForward — shift+right advances mode the same as m.
+func TestDetailShiftRightCyclesForward(t *testing.T) {
+	d := newTestDetail()
+	require.Equal(t, DetailModeFull, d.mode)
+	updated, _ := d.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	assert.Equal(t, DetailModeConnectionsOnly, updated.(*Detail).mode)
+}
+
+// TestDetailShiftLeftCyclesBackward — shift+left decrements mode and wraps.
+func TestDetailShiftLeftCyclesBackward(t *testing.T) {
+	d := newTestDetail()
+	require.Equal(t, DetailModeFull, d.mode)
+	updated, _ := d.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
+	assert.Equal(t, DetailModeInlineGraph, updated.(*Detail).mode, "wraps from Full to InlineGraph")
+}
+
+// TestDetailNumberKeysJumpToTab — pressing 1–4 jumps directly to the
+// matching tab without cycling through intermediate modes.
+func TestDetailNumberKeysJumpToTab(t *testing.T) {
+	tests := []struct {
+		key  string
+		want DetailMode
+	}{
+		{"1", DetailModeFull},
+		{"2", DetailModeConnectionsOnly},
+		{"3", DetailModeRawJSON},
+		{"4", DetailModeInlineGraph},
+	}
+	for _, tt := range tests {
+		t.Run("key_"+tt.key, func(t *testing.T) {
+			d := newTestDetail()
+			d.mode = DetailModeRawJSON // start somewhere other than Full
+			updated, _ := d.Update(tea.KeyPressMsg{Code: rune(tt.key[0]), Text: tt.key})
+			assert.Equal(t, tt.want, updated.(*Detail).mode)
+		})
+	}
 }
 
 // TestDetailModeCycleResetsScroll — pressing `m` to cycle modes must reset

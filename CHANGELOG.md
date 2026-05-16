@@ -8,6 +8,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### v1.4 — Tabbed Detail chrome
+
+- Replaced the hidden `m` mode cycle in the right-pane Detail with a visible
+  4-tab strip: **Overview · Connections · JSON · Graph**. The active tab uses a
+  custom lipgloss border (`Bottom: " "`) so it visually "opens into" the content
+  below; a `TabGap` extends the bottom rule to the pane edge. Pattern ported from
+  `GustavoCaso/docker-dash`.
+- `shift+←` / `shift+→` cycle the active tab; `1`–`4` jump directly; `m` kept as
+  a muscle-memory alias. All three binding groups advertised in the global `?`
+  overlay via `internal/tui/keymap.go`.
+- Tab strip pinned above the scrollable viewport — content scrolls; strip stays
+  fixed. Viewport height reduced by 3 rows (strip height) via the existing
+  `WindowSizeMsg` path so pane budget arithmetic is unchanged.
+- `DETAIL —` and `CONNECTIONS` accent headers removed from the respective content
+  panes (tab labels now carry that context).
+- `style.ActiveTabBorder`, `style.TabBorder`, `style.TabActive`, `style.TabInactive`,
+  `style.TabGap` added to `internal/tui/style/style.go`. Reuses the Catppuccin
+  Mocha Mauve / Accent / Dim tokens already present.
+
+#### `cloudcmder version` colorful banner + CLI help commands
+
+- `cloudcmder version` prints a figurine figlet wordmark (ANSI Regular font with
+  per-glyph color gradient) followed by a lipgloss-bordered metadata box: version,
+  commit, build date, OS/arch, Go version, docs link. `--short` emits the terse
+  one-liner for scripting. `NO_COLOR=1` suppresses the figlet entirely.
+- `cloudcmder --version` routes through the same `renderBanner()` as the
+  subcommand; cobra's auto-version template removed.
+- `cloudcmder about` renders `cmd/cloudcmder/docs/about.md` (one-page tool
+  summary, resource kinds, SQLite contract, quickstart) via glamour.
+- `cloudcmder support` renders `cmd/cloudcmder/docs/support.md` (bug reporting,
+  preflight check, diagnostic flags, required IAM roles, all 34 kind aliases)
+  via glamour.
+- Both `about` and `support` honour `NO_COLOR` and terminal dark/light mode via
+  glamour's `WithAutoStyle()`.
+- New deps: `github.com/arsham/figurine v1.3.0`,
+  `github.com/charmbracelet/glamour v1.0.0`. Binary size +12% vs v1.0 (figurine
+  pulls `spf13/viper`; informal +8% bound accepted as one-time cost).
+
 #### Charm v2 migration + Catppuccin Mocha overhaul
 
 - Migrated `bubbletea`, `bubbles`, `lipgloss` to v2 under the

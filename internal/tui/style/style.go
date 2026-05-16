@@ -43,6 +43,38 @@ var (
 			BorderForeground(ColorMauve).
 			Padding(0, 2)
 
+	// Detail-pane tab borders. Active tab's bottom is a space so it visually
+	// "opens into" the content below. TabGap extends the bottom rule across
+	// the remaining width. Pattern ported from GustavoCaso/docker-dash.
+	ActiveTabBorder = lipgloss.Border{
+		Top: "─", Bottom: " ", Left: "│", Right: "│",
+		TopLeft: "╭", TopRight: "╮", BottomLeft: "┘", BottomRight: "└",
+	}
+	TabBorder = lipgloss.Border{
+		Top: "─", Bottom: "─", Left: "│", Right: "│",
+		TopLeft: "╭", TopRight: "╮", BottomLeft: "┴", BottomRight: "┴",
+	}
+
+	TabInactive = lipgloss.NewStyle().
+			Border(TabBorder).
+			BorderForeground(ColorDim).
+			Padding(0, 1)
+
+	TabActive = lipgloss.NewStyle().
+			Border(ActiveTabBorder).
+			BorderForeground(ColorAccent).
+			Foreground(ColorMauve).
+			Bold(true).
+			Padding(0, 1)
+
+	TabGap = lipgloss.NewStyle().
+			Border(TabBorder).
+			BorderForeground(ColorDim).
+			Padding(0, 1).
+			BorderTop(false).
+			BorderLeft(false).
+			BorderRight(false)
+
 	Dim    = lipgloss.NewStyle().Foreground(ColorDim)
 	Accent = lipgloss.NewStyle().Foreground(ColorAccent)
 	Toast  = lipgloss.NewStyle().Foreground(ColorWarning).Bold(true)

@@ -35,6 +35,15 @@ const (
 // cycleMode wrap without hardcoding the upper bound.
 const detailModeCount = 4
 
+// tabStripHeight is the fixed vertical cost of the tab strip (top border +
+// label row + bottom border). Used to shrink the viewport budget so the strip
+// stays pinned above scrollable content.
+const tabStripHeight = 3
+
+// detailTabs is the ordered display labels for the four DetailModes. Index
+// matches the DetailMode iota so detailTabs[d.mode] is always the active tab.
+var detailTabs = []string{"Overview", "Connections", "JSON", "Graph"}
+
 type edgesLoadedMsg struct {
 	edges []store.Edge
 	err   error
@@ -60,8 +69,11 @@ type Detail struct {
 	loadErr error
 	edges   []store.Edge
 
-	mode    DetailMode
-	modeKey key.Binding
+	mode        DetailMode
+	modeKey     key.Binding
+	prevTabKey  key.Binding
+	nextTabKey  key.Binding
+	jumpTabKey  key.Binding
 
 	graphKey key.Binding
 
@@ -83,9 +95,12 @@ func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res i
 	vp.KeyMap.Right = key.NewBinding(key.WithDisabled())
 	return &Detail{
 		ctx: ctx, st: st, run: run, res: res, detail: detail, spin: s,
-		modeKey:      key.NewBinding(key.WithKeys("m")),
-		graphKey:     key.NewBinding(key.WithKeys("g")),
-		vp:           vp,
+		modeKey:    key.NewBinding(key.WithKeys("m")),
+		prevTabKey: key.NewBinding(key.WithKeys("shift+left")),
+		nextTabKey: key.NewBinding(key.WithKeys("shift+right")),
+		jumpTabKey: key.NewBinding(key.WithKeys("1", "2", "3", "4")),
+		graphKey:   key.NewBinding(key.WithKeys("g")),
+		vp:         vp,
 		contentDirty: true,
 	}
 }
@@ -126,7 +141,7 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		d.width = m.Width
 		d.height = m.Height
 		d.vp.SetWidth(m.Width)
-		d.vp.SetHeight(m.Height)
+		d.vp.SetHeight(m.Height - tabStripHeight)
 		d.contentDirty = true
 		return d, nil
 	case spinner.TickMsg:
@@ -138,8 +153,20 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		return d, nil
 	case tea.KeyPressMsg:
 		switch {
-		case key.Matches(m, d.modeKey):
+		case key.Matches(m, d.prevTabKey):
+			d.mode = (d.mode + detailModeCount - 1) % detailModeCount
+			d.contentDirty = true
+			d.vp.GotoTop()
+			return d, nil
+		case key.Matches(m, d.nextTabKey), key.Matches(m, d.modeKey):
 			d.CycleMode()
+			return d, nil
+		case key.Matches(m, d.jumpTabKey):
+			if len(m.Text) == 1 && m.Text[0] >= '1' && m.Text[0] <= '4' {
+				d.mode = DetailMode(int(m.Text[0] - '1'))
+				d.contentDirty = true
+				d.vp.GotoTop()
+			}
 			return d, nil
 		case key.Matches(m, d.graphKey):
 			return d, core.PushScreenCmd(NewGraphView(d.res, d.edges))
@@ -157,10 +184,9 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 // belongs to.
 func (d *Detail) CurrentRun() *store.RunSummary { return &d.run }
 
-// View renders Detail content through the viewport so content that
-// overflows the pane height is scrollable. The viewport is fed by
-// renderContent() — recomputed lazily when content changes (mode cycle,
-// edges loaded, resize). Frame / SingleView draws the surrounding border.
+// View renders the tab strip (pinned) above a scrollable viewport. The
+// viewport is fed by renderBody() — recomputed lazily when content changes
+// (mode cycle, edges loaded, resize). Frame / SingleView draws the outer border.
 func (d *Detail) View() string {
 	if !d.loaded {
 		return d.spin.View() + style.Dim.Render(" loading detail…")
@@ -170,21 +196,40 @@ func (d *Detail) View() string {
 			Render("error loading edges: " + d.loadErr.Error())
 	}
 	if d.contentDirty || d.vp.Width() == 0 {
-		d.vp.SetContent(d.renderContent())
+		d.vp.SetContent(d.renderBody())
 		d.contentDirty = false
 	}
 	if d.vp.Width() == 0 || d.vp.Height() == 0 {
-		// Pre-size fallback: caller hasn't told us our budget yet, render
-		// the raw content (lipgloss will clip downstream). Once a
-		// WindowSizeMsg arrives the viewport takes over.
-		return d.renderContent()
+		// Pre-size fallback before WindowSizeMsg — render combined output
+		// without the viewport (lipgloss will clip downstream).
+		return lipgloss.JoinVertical(lipgloss.Left, d.tabStrip(), d.renderBody())
 	}
-	return d.vp.View()
+	return lipgloss.JoinVertical(lipgloss.Left, d.tabStrip(), d.vp.View())
 }
 
-// renderContent produces the current mode's full content string. Called by
+// tabStrip renders the four labelled tabs aligned at the bottom. The active
+// tab uses ActiveTabBorder (bottom = " ") so it visually opens into the
+// content below. A TabGap extends the bottom rule to d.width.
+func (d *Detail) tabStrip() string {
+	cells := make([]string, 0, len(detailTabs)+1)
+	for i, label := range detailTabs {
+		if DetailMode(i) == d.mode {
+			cells = append(cells, style.TabActive.Render(label))
+		} else {
+			cells = append(cells, style.TabInactive.Render(label))
+		}
+	}
+	row := lipgloss.JoinHorizontal(lipgloss.Bottom, cells...)
+	if gap := d.width - lipgloss.Width(row); gap > 0 {
+		cells = append(cells, style.TabGap.Render(strings.Repeat(" ", gap)))
+		row = lipgloss.JoinHorizontal(lipgloss.Bottom, cells...)
+	}
+	return row
+}
+
+// renderBody produces the scrollable content for the current mode. Called by
 // View() on demand; result is fed into the viewport.
-func (d *Detail) renderContent() string {
+func (d *Detail) renderBody() string {
 	switch d.mode {
 	case DetailModeConnectionsOnly:
 		return d.connectionsPane()
@@ -239,8 +284,7 @@ func (d *Detail) rawJSONPane() string {
 }
 
 func (d *Detail) detailPane() string {
-	header := style.Accent.Render("DETAIL — ") + style.Dim.Render(string(d.res.Kind))
-	rows := []string{header, style.Separator(40)}
+	rows := []string{style.Dim.Render(string(d.res.Kind)), style.Separator(40)}
 
 	switch d.res.Kind {
 	case inventory.KindVM:
@@ -536,8 +580,7 @@ func vmDetailRows(res inventory.Resource, detail any) []string {
 
 func (d *Detail) connectionsPane() string {
 	myRef := d.res.Ref.String()
-	header := style.Accent.Render("CONNECTIONS")
-	rows := []string{header, style.Separator(40)}
+	rows := []string{style.Separator(40)}
 
 	outgoing := groupBy(filterEdges(d.edges, myRef, true))
 	incoming := groupBy(filterEdges(d.edges, myRef, false))

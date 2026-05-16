@@ -206,7 +206,7 @@ flowchart LR
     ScopesModal -->|select| Frame
     Frame -->|H| RunHistory["<b>Run History</b><br/>switch run for<br/>this scope"]
     Frame -->|g full screen| Graph["<b>Graph view</b><br/>ASCII connection tree"]
-    Frame -->|m right pane| Frame
+    Frame -->|"⇧←/⇧→ or 1-4 tabs"| Frame
     Frame -->|e| Excel["~/.cloudcmder/exports/<br/>SCOPE-UUID.xlsx"]
     Frame -->|q or Ctrl+C| Exit([exit])
 
@@ -215,12 +215,12 @@ flowchart LR
 ```
 
 The right-pane Detail rebuilds as the cursor moves over the resource
-list. `m` cycles its mode: **Detail / ConnectionsOnly / RawJSON /
-InlineGraph**. The fuzzy palette (`:`) matches kind aliases AND every
-resource name in the run; picking a resource lands the cursor on it.
-Detail content scrolls via `↑/↓ · PgUp/PgDn · Ctrl-u/Ctrl-d` when it
-exceeds the pane height — useful for VMs with many disks/NICs or any
-resource viewed in a narrow column.
+list. A **4-tab strip** (Overview · Connections · JSON · Graph) is pinned
+at the top of the Detail pane — `Shift+←/→` cycles tabs, `1`–`4` jump
+directly, `m` is kept as an alias. Detail content scrolls via
+`↑/↓ · PgUp/PgDn · Ctrl-u/Ctrl-d` when it exceeds the pane height.
+The fuzzy palette (`:`) matches kind aliases AND every resource name in
+the run; picking a resource lands the cursor on it.
 
 ### Single-view mode (`--single-view`)
 
@@ -423,7 +423,9 @@ Assign these roles to the account you use with `gcloud auth application-default 
 | `g` / `G` | Jump cursor to top / bottom of the list (vim) |
 | `Ctrl+u` / `Ctrl+d` | Half-page scroll up / down (vim) |
 | `s` | Cycle sort: column 0 asc → desc → column 1 asc → desc → … → no sort. Active only when the `/` filter is empty. |
-| `m` | (in right pane) Cycle Detail mode: Full → Connections-only → Raw JSON → Inline Graph |
+| `Shift+←` / `Shift+→` | (Detail pane) Switch to previous / next Detail tab |
+| `1` / `2` / `3` / `4` | (Detail pane) Jump directly to Overview / Connections / JSON / Graph tab |
+| `m` | (Detail pane) Cycle to next tab — alias for `Shift+→`, kept for muscle memory |
 | `↑` / `↓` · `PgUp` / `PgDn` · `Ctrl+u` / `Ctrl+d` | (Detail pane focused) Scroll Detail content when it exceeds the pane height |
 | `g` | (in right pane via global) Open the full-screen ASCII connection-graph for the focused resource |
 | `H` | Run history modal — pick a different run for this scope |
@@ -434,6 +436,12 @@ Assign these roles to the account you use with `gcloud auth application-default 
 
 ```
 cloudcmder [flags]
+cloudcmder <command>
+
+Commands:
+  version   Print version banner with build metadata (--short for one-line output)
+  about     What cloudcmder is and how it works (rendered markdown)
+  support   Bug reporting, IAM roles, diagnostic flags, kind aliases (rendered markdown)
 
 Flags:
   --db string             SQLite assessment database path (default ~/.cloudcmder/cloudcmder.db)
@@ -453,7 +461,7 @@ Flags:
   --export-multi string   write a combined multi-project workbook to the given path
   --runs string           comma-separated run UUIDs to include in --export-multi
   --scopes string         comma-separated scope IDs for --export-multi (latest run per scope)
-  -v, --version           print version
+  -v, --version           print version banner and exit
 ```
 
 ### Preflight check
@@ -646,6 +654,8 @@ say `ELF 64-bit LSB executable, x86-64, ..., statically linked`.
 | v1.2 TUI polish (lazydocker-rich) | ✅ |
 | M9 Release v1.0.0 | ✅ |
 | M9.5 Charm v2 + Catppuccin Mocha | ✅ |
+| M9.6 Version banner + about/support commands | ✅ |
+| v1.4 Tabbed Detail chrome | ✅ |
 | v1.3 Telemetry overlay | 🔲 |
 
 See `plan.md` for full milestone details and acceptance criteria.

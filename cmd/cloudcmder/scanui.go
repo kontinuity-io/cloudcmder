@@ -65,6 +65,7 @@ type scanModel struct {
 	failed     []string
 	cancel     context.CancelFunc
 	providerID string
+	bannerStr  string // rendered once at init to avoid per-frame re-color flicker
 }
 
 func newScanModel(scopes []inventory.Scope, cancel context.CancelFunc, providerID string) scanModel {
@@ -83,6 +84,7 @@ func newScanModel(scopes []inventory.Scope, cancel context.CancelFunc, providerI
 		activeIdx:  -1,
 		cancel:     cancel,
 		providerID: providerID,
+		bannerStr:  providerBanner(providerID),
 	}
 }
 
@@ -202,9 +204,10 @@ func (m scanModel) View() tea.View {
 	okStyle  := lipgloss.NewStyle().Foreground(style.ColorHealthy)
 	errStyle := lipgloss.NewStyle().Foreground(style.ColorError)
 
-	// Provider brand banner
-	if banner := providerBanner(m.providerID); banner != "" {
-		sb.WriteString(banner + "\n\n")
+	// Provider brand banner (cached at init — figurine uses a random seed each
+	// call, so calling it here would re-color the wordmark every spinner tick)
+	if m.bannerStr != "" {
+		sb.WriteString(m.bannerStr + "\n\n")
 	}
 
 	// Count per-status

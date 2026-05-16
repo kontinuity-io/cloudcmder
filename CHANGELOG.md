@@ -10,8 +10,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 #### v1.5.7 — Provider brand banner
 
-- Scan progress view now opens with a 3-row per-provider brand wordmark + ☁ icon above the `scanning N scope(s)` header. GCP renders in Google's four-color palette (G blue, C red, P yellow); AWS renders in orange. Falls back to plain upper-cased provider ID for future providers before they ship branded colors.
-- `github.com/common-nighthawk/go-figure` promoted to a direct dependency (was already indirect via figurine).
+- Scan progress view now opens with a full 6-row ANSI Regular.flf block-pixel wordmark above the `scanning N scope(s)` header, rendered via `github.com/arsham/figurine` with its rainbow gradient — same visual style as the `cloudcmder version` banner. GCP and AWS both get the styled wordmark; future providers fall back to plain upper-cased text.
+- Banner is rendered once at model init and cached to prevent per-frame re-color flicker (figurine uses a random seed each call).
+- `tailBudget()` chrome reservation bumped to 17 to account for the 6-row banner + surrounding blank lines.
+- Brand color constants added to `internal/tui/style/style.go` (`GCPBlue`, `GCPRed`, `GCPYellow`, `GCPGreen`, `AWSOrange`) for future use by other UI components.
 
 #### v1.5.6 — Scan UI scaling
 

@@ -527,16 +527,7 @@ for the typical single-machine workflow:
 ./cloudcmder --export-multi ~/Desktop/full-inventory.xlsx
 ```
 
-Output while scanning:
-
-```
-scanning 5 project(s)…
-[1/5] proj-prod-1 … ok (run a1b2c3d4-…)
-[2/5] proj-prod-2 … ok (run e5f6g7h8-…)
-[3/5] proj-staging … ok (run i9j0k1l2-…)
-[4/5] proj-dev … ok (run m3n4o5p6-…)
-[5/5] proj-sandbox … ok (run q7r8s9t0-…)
-```
+On interactive terminals, `--scan-all` opens a live Bubble Tea progress view: a provider brand wordmark (ANSI block-pixel, rainbow gradient), a progress bar with ok / fail / running / queued counts, the active scope row with a spinner and live resource-kind hint, and a rolling tail of the last 5 completed scopes. The view scales with terminal height — no truncation at 90+ scopes. Non-TTY output (CI, piped, `> file`) falls back to the original plain-text `[i/N] scope … ok (run UUID)` format.
 
 #### Custom database path
 

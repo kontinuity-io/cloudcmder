@@ -5,10 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"cloudcmder.com/internal/store"
 	"cloudcmder.com/internal/tui/components"
@@ -52,15 +51,8 @@ type App struct {
 
 // Run launches the TUI with the given store. Blocks until the user quits.
 func Run(ctx context.Context, st *store.Store) error {
-	// Force lipgloss to render hex colours as 24-bit truecolor regardless of
-	// what termenv auto-detects from the terminal profile. Without this,
-	// terminals with custom 256-colour palettes can quantise our Tokyo-Night
-	// hex tokens to washed-out approximations of whatever the user's theme
-	// maps them to.
-	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
-
 	app := newApp(ctx, st)
-	prog := tea.NewProgram(app, tea.WithAltScreen(), tea.WithContext(ctx))
+	prog := tea.NewProgram(app, tea.WithContext(ctx))
 	_, err := prog.Run()
 	return err
 }
@@ -69,9 +61,8 @@ func Run(ctx context.Context, st *store.Store) error {
 // passed on the CLI. Identical to Run() but seeds the stack with the
 // SingleView 4-pane layout instead of the standard Scopes picker.
 func RunSingleView(ctx context.Context, st *store.Store) error {
-	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
 	app := newSingleViewApp(ctx, st)
-	prog := tea.NewProgram(app, tea.WithAltScreen(), tea.WithContext(ctx))
+	prog := tea.NewProgram(app, tea.WithContext(ctx))
 	_, err := prog.Run()
 	return err
 }
@@ -222,7 +213,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tea.Batch(cmd, sizeCmd)
 	}
 
-	if k, ok := msg.(tea.KeyMsg); ok {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
 		case key.Matches(k, a.keymap.Quit):
 			return a, tea.Quit
@@ -323,9 +314,9 @@ func (a *App) refreshCmdbarCorpus(run store.RunSummary) {
 // so the body's effective height stays stable for the duration of a
 // cmdbar session (height is updated via syncBodyShrink only on open/close
 // transitions).
-func (a App) View() string {
+func (a App) View() tea.View {
 	if len(a.stack) == 0 {
-		return ""
+		return tea.NewView("")
 	}
 	titles := make([]string, len(a.stack))
 	for i, s := range a.stack {
@@ -353,7 +344,9 @@ func (a App) View() string {
 		parts = append(parts, bar)
 	}
 	parts = append(parts, footer)
-	return strings.Join(parts, "\n")
+	v := tea.NewView(strings.Join(parts, "\n"))
+	v.AltScreen = true
+	return v
 }
 
 // statusbarLine returns the rendered status bar when the active screen is

@@ -3,10 +3,10 @@ package screens
 import (
 	"context"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"cloudcmder.com/internal/store"
 	"cloudcmder.com/internal/tui/style"
@@ -42,6 +42,7 @@ func NewScopeListPane(ctx context.Context, st *store.Store) *ScopeListPane {
 		}),
 		table.WithFocused(true),
 		table.WithHeight(10),
+		table.WithWidth(40),
 		table.WithStyles(selectedRowStyles()),
 	)
 	s := spinner.New()
@@ -68,6 +69,7 @@ func (s *ScopeListPane) SetInnerWidth(w int) {
 	if scopeW < 6 {
 		scopeW = 6
 	}
+	s.tbl.SetWidth(w)
 	s.tbl.SetColumns([]table.Column{
 		{Title: "SCOPE", Width: scopeW},
 		{Title: "STATUS", Width: 10},
@@ -134,6 +136,7 @@ func (s *ScopeListPane) Update(msg tea.Msg) (*ScopeListPane, tea.Cmd) {
 		return s, nil
 	case tea.WindowSizeMsg:
 		s.width, s.height = m.Width, m.Height
+		s.tbl.SetWidth(m.Width)
 		s.tbl.SetHeight(tableHeight(len(s.rows), m.Height))
 		return s, nil
 	case spinner.TickMsg:
@@ -144,7 +147,7 @@ func (s *ScopeListPane) Update(msg tea.Msg) (*ScopeListPane, tea.Cmd) {
 		}
 		return s, nil
 	}
-	if k, ok := msg.(tea.KeyMsg); ok {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
 		n := len(s.rows)
 		switch k.String() {
 		case "g", "home":

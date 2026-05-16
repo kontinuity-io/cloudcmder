@@ -3,10 +3,10 @@ package components
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/sahilm/fuzzy"
 
 	"cloudcmder.com/internal/inventory"
@@ -96,7 +96,7 @@ func NewCmdbar(prompt, dim lipgloss.Style) Cmdbar {
 	in := textinput.New()
 	in.Prompt = ":"
 	in.CharLimit = 64
-	in.Width = 48
+	in.SetWidth(48)
 	return Cmdbar{in: in, prompt: prompt, dim: dim}
 }
 
@@ -129,7 +129,7 @@ func (c Cmdbar) Update(msg tea.Msg) (Cmdbar, tea.Cmd) {
 	if !c.open {
 		return c, nil
 	}
-	if k, ok := msg.(tea.KeyMsg); ok {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
 		case key.Matches(k, key.NewBinding(key.WithKeys("esc"))):
 			c.Close()

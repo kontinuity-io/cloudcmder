@@ -3,25 +3,28 @@ package screens
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 
 	"cloudcmder.com/internal/inventory"
 )
 
-// keyEvent constructs a tea.KeyMsg from a string the same way bubbles/key
-// would interpret it. Single rune keys map to KeyRunes; named keys map to
-// their KeyType.
-func keyEvent(s string) tea.KeyMsg {
+// keyEvent constructs a tea.KeyPressMsg from a string the same way bubbles/key
+// would interpret it. Single rune keys carry Code+Text; ctrl combos carry Mod.
+func keyEvent(s string) tea.KeyPressMsg {
 	switch s {
 	case "ctrl+u":
-		return tea.KeyMsg{Type: tea.KeyCtrlU}
+		return tea.KeyPressMsg{Mod: tea.ModCtrl, Code: 'u'}
 	case "ctrl+d":
-		return tea.KeyMsg{Type: tea.KeyCtrlD}
+		return tea.KeyPressMsg{Mod: tea.ModCtrl, Code: 'd'}
 	}
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+	runes := []rune(s)
+	if len(runes) == 1 {
+		return tea.KeyPressMsg{Code: runes[0], Text: s}
+	}
+	return tea.KeyPressMsg{Text: s}
 }
 
 func newTestResourceList(visible []rowData) *ResourceList {

@@ -3,8 +3,8 @@ package components
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -15,23 +15,27 @@ func newTestCmdbar() Cmdbar {
 	return NewCmdbar(lipgloss.NewStyle(), lipgloss.NewStyle())
 }
 
-func keyMsg(s string) tea.KeyMsg {
+func keyMsg(s string) tea.KeyPressMsg {
 	switch s {
 	case "enter":
-		return tea.KeyMsg{Type: tea.KeyEnter}
+		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
-		return tea.KeyMsg{Type: tea.KeyEsc}
+		return tea.KeyPressMsg{Code: tea.KeyEsc}
 	case "up":
-		return tea.KeyMsg{Type: tea.KeyUp}
+		return tea.KeyPressMsg{Code: tea.KeyUp}
 	case "down":
-		return tea.KeyMsg{Type: tea.KeyDown}
+		return tea.KeyPressMsg{Code: tea.KeyDown}
 	}
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+	runes := []rune(s)
+	if len(runes) == 1 {
+		return tea.KeyPressMsg{Code: runes[0], Text: s}
+	}
+	return tea.KeyPressMsg{Text: s}
 }
 
 func typeInto(c Cmdbar, text string) Cmdbar {
 	for _, r := range text {
-		c, _ = c.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		c, _ = c.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
 	return c
 }
@@ -137,7 +141,7 @@ func TestCmdbarSelectedSurvivesRefiningKeystrokes(t *testing.T) {
 	// Refining keystroke ("p" → narrows to all -prod-*) should keep the
 	// cursor on the same resource if it's still in the new list, instead
 	// of yanking back to selected=0.
-	c, _ = c.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	c, _ = c.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
 	found := -1
 	for i, s := range c.suggestions {
 		if s.suggestionKey() == picked.suggestionKey() {

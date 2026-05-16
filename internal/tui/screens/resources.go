@@ -6,12 +6,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/sahilm/fuzzy"
 
 	"cloudcmder.com/internal/inventory"
@@ -99,12 +99,13 @@ func NewResourceList(ctx context.Context, st *store.Store, run store.RunSummary,
 		table.WithColumns(tCols),
 		table.WithFocused(true),
 		table.WithHeight(15),
+		table.WithWidth(80),
 		table.WithStyles(selectedRowStyles()),
 	)
 	in := textinput.New()
 	in.Prompt = "/"
 	in.CharLimit = 64
-	in.Width = 32
+	in.SetWidth(32)
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -140,6 +141,7 @@ func (s *ResourceList) SetInnerWidth(w int) {
 	for i, c := range cols {
 		tCols[i] = table.Column{Title: c.Header, Width: c.Width}
 	}
+	s.tbl.SetWidth(w)
 	s.tbl.SetColumns(tCols)
 	s.tbl.SetRows(s.toTableRows(s.visible))
 }
@@ -223,6 +225,7 @@ func (s *ResourceList) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 		return s, nil
 	case tea.WindowSizeMsg:
 		s.height = m.Height
+		s.tbl.SetWidth(m.Width)
 		s.tbl.SetHeight(tableHeight(len(s.visible), m.Height))
 		return s, nil
 	case spinner.TickMsg:
@@ -238,7 +241,7 @@ func (s *ResourceList) Update(msg tea.Msg) (LeftPane, tea.Cmd) {
 		return s.updateFilter(msg)
 	}
 
-	if k, ok := msg.(tea.KeyMsg); ok {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
 		case key.Matches(k, s.keymap.Filter):
 			s.filterOn = true
@@ -307,7 +310,7 @@ func clampCursor(c, n int) int {
 }
 
 func (s *ResourceList) updateFilter(msg tea.Msg) (LeftPane, tea.Cmd) {
-	if k, ok := msg.(tea.KeyMsg); ok {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
 		case "esc":
 			s.filterOn = false

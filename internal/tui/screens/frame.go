@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"cloudcmder.com/internal/export"
 	"cloudcmder.com/internal/store"
@@ -166,7 +166,7 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	// Frame eat Tab/Enter/Esc — let the pane consume them.
 	absorbing := f.left.AbsorbingKeys()
 
-	if k, ok := msg.(tea.KeyMsg); ok && !absorbing {
+	if k, ok := msg.(tea.KeyPressMsg); ok && !absorbing {
 		switch {
 		case key.Matches(k, f.tabKey):
 			f.toggleFocus()
@@ -213,7 +213,7 @@ func (f *Frame) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	//   - everything else (load events, etc.) → both panes so async load
 	//     results from Init() reach their owner regardless of focus.
 	var cmds []tea.Cmd
-	if _, isKey := msg.(tea.KeyMsg); isKey {
+	if _, isKey := msg.(tea.KeyPressMsg); isKey {
 		switch f.focus {
 		case focusLeft:
 			var c tea.Cmd

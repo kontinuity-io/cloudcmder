@@ -3,7 +3,7 @@ package screens
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/table"
+	"charm.land/bubbles/v2/table"
 	"github.com/stretchr/testify/assert"
 
 	"cloudcmder.com/internal/inventory"

@@ -4,24 +4,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 	"github.com/stretchr/testify/assert"
 
 	"cloudcmder.com/internal/inventory"
 )
 
-// forceTrueColor enables ANSI emission inside `go test` so the
-// highlight wrapper produces inspectable codes.
-func forceTrueColor(t *testing.T) {
-	t.Helper()
-	prev := lipgloss.DefaultRenderer().ColorProfile()
-	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.DefaultRenderer().SetColorProfile(prev) })
-}
-
 func TestHighlightNameWrapsMatchedRunes(t *testing.T) {
-	forceTrueColor(t)
+	// lipgloss v2 always emits ANSI — no profile forcing needed.
 	out := highlightName("vm-prod-1", []int{3, 4, 5, 6})
 	// "prod" should be wrapped in ANSI codes; "vm-" and "-1" plain.
 	assert.Contains(t, out, "vm-")
@@ -31,7 +20,6 @@ func TestHighlightNameWrapsMatchedRunes(t *testing.T) {
 }
 
 func TestHighlightNameSkipsIndexesPastNameRange(t *testing.T) {
-	forceTrueColor(t)
 	// matchedIndexes 9, 10 fall in "|region" portion of the corpus —
 	// should NOT highlight anything inside the name.
 	out := highlightName("vm-prod-1", []int{9, 10})
@@ -61,7 +49,6 @@ func TestMatchRowsCarriesMatchedIndexes(t *testing.T) {
 }
 
 func TestToTableRowsAppliesHighlightOnNameColumn(t *testing.T) {
-	forceTrueColor(t)
 	rl := &ResourceList{
 		kind: inventory.KindBucket,
 		cols: []ColumnDef{

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,7 +29,7 @@ func TestNewScopesModalIsModalFlagged(t *testing.T) {
 
 func TestScopesModalEscPopsScreen(t *testing.T) {
 	s := NewScopesModal(context.Background(), openMemStoreT(t))
-	updated, cmd := s.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	updated, cmd := s.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd)
 	got := cmd()
 	_, ok := got.(core.PopScreenMsg)
@@ -40,7 +40,7 @@ func TestScopesModalEscPopsScreen(t *testing.T) {
 func TestScopesNonModalIgnoresEsc(t *testing.T) {
 	// At the root, Scopes leaves Esc alone so future bindings can claim it.
 	s := NewScopes(context.Background(), openMemStoreT(t))
-	_, cmd := s.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := s.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	// May or may not produce a cmd via the table, but it must NOT be a
 	// PopScreenMsg — that would crash the program at the root screen.
 	if cmd != nil {

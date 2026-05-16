@@ -3,8 +3,8 @@ package screens
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
@@ -32,7 +32,7 @@ func (g *GraphView) Init() tea.Cmd { return nil }
 
 // Update closes the modal on Esc and ignores everything else.
 func (g *GraphView) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
-	if k, ok := msg.(tea.KeyMsg); ok && k.String() == "esc" {
+	if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == "esc" {
 		return g, core.PopScreenCmd()
 	}
 	return g, nil

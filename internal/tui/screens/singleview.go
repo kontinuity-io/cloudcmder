@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
@@ -117,7 +117,7 @@ func (sv *SingleView) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	// Key dispatch — Tab/Shift+Tab/Esc are SingleView-level when the focused
 	// pane is not absorbing keys. Anything else routes to the focused pane,
 	// then we poll for cursor moves.
-	if k, ok := msg.(tea.KeyMsg); ok {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if !sv.activePaneAbsorbing() {
 			switch {
 			case key.Matches(k, sv.tabKey):

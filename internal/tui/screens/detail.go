@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"
@@ -75,7 +75,7 @@ type Detail struct {
 func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res inventory.Resource, detail any) *Detail {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	vp := viewport.New(0, 0)
+	vp := viewport.New()
 	// Horizontal scroll is meaningless for kvLine output (each line is a
 	// short key:value pair); strip the bindings so Left/Right/h/l don't
 	// behave inconsistently when the user lands on Detail.
@@ -125,8 +125,8 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		d.width = m.Width
 		d.height = m.Height
-		d.vp.Width = m.Width
-		d.vp.Height = m.Height
+		d.vp.SetWidth(m.Width)
+		d.vp.SetHeight(m.Height)
 		d.contentDirty = true
 		return d, nil
 	case spinner.TickMsg:
@@ -136,7 +136,7 @@ func (d *Detail) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			return d, cmd
 		}
 		return d, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(m, d.modeKey):
 			d.CycleMode()
@@ -169,11 +169,11 @@ func (d *Detail) View() string {
 		return lipgloss.NewStyle().Foreground(style.ColorError).
 			Render("error loading edges: " + d.loadErr.Error())
 	}
-	if d.contentDirty || d.vp.Width == 0 {
+	if d.contentDirty || d.vp.Width() == 0 {
 		d.vp.SetContent(d.renderContent())
 		d.contentDirty = false
 	}
-	if d.vp.Width == 0 || d.vp.Height == 0 {
+	if d.vp.Width() == 0 || d.vp.Height() == 0 {
 		// Pre-size fallback: caller hasn't told us our budget yet, render
 		// the raw content (lipgloss will clip downstream). Once a
 		// WindowSizeMsg arrives the viewport takes over.

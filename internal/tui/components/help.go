@@ -1,8 +1,8 @@
 package components
 
 import (
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 )
 
 // Help wraps bubbles/help.Model so screens only need to pass a key.Map.
@@ -26,7 +26,7 @@ func (h *Help) View(km help.KeyMap) string {
 }
 
 // Width informs bubbles/help of the available render width so it can wrap.
-func (h *Help) Width(w int) { h.m.Width = w }
+func (h *Help) Width(w int) { h.m.SetWidth(w) }
 
 // Compile-time check that DefaultKeymap (in package tui) satisfies help.KeyMap.
 // We avoid the import cycle by accepting a help.KeyMap on View().

@@ -6,7 +6,7 @@ package core
 import (
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/store"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,16 +28,16 @@ func TestQQuitsOnlyWhenCmdbarClosed(t *testing.T) {
 	app := newApp(context.Background(), openMemStore(t))
 
 	// Cmdbar closed → q quits.
-	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, cmd := app.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	require.NotNil(t, cmd)
 	assert.Equal(t, tea.Quit(), cmd(), "q should quit when cmdbar is closed")
 
 	// Cmdbar open → q must NOT quit; it lands on the textinput instead.
-	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
+	updated, _ := app.Update(tea.KeyPressMsg{Code: ':', Text: ":"})
 	app = updated.(App)
 	require.True(t, app.cmdbar.IsOpen(), "':' should have opened the cmdbar")
 
-	updated, cmd = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	updated, cmd = app.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	app = updated.(App)
 	if cmd != nil {
 		got := cmd()
@@ -49,7 +49,7 @@ func TestQQuitsOnlyWhenCmdbarClosed(t *testing.T) {
 
 func TestAppCtrlCQuits(t *testing.T) {
 	app := newApp(context.Background(), openMemStore(t))
-	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	_, cmd := app.Update(tea.KeyPressMsg{Mod: tea.ModCtrl, Code: 'c'})
 	require.NotNil(t, cmd)
 	assert.Equal(t, tea.Quit(), cmd())
 }
@@ -69,7 +69,7 @@ func TestCmdbarBodyShrinkOnlyFiresOnTransitions(t *testing.T) {
 	require.Equal(t, 0, initialShrink, "cmdbar starts closed")
 
 	// Open via `:` — should bump lastBodyShrink to the constant.
-	model, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
+	model, _ = app.Update(tea.KeyPressMsg{Code: ':', Text: ":"})
 	app = model.(App)
 	assert.True(t, app.cmdbar.IsOpen())
 	openedShrink := app.lastBodyShrink
@@ -77,14 +77,14 @@ func TestCmdbarBodyShrinkOnlyFiresOnTransitions(t *testing.T) {
 
 	// Type three characters into cmdbar — shrink must NOT change.
 	for _, r := range []rune{'v', 'm', 's'} {
-		model, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		model, _ = app.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
 		app = model.(App)
 		assert.Equal(t, openedShrink, app.lastBodyShrink,
 			"shrink must stay constant while typing (no per-keystroke cascade)")
 	}
 
 	// Close via Esc — shrink should drop back to 0.
-	model, _ = app.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model, _ = app.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	app = model.(App)
 	assert.False(t, app.cmdbar.IsOpen())
 	assert.Equal(t, 0, app.lastBodyShrink, "close should reset shrink")

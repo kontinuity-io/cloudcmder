@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/table"
 
 	"cloudcmder.com/internal/inventory"
 	"cloudcmder.com/internal/tui/style"
@@ -86,10 +85,9 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 }
 
 // fitColumnWidths shrinks the per-column Width values so the rendered
-// table fits inside availableWidth. bubbles/table v1 adds 2 padding chars
-// per cell, so the effective budget is availableWidth − 2*len(cols).
-// Natural widths that already fit are left alone; narrow terminals shrink
-// each column proportionally with a 4-rune floor.
+// table fits inside availableWidth. Natural widths that already fit are
+// left alone; narrow terminals shrink each column proportionally with a
+// 4-rune floor.
 func fitColumnWidths(cols []ColumnDef, availableWidth int) {
 	if len(cols) == 0 {
 		return
@@ -668,7 +666,7 @@ func selectedRowStyles() table.Styles {
 		BorderForeground(style.ColorDim)
 	s.Selected = s.Selected.
 		Foreground(style.ColorAccent).
-		Background(lipgloss.Color("#1f2335")).
+		Background(style.ColorSelectedBg).
 		Bold(true)
 	return s
 }
@@ -677,17 +675,8 @@ func selectedRowStyles() table.Styles {
 
 func nameOf(r inventory.Resource, _ any) string { return r.Name }
 
-// statusOf returns the plain status text. The colour bullet from
-// style.StatusBullet is REMOVED from cells: bubbles/table v1's row width
-// calculation gets confused by ANSI escape sequences inside cell strings,
-// causing rows to render wider than the column budget — which made the
-// right-pane Detail visually overlap the left-pane resource list on any
-// kind that had a STATUS column with the bullet (VM, Disk, Database,
-// Cluster, Function). Bullets still render in Detail panes where the
-// content path doesn't go through bubbles/table; full bullet-in-table
-// support waits for Charm v2 or a custom ANSI-aware table component.
 func statusOf(r inventory.Resource, _ any) string {
-	return r.Status
+	return style.StatusBullet(r.Status) + " " + r.Status
 }
 
 func boolStr(b bool) string {

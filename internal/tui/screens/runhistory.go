@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"cloudcmder.com/internal/store"
 	"cloudcmder.com/internal/tui/core"
@@ -46,6 +46,8 @@ func NewRunHistory(ctx context.Context, st *store.Store, scopeID string) *RunHis
 		}),
 		table.WithFocused(true),
 		table.WithHeight(15),
+		table.WithWidth(80),
+		table.WithStyles(selectedRowStyles()),
 	)
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -90,6 +92,7 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		return r, nil
 	case tea.WindowSizeMsg:
 		r.height = m.Height
+		r.tbl.SetWidth(m.Width)
 		r.tbl.SetHeight(tableHeight(len(r.rows), m.Height))
 		return r, nil
 	case spinner.TickMsg:
@@ -99,7 +102,7 @@ func (r *RunHistory) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			return r, cmd
 		}
 		return r, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.String() == "esc" {
 			// Modal screens own their own Esc → pop themselves; the
 			// App-level handler no longer pops for us as of M6.5.

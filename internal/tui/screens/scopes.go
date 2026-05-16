@@ -7,11 +7,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"cloudcmder.com/internal/store"
@@ -73,6 +73,8 @@ func NewScopes(ctx context.Context, st *store.Store) *Scopes {
 		}),
 		table.WithFocused(true),
 		table.WithHeight(15),
+		table.WithWidth(80),
+		table.WithStyles(selectedRowStyles()),
 	)
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -139,6 +141,7 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		return s, nil
 	case tea.WindowSizeMsg:
 		s.width, s.height = m.Width, m.Height
+		s.tbl.SetWidth(m.Width)
 		s.tbl.SetHeight(tableHeight(len(s.rows), m.Height))
 		return s, nil
 	case spinner.TickMsg:
@@ -148,7 +151,7 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 			return s, cmd
 		}
 		return s, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(m, s.keymap.Open):
 			if len(s.rows) == 0 {
@@ -191,7 +194,7 @@ func (s *Scopes) Update(msg tea.Msg) (core.Screen, tea.Cmd) {
 		// Esc in modal mode pops the modal without switching scope. Only
 		// honoured for modal mode — at the root, Esc has no defined action
 		// and we leave it alone so future bindings aren't blocked.
-		if s.modal && m.Type == tea.KeyEsc {
+		if s.modal && m.Code == tea.KeyEsc {
 			return s, core.PopScreenCmd()
 		}
 	}

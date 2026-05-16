@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
+
+	"cloudcmder.com/internal/tui/style"
 )
 
 func newTestStatusbar() Statusbar {
@@ -50,9 +52,9 @@ func TestRelativeTimeBuckets(t *testing.T) {
 }
 
 func TestStatusbarStatusStyling(t *testing.T) {
-	healthy := lipgloss.NewStyle().Foreground(lipgloss.Color("#00d4aa"))
+	healthy := lipgloss.NewStyle().Foreground(style.ColorHealthy)
 	dim := lipgloss.NewStyle()
-	err := lipgloss.NewStyle().Foreground(lipgloss.Color("#e74c3c"))
+	err := lipgloss.NewStyle().Foreground(style.ColorError)
 	s := NewStatusbar(dim, dim, healthy, dim, err)
 
 	// Render "ok" twice — once via the styler, once direct — and confirm

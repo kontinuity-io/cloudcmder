@@ -266,6 +266,83 @@ func (s *Store) CountResourcesByKind(ctx context.Context, runID int64) (map[inve
 	return out, rows.Err()
 }
 
+// KindStats is per-Kind health breakdown for one run.
+type KindStats struct {
+	Kind     inventory.Kind
+	Total    int
+	Healthy  int
+	Warning  int
+	Critical int
+	Unknown  int
+}
+
+// KindStats returns per-Kind health breakdown for the run.
+// Statuses are bucketed: healthy=OK/ACTIVE/RUNNING/READY,
+// warning=PARTIAL/PENDING/PROVISIONING/DEGRADED,
+// critical=FAILED/ERROR/STOPPED/TERMINATED/PERMISSION_DENIED, unknown=rest.
+// Results are ordered descending by Total, then ascending by Kind name.
+func (s *Store) KindStats(ctx context.Context, runID int64) ([]KindStats, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT kind, status, COUNT(*) FROM resources WHERE run_id = ? GROUP BY kind, status`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("store: kind stats: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	acc := make(map[inventory.Kind]*KindStats)
+	for rows.Next() {
+		var kind, status string
+		var count int
+		if err := rows.Scan(&kind, &status, &count); err != nil {
+			return nil, err
+		}
+		k := inventory.Kind(kind)
+		if acc[k] == nil {
+			acc[k] = &KindStats{Kind: k}
+		}
+		ks := acc[k]
+		ks.Total += count
+		switch kindStatsBucket(status) {
+		case 0:
+			ks.Healthy += count
+		case 1:
+			ks.Warning += count
+		case 2:
+			ks.Critical += count
+		default:
+			ks.Unknown += count
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]KindStats, 0, len(acc))
+	for _, ks := range acc {
+		out = append(out, *ks)
+	}
+	// Sort descending by Total, then ascending by Kind name.
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && (out[j].Total > out[j-1].Total ||
+			(out[j].Total == out[j-1].Total && string(out[j].Kind) < string(out[j-1].Kind))); j-- {
+			out[j], out[j-1] = out[j-1], out[j]
+		}
+	}
+	return out, nil
+}
+
+func kindStatsBucket(status string) int {
+	switch strings.ToUpper(status) {
+	case "OK", "ACTIVE", "RUNNING", "READY":
+		return 0
+	case "PARTIAL", "PENDING", "PROVISIONING", "DEGRADED":
+		return 1
+	case "FAILED", "ERROR", "STOPPED", "TERMINATED", "PERMISSION_DENIED":
+		return 2
+	default:
+		return 3
+	}
+}
+
 // rowScanner abstracts *sql.Row and *sql.Rows for scanRunSummary.
 type rowScanner interface {
 	Scan(dest ...any) error

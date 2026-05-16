@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -74,7 +74,7 @@ func TestDetailViewSwitchesByMode(t *testing.T) {
 
 func TestDetailMKeyCyclesModeViaUpdate(t *testing.T) {
 	d := newTestDetail()
-	updated, _ := d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	updated, _ := d.Update(tea.KeyPressMsg{Code: 'm', Text: "m"})
 	d2 := updated.(*Detail)
 	assert.Equal(t, DetailModeConnectionsOnly, d2.mode)
 }
@@ -106,14 +106,14 @@ func TestDetailViewportScrolls(t *testing.T) {
 	// go. Direct SetContent keeps the test independent of which kind of
 	// resource we built.
 	d.vp.SetContent(strings.Repeat("filler line\n", 40))
-	require.Equal(t, 0, d.vp.YOffset, "starts at top")
+	require.Equal(t, 0, d.vp.YOffset(), "starts at top")
 
-	_, _ = d.Update(tea.KeyMsg{Type: tea.KeyDown})
-	assert.Greater(t, d.vp.YOffset, 0, "down arrow must advance YOffset")
-	before := d.vp.YOffset
+	_, _ = d.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	assert.Greater(t, d.vp.YOffset(), 0, "down arrow must advance YOffset")
+	before := d.vp.YOffset()
 
-	_, _ = d.Update(tea.KeyMsg{Type: tea.KeyPgDown})
-	assert.Greater(t, d.vp.YOffset, before, "pgdn must advance further")
+	_, _ = d.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
+	assert.Greater(t, d.vp.YOffset(), before, "pgdn must advance further")
 }
 
 // TestDetailModeCycleResetsScroll — pressing `m` to cycle modes must reset
@@ -137,8 +137,8 @@ func TestDetailModeCycleResetsScroll(t *testing.T) {
 
 	d.vp.SetContent(strings.Repeat("x\n", 40))
 	d.vp.SetYOffset(20)
-	require.Equal(t, 20, d.vp.YOffset)
+	require.Equal(t, 20, d.vp.YOffset())
 
-	_, _ = d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
-	assert.Equal(t, 0, d.vp.YOffset, "mode cycle must scroll back to top")
+	_, _ = d.Update(tea.KeyPressMsg{Code: 'm', Text: "m"})
+	assert.Equal(t, 0, d.vp.YOffset(), "mode cycle must scroll back to top")
 }

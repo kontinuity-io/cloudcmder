@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -33,7 +33,7 @@ func TestFrameEscBehaviorByContext(t *testing.T) {
 				f.leftHistory = append(f.leftHistory, f.left)
 			}
 
-			_, cmd := f.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			_, cmd := f.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 			if tc.wantPopMsg {
 				require.NotNil(t, cmd, "root-pane Esc must emit a PopScreenCmd")

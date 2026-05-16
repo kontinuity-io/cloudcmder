@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -134,21 +134,21 @@ func TestSingleViewFocusCycle(t *testing.T) {
 
 	cases := []struct {
 		start  SinglePaneFocus
-		key    tea.KeyType
+		key    tea.KeyPressMsg
 		expect SinglePaneFocus
 	}{
-		{focusSVScopes, tea.KeyTab, focusSVOverview},
-		{focusSVOverview, tea.KeyTab, focusSVResources},
-		{focusSVResources, tea.KeyTab, focusSVDetail},
-		{focusSVDetail, tea.KeyTab, focusSVScopes},
-		{focusSVScopes, tea.KeyShiftTab, focusSVDetail},
-		{focusSVDetail, tea.KeyShiftTab, focusSVResources},
-		{focusSVResources, tea.KeyShiftTab, focusSVOverview},
-		{focusSVOverview, tea.KeyShiftTab, focusSVScopes},
+		{focusSVScopes, tea.KeyPressMsg{Code: tea.KeyTab}, focusSVOverview},
+		{focusSVOverview, tea.KeyPressMsg{Code: tea.KeyTab}, focusSVResources},
+		{focusSVResources, tea.KeyPressMsg{Code: tea.KeyTab}, focusSVDetail},
+		{focusSVDetail, tea.KeyPressMsg{Code: tea.KeyTab}, focusSVScopes},
+		{focusSVScopes, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}, focusSVDetail},
+		{focusSVDetail, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}, focusSVResources},
+		{focusSVResources, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}, focusSVOverview},
+		{focusSVOverview, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}, focusSVScopes},
 	}
 	for _, tc := range cases {
 		sv.focus = tc.start
-		updated, _ := sv.Update(tea.KeyMsg{Type: tc.key})
+		updated, _ := sv.Update(tc.key)
 		got := updated.(*SingleView)
 		assert.Equal(t, tc.expect, got.focus,
 			"start=%v key=%v want=%v", tc.start, tc.key, tc.expect)
@@ -162,7 +162,7 @@ func TestSingleViewFocusCycleSkipsNilPanes(t *testing.T) {
 	sv := NewSingleView(context.Background(), st)
 	// Only the scopes pane exists — overview/resources/detail are nil.
 	sv.focus = focusSVScopes
-	updated, _ := sv.Update(tea.KeyMsg{Type: tea.KeyTab})
+	updated, _ := sv.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	got := updated.(*SingleView)
 	// All downstream panes are nil, so cycling forward returns to scopes.
 	assert.Equal(t, focusSVScopes, got.focus)
@@ -173,7 +173,7 @@ func TestSingleViewFocusCycleSkipsNilPanes(t *testing.T) {
 func TestSingleViewEscQuits(t *testing.T) {
 	st := openMemStoreT(t)
 	sv := NewSingleView(context.Background(), st)
-	_, cmd := sv.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := sv.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	require.NotNil(t, cmd)
 	_, ok := cmd().(core.PopScreenMsg)
 	assert.True(t, ok, "Esc must emit PopScreenMsg")
@@ -346,7 +346,7 @@ func TestSingleViewCascadeEndToEnd(t *testing.T) {
 
 	// One key tick fans out to the focused pane and then runs the
 	// selection poll; that emits KindSelectedMsg.
-	updated, cmd := sv.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	updated, cmd := sv.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	sv = updated.(*SingleView)
 	drainSV(t, sv, cmd)
 	require.NotNil(t, sv.resources, "resources pane must be built after kind selection")
@@ -358,7 +358,7 @@ func TestSingleViewCascadeEndToEnd(t *testing.T) {
 	// One more focus-and-tick to land in resources and fire the
 	// resource-selected cascade.
 	sv.focus = focusSVResources
-	updated, cmd = sv.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	updated, cmd = sv.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	sv = updated.(*SingleView)
 	drainSV(t, sv, cmd)
 	require.NotNil(t, sv.detail, "detail pane must be built after resource selection")

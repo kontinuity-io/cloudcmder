@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/charmbracelet/bubbles/key"
+import "charm.land/bubbles/v2/key"
 
 // Keymap groups the global keybindings declared in architecture.md. Per-screen
 // keymaps embed this and add their own (e.g. enter/h/j/k/l on lists).

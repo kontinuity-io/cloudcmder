@@ -6,16 +6,18 @@ package style
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
+// Catppuccin Mocha palette tokens.
 var (
-	ColorHealthy = lipgloss.Color("#00d4aa")
-	ColorWarning = lipgloss.Color("#f5a623")
-	ColorError   = lipgloss.Color("#e74c3c")
-	ColorUnknown = lipgloss.Color("#a0a4b0")
-	ColorDim     = lipgloss.Color("#9aa0b0")
-	ColorAccent  = lipgloss.Color("#7aa2f7")
+	ColorHealthy    = lipgloss.Color("#a6e3a1") // Green
+	ColorWarning    = lipgloss.Color("#f9e2af") // Yellow
+	ColorError      = lipgloss.Color("#f38ba8") // Red
+	ColorUnknown    = lipgloss.Color("#9399b2") // Overlay2
+	ColorDim        = lipgloss.Color("#6c7086") // Overlay0
+	ColorAccent     = lipgloss.Color("#89b4fa") // Blue
+	ColorSelectedBg = lipgloss.Color("#313244") // Surface0
 )
 
 var (

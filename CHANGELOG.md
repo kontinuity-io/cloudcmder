@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### v1.5.7 — Provider brand banner
+
+- Scan progress view now opens with a 3-row per-provider brand wordmark + ☁ icon above the `scanning N scope(s)` header. GCP renders in Google's four-color palette (G blue, C red, P yellow); AWS renders in orange. Falls back to plain upper-cased provider ID for future providers before they ship branded colors.
+- `github.com/common-nighthawk/go-figure` promoted to a direct dependency (was already indirect via figurine).
+
 #### v1.5.6 — Scan UI scaling
 
 - Scan progress view now uses a fixed-height compact aggregate layout: progress bar + ok/fail/running/queued counts + active scope row + rolling tail of last 5 completions. Fixes top-row truncation and flicker on terminals with fewer rows than scopes (confirmed failure mode at 94 scopes on a 40-row terminal). Tail depth auto-scales with terminal height; layout is stable at any terminal width ≥ 50 columns.

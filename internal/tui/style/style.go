@@ -26,6 +26,13 @@ var (
 	ColorSapphire = lipgloss.Color("#74c7ec") // Sapphire
 	ColorTeal     = lipgloss.Color("#94e2d5") // Teal
 	ColorLavender = lipgloss.Color("#b4befe") // Lavender
+
+	// Cloud provider brand colors — used by the scan progress banner.
+	GCPBlue   = lipgloss.Color("#4285F4")
+	GCPRed    = lipgloss.Color("#EA4335")
+	GCPYellow = lipgloss.Color("#FBBC04")
+	GCPGreen  = lipgloss.Color("#34A853")
+	AWSOrange = lipgloss.Color("#FF9900")
 )
 
 var (

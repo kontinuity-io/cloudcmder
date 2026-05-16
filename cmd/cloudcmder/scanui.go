@@ -54,19 +54,20 @@ type scanRow struct {
 const recentCap = 5
 
 type scanModel struct {
-	rows      []scanRow
-	spin      spinner.Model
-	pb        progress.Model
-	startedAt time.Time
-	width     int
-	height    int
-	activeIdx int   // index of currently-running scope, -1 if none
-	recent    []int // ring of last recentCap completed row indexes
-	failed    []string
-	cancel    context.CancelFunc
+	rows       []scanRow
+	spin       spinner.Model
+	pb         progress.Model
+	startedAt  time.Time
+	width      int
+	height     int
+	activeIdx  int    // index of currently-running scope, -1 if none
+	recent     []int  // ring of last recentCap completed row indexes
+	failed     []string
+	cancel     context.CancelFunc
+	providerID string
 }
 
-func newScanModel(scopes []inventory.Scope, cancel context.CancelFunc) scanModel {
+func newScanModel(scopes []inventory.Scope, cancel context.CancelFunc, providerID string) scanModel {
 	rows := make([]scanRow, len(scopes))
 	for i, s := range scopes {
 		rows[i] = scanRow{scope: s, status: statusQueued}
@@ -78,9 +79,10 @@ func newScanModel(scopes []inventory.Scope, cancel context.CancelFunc) scanModel
 		rows:      rows,
 		spin:      sp,
 		pb:        pb,
-		startedAt: time.Now(),
-		activeIdx: -1,
-		cancel:    cancel,
+		startedAt:  time.Now(),
+		activeIdx:  -1,
+		cancel:     cancel,
+		providerID: providerID,
 	}
 }
 
@@ -170,9 +172,9 @@ func (m scanModel) tailBudget() int {
 	if m.height == 0 {
 		return recentCap
 	}
-	// fixed chrome: header(1) blank(1) bar(1) blank(1) active(1) blank+heading(2) blank(1) footer(1) = 9
-	// plus 1 guard for terminal prompt = 10 reserved
-	avail := m.height - 10
+	// fixed chrome: banner(3) blank(1) header(1) blank(1) bar(1) blank(1) active(1) blank+heading(2) blank(1) footer(1) = 13
+	// plus 1 guard for terminal prompt = 14 reserved
+	avail := m.height - 14
 	if avail < 1 {
 		return 1
 	}
@@ -199,6 +201,11 @@ func (m scanModel) View() tea.View {
 
 	okStyle  := lipgloss.NewStyle().Foreground(style.ColorHealthy)
 	errStyle := lipgloss.NewStyle().Foreground(style.ColorError)
+
+	// Provider brand banner
+	if banner := providerBanner(m.providerID); banner != "" {
+		sb.WriteString(banner + "\n\n")
+	}
 
 	// Count per-status
 	var okN, failN, runN, queueN int
@@ -312,7 +319,7 @@ func runScanManyUI(
 	scanCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	m := newScanModel(scopes, cancel)
+	m := newScanModel(scopes, cancel, p.Name())
 	prog := tea.NewProgram(m, tea.WithContext(ctx))
 
 	go func() {

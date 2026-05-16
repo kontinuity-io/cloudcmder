@@ -25,7 +25,7 @@ func applyMsgs(m scanModel, msgs ...tea.Msg) scanModel {
 }
 
 func TestScanModelScopeStart(t *testing.T) {
-	m := newScanModel(testScopes, func() {})
+	m := newScanModel(testScopes, func() {}, "gcp")
 	m = applyMsgs(m, scopeStartMsg{idx: 0})
 
 	if m.rows[0].status != statusRunning {
@@ -43,7 +43,7 @@ func TestScanModelScopeStart(t *testing.T) {
 }
 
 func TestScanModelProgress(t *testing.T) {
-	m := newScanModel(testScopes, func() {})
+	m := newScanModel(testScopes, func() {}, "gcp")
 	m = applyMsgs(m,
 		scopeStartMsg{idx: 0},
 		scanProgressMsg{idx: 0, kind: inventory.KindVM},
@@ -60,7 +60,7 @@ func TestScanModelProgress(t *testing.T) {
 }
 
 func TestScanModelScopeDoneOK(t *testing.T) {
-	m := newScanModel(testScopes, func() {})
+	m := newScanModel(testScopes, func() {}, "gcp")
 	m = applyMsgs(m,
 		scopeStartMsg{idx: 0},
 		scanProgressMsg{idx: 0, kind: inventory.KindVM},
@@ -82,7 +82,7 @@ func TestScanModelScopeDoneOK(t *testing.T) {
 }
 
 func TestScanModelScopeDoneFailed(t *testing.T) {
-	m := newScanModel(testScopes, func() {})
+	m := newScanModel(testScopes, func() {}, "gcp")
 	m = applyMsgs(m,
 		scopeStartMsg{idx: 1},
 		scopeDoneMsg{idx: 1, err: fmt.Errorf("access denied")},
@@ -97,7 +97,7 @@ func TestScanModelScopeDoneFailed(t *testing.T) {
 }
 
 func TestScanModelAllDone(t *testing.T) {
-	m := newScanModel(testScopes, func() {})
+	m := newScanModel(testScopes, func() {}, "gcp")
 	_, cmd := m.Update(allDoneMsg{})
 	if cmd == nil {
 		t.Error("allDoneMsg should return tea.Quit cmd (non-nil)")
@@ -106,7 +106,7 @@ func TestScanModelAllDone(t *testing.T) {
 
 func TestScanModelQuitKey(t *testing.T) {
 	var cancelled bool
-	m := newScanModel(testScopes, func() { cancelled = true })
+	m := newScanModel(testScopes, func() { cancelled = true }, "gcp")
 	_, cmd := m.Update(tea.KeyPressMsg{Text: "q", Code: 'q'})
 	if !cancelled {
 		t.Error("q key should have called cancel()")
@@ -117,7 +117,7 @@ func TestScanModelQuitKey(t *testing.T) {
 }
 
 func TestScanModelWindowSize(t *testing.T) {
-	m := newScanModel(testScopes, func() {})
+	m := newScanModel(testScopes, func() {}, "gcp")
 	m = applyMsgs(m, tea.WindowSizeMsg{Width: 120, Height: 24})
 	if m.height != 24 {
 		t.Errorf("height = %d, want 24", m.height)
@@ -133,7 +133,7 @@ func TestScanModelRecentRingCap(t *testing.T) {
 	for i := range scopes {
 		scopes[i] = inventory.Scope{ID: fmt.Sprintf("s%d", i), ProviderID: "gcp"}
 	}
-	m := newScanModel(scopes, func() {})
+	m := newScanModel(scopes, func() {}, "gcp")
 	for i := range scopes {
 		m = applyMsgs(m, scopeStartMsg{idx: i}, scopeDoneMsg{idx: i})
 	}
@@ -150,7 +150,7 @@ func TestScanModelRecentRingCap(t *testing.T) {
 }
 
 func TestScanModelActiveCleared(t *testing.T) {
-	m := newScanModel(testScopes, func() {})
+	m := newScanModel(testScopes, func() {}, "gcp")
 	m = applyMsgs(m, scopeStartMsg{idx: 0})
 	if m.activeIdx != 0 {
 		t.Errorf("activeIdx = %d after start, want 0", m.activeIdx)
@@ -211,7 +211,7 @@ func TestScanModelViewContains(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			m := newScanModel(testScopes, func() {})
+			m := newScanModel(testScopes, func() {}, "gcp")
 			m = applyMsgs(m, tc.msgs...)
 			view := m.View().Content
 			for _, s := range tc.want {
@@ -228,6 +228,18 @@ func TestScanModelViewContains(t *testing.T) {
 	}
 }
 
+func TestProviderBanner(t *testing.T) {
+	if got := providerBanner("gcp"); !strings.Contains(got, "☁") {
+		t.Errorf("gcp banner missing cloud icon: %q", got)
+	}
+	if got := providerBanner("aws"); !strings.Contains(got, "☁") {
+		t.Errorf("aws banner missing cloud icon: %q", got)
+	}
+	if got := providerBanner("unknown"); got != "UNKNOWN" {
+		t.Errorf("unknown banner = %q, want UNKNOWN", got)
+	}
+}
+
 func TestTailBudget(t *testing.T) {
 	tests := []struct {
 		height int
@@ -235,15 +247,15 @@ func TestTailBudget(t *testing.T) {
 	}{
 		{0, recentCap},
 		{8, 1},
-		{10, 1},
-		{11, 1},
-		{14, 4},
-		{15, 5},
+		{14, 1},
+		{15, 1},
+		{18, 4},
+		{19, 5},
 		{24, 5},
 		{80, 5},
 	}
 	for _, tc := range tests {
-		m := newScanModel(testScopes, func() {})
+		m := newScanModel(testScopes, func() {}, "gcp")
 		m.height = tc.height
 		got := m.tailBudget()
 		if got != tc.want {

@@ -33,7 +33,7 @@ func TestBuildClusterResource(t *testing.T) {
 	}
 	d := r.Detail.(*inventory.ClusterDetail)
 	if d.Version != "1.30.0-gke.100" || d.NodeCount != 3 ||
-		d.NodeMachine != "e2-medium" || d.NodeDiskGB != 100 || d.Autopilot {
+		d.NodeMachine != "e2-medium" || d.NodeDiskGB != 100 || d.Serverless {
 		t.Errorf("detail = %+v", d)
 	}
 }

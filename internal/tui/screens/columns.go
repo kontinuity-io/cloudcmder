@@ -328,7 +328,7 @@ func vmColumns() []ColumnDef {
 		}},
 		{Header: "MARKETPLACE", Width: 12, Extract: func(_ inventory.Resource, d any) string {
 			if vm := vmOf(d); vm != nil {
-				return vm.LicenseClass
+				return vm.MarketplaceClass
 			}
 			return ""
 		}},
@@ -368,13 +368,13 @@ func diskColumns() []ColumnDef {
 		}},
 		{Header: "OS", Width: 10, Extract: func(_ inventory.Resource, d any) string {
 			if dd, ok := d.(*inventory.DiskDetail); ok && dd != nil {
-				return dd.LicenseProject
+				return dd.MarketplaceProject
 			}
 			return ""
 		}},
 		{Header: "MARKETPLACE", Width: 12, Extract: func(_ inventory.Resource, d any) string {
 			if dd, ok := d.(*inventory.DiskDetail); ok && dd != nil {
-				return dd.LicenseClass
+				return dd.MarketplaceClass
 			}
 			return ""
 		}},
@@ -550,9 +550,9 @@ func clusterColumns() []ColumnDef {
 			}
 			return ""
 		}},
-		{Header: "AUTOPILOT", Width: 10, Extract: func(_ inventory.Resource, d any) string {
+		{Header: "SERVERLESS", Width: 10, Extract: func(_ inventory.Resource, d any) string {
 			if cd, ok := d.(*inventory.ClusterDetail); ok && cd != nil {
-				return boolStr(cd.Autopilot)
+				return boolStr(cd.Serverless)
 			}
 			return ""
 		}},

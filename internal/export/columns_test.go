@@ -112,14 +112,14 @@ func TestVMLicenseColumns(t *testing.T) {
 	r := inventory.Resource{Name: "vm-f5"}
 	d := &inventory.VMDetail{
 		Licenses:       []string{"f5-bigip-best", "f5-addon"},
-		LicenseProject: "f5-7626-networks-public",
-		LicenseClass:   "marketplace",
+		MarketplaceProject: "f5-7626-networks-public",
+		MarketplaceClass:   "marketplace",
 	}
 	cols := vmColumns()
 	want := map[string]string{
 		"Licenses":       "f5-bigip-best;f5-addon",
-		"LicenseProject": "f5-7626-networks-public",
-		"LicenseClass":   "marketplace",
+		"MarketplaceProject": "f5-7626-networks-public",
+		"MarketplaceClass":   "marketplace",
 	}
 	for _, c := range cols {
 		if expected, ok := want[c.Header]; ok {
@@ -134,14 +134,14 @@ func TestDiskLicenseColumns(t *testing.T) {
 	r := inventory.Resource{Name: "disk-rhel"}
 	d := &inventory.DiskDetail{
 		Licenses:       []string{"rhel-9"},
-		LicenseProject: "rhel-cloud",
-		LicenseClass:   "google-paid",
+		MarketplaceProject: "rhel-cloud",
+		MarketplaceClass:   "google-paid",
 	}
 	cols := diskColumns()
 	want := map[string]string{
 		"Licenses":       "rhel-9",
-		"LicenseProject": "rhel-cloud",
-		"LicenseClass":   "google-paid",
+		"MarketplaceProject": "rhel-cloud",
+		"MarketplaceClass":   "google-paid",
 	}
 	for _, c := range cols {
 		if expected, ok := want[c.Header]; ok {

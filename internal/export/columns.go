@@ -204,8 +204,8 @@ func vmColumns() []ColumnDef {
 		{Header: "OSFamily", Extract: vmField(func(d *inventory.VMDetail) string { return d.OSFamily })},
 		{Header: "OSImage", Extract: vmField(func(d *inventory.VMDetail) string { return d.OSImage })},
 		{Header: "Licenses", Extract: vmField(func(d *inventory.VMDetail) string { return strings.Join(d.Licenses, ";") })},
-		{Header: "LicenseProject", Extract: vmField(func(d *inventory.VMDetail) string { return d.LicenseProject })},
-		{Header: "LicenseClass", Extract: vmField(func(d *inventory.VMDetail) string { return d.LicenseClass })},
+		{Header: "MarketplaceProject", Extract: vmField(func(d *inventory.VMDetail) string { return d.MarketplaceProject })},
+		{Header: "MarketplaceClass", Extract: vmField(func(d *inventory.VMDetail) string { return d.MarketplaceClass })},
 		{Header: "Preemptible", Extract: vmField(func(d *inventory.VMDetail) string { return boolStr(d.Preemptible) })},
 		{Header: "Spot", Extract: vmField(func(d *inventory.VMDetail) string { return boolStr(d.Spot) })},
 		{Header: "Zone", Extract: vmField(func(d *inventory.VMDetail) string { return d.Zone })},
@@ -282,8 +282,8 @@ func diskColumns() []ColumnDef {
 		})},
 		{Header: "Snapshot", Extract: diskField(func(d *inventory.DiskDetail) string { return d.Snapshot })},
 		{Header: "Licenses", Extract: diskField(func(d *inventory.DiskDetail) string { return strings.Join(d.Licenses, ";") })},
-		{Header: "LicenseProject", Extract: diskField(func(d *inventory.DiskDetail) string { return d.LicenseProject })},
-		{Header: "LicenseClass", Extract: diskField(func(d *inventory.DiskDetail) string { return d.LicenseClass })},
+		{Header: "MarketplaceProject", Extract: diskField(func(d *inventory.DiskDetail) string { return d.MarketplaceProject })},
+		{Header: "MarketplaceClass", Extract: diskField(func(d *inventory.DiskDetail) string { return d.MarketplaceClass })},
 		{Header: "Labels", Extract: labelsOf},
 	}
 }
@@ -476,7 +476,7 @@ func clusterColumns() []ColumnDef {
 			}
 			return fmt.Sprintf("%d", d.NodeDiskGB)
 		})},
-		{Header: "Autopilot", Extract: clField(func(d *inventory.ClusterDetail) string { return boolStr(d.Autopilot) })},
+		{Header: "Serverless", Extract: clField(func(d *inventory.ClusterDetail) string { return boolStr(d.Serverless) })},
 		{Header: "Labels", Extract: labelsOf},
 	}
 }

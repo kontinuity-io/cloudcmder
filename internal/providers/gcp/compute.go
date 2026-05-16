@@ -237,7 +237,7 @@ func buildVMResource(ctx context.Context, scopeID string, inst *computepb.Instan
 	}
 	detail.AttachedDisks = attached
 	// Aggregate license info across all disks: any-marketplace-wins precedence.
-	detail.Licenses, detail.LicenseProject, detail.LicenseClass = licenseInfoFromURLs(allLicenses)
+	detail.Licenses, detail.MarketplaceProject, detail.MarketplaceClass = licenseInfoFromURLs(allLicenses)
 
 	refs := map[inventory.RefKind][]inventory.ResourceRef{}
 	if len(subnetRefs) > 0 {

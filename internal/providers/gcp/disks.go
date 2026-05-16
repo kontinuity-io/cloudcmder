@@ -125,9 +125,9 @@ func buildDiskResource(scopeID string, d *computepb.Disk, dumpNative bool) inven
 		Type:           lastSegment(d.GetType()),
 		Zone:           zone,
 		InUseBy:        users,
-		Licenses:       licNames,
-		LicenseProject: licProject,
-		LicenseClass:   licClass,
+		Licenses:           licNames,
+		MarketplaceProject: licProject,
+		MarketplaceClass:   licClass,
 	}
 
 	refs := map[inventory.RefKind][]inventory.ResourceRef{}

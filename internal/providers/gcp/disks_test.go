@@ -42,8 +42,8 @@ func TestBuildDiskResource(t *testing.T) {
 		t.Errorf("Refs[AttachedTo] = %+v", r.Refs)
 	}
 	// No licenses → empty class.
-	if dd.LicenseClass != "" {
-		t.Errorf("LicenseClass = %q, want empty (no licenses on this disk)", dd.LicenseClass)
+	if dd.MarketplaceClass != "" {
+		t.Errorf("MarketplaceClass = %q, want empty (no licenses on this disk)", dd.MarketplaceClass)
 	}
 }
 
@@ -63,11 +63,11 @@ func TestBuildDiskResourceWithMarketplaceLicense(t *testing.T) {
 	if !ok {
 		t.Fatalf("detail not *DiskDetail: %T", r.Detail)
 	}
-	if dd.LicenseClass != "marketplace" {
-		t.Errorf("LicenseClass = %q, want marketplace", dd.LicenseClass)
+	if dd.MarketplaceClass != "marketplace" {
+		t.Errorf("MarketplaceClass = %q, want marketplace", dd.MarketplaceClass)
 	}
-	if dd.LicenseProject != "f5-7626-networks-public" {
-		t.Errorf("LicenseProject = %q, want f5-7626-networks-public", dd.LicenseProject)
+	if dd.MarketplaceProject != "f5-7626-networks-public" {
+		t.Errorf("MarketplaceProject = %q, want f5-7626-networks-public", dd.MarketplaceProject)
 	}
 	if len(dd.Licenses) != 1 || dd.Licenses[0] != "f5-bigip-best" {
 		t.Errorf("Licenses = %v, want [f5-bigip-best]", dd.Licenses)

@@ -102,11 +102,11 @@ func TestBuildVMResourceShape(t *testing.T) {
 		t.Errorf("Refs[RoutesFrom] = %+v", subnetRefs)
 	}
 	// Debian boot disk → google-free; OSFamily preserved separately.
-	if d.LicenseClass != "google-free" {
-		t.Errorf("LicenseClass = %q, want google-free", d.LicenseClass)
+	if d.MarketplaceClass != "google-free" {
+		t.Errorf("MarketplaceClass = %q, want google-free", d.MarketplaceClass)
 	}
-	if d.LicenseProject != "debian-cloud" {
-		t.Errorf("LicenseProject = %q, want debian-cloud", d.LicenseProject)
+	if d.MarketplaceProject != "debian-cloud" {
+		t.Errorf("MarketplaceProject = %q, want debian-cloud", d.MarketplaceProject)
 	}
 }
 
@@ -147,11 +147,11 @@ func TestBuildVMResourceMarketplacePrecedence(t *testing.T) {
 	if d.OSFamily != "debian-11" {
 		t.Errorf("OSFamily = %q, want debian-11 (boot disk label must survive marketplace override)", d.OSFamily)
 	}
-	if d.LicenseClass != "marketplace" {
-		t.Errorf("LicenseClass = %q, want marketplace (F5 attached disk must win)", d.LicenseClass)
+	if d.MarketplaceClass != "marketplace" {
+		t.Errorf("MarketplaceClass = %q, want marketplace (F5 attached disk must win)", d.MarketplaceClass)
 	}
-	if d.LicenseProject != "f5-7626-networks-public" {
-		t.Errorf("LicenseProject = %q, want f5-7626-networks-public", d.LicenseProject)
+	if d.MarketplaceProject != "f5-7626-networks-public" {
+		t.Errorf("MarketplaceProject = %q, want f5-7626-networks-public", d.MarketplaceProject)
 	}
 }
 

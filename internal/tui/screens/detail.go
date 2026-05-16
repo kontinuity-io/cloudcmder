@@ -353,9 +353,9 @@ func diskDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Zone", dd.Zone),
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 	}
-	if dd.LicenseClass != "" {
-		out = append(out, kvLine("Marketplace", dd.LicenseClass))
-		out = append(out, kvLine("OS project", dd.LicenseProject))
+	if dd.MarketplaceClass != "" {
+		out = append(out, kvLine("Marketplace", dd.MarketplaceClass))
+		out = append(out, kvLine("Mkt project", dd.MarketplaceProject))
 	}
 	if len(dd.InUseBy) > 0 {
 		out = append(out, "", style.Accent.Render("Attached to"))
@@ -461,7 +461,7 @@ func clusterDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Nodes", fmt.Sprintf("%d", cd.NodeCount)),
 		kvLine("Node MT", cd.NodeMachine),
 		kvLine("Disk GB", fmt.Sprintf("%d", cd.NodeDiskGB)),
-		kvLine("Autopilot", boolStr(cd.Autopilot)),
+		kvLine("Serverless", boolStr(cd.Serverless)),
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 	}
 }
@@ -539,9 +539,9 @@ func vmDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Zone", vm.Zone),
 		kvLine("CPU Plat", vm.CPUPlatform),
 	}
-	if vm.LicenseClass != "" {
-		out = append(out, kvLine("Marketplace", vm.LicenseClass))
-		out = append(out, kvLine("License proj", vm.LicenseProject))
+	if vm.MarketplaceClass != "" {
+		out = append(out, kvLine("Marketplace", vm.MarketplaceClass))
+		out = append(out, kvLine("Mkt project", vm.MarketplaceProject))
 	}
 	if vm.Preemptible || vm.Spot {
 		mods := []string{}

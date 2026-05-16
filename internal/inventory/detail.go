@@ -14,11 +14,11 @@ type VMDetail struct {
 	AttachedDisks []DiskRef
 	NICs          []NICDetail
 	Zone          string
-	// License fields — populated from all attached disk license URLs.
-	// LicenseClass precedence: "marketplace" > "google-paid" > "google-free" > "".
-	Licenses       []string // last-segment license names aggregated across all attached disks
-	LicenseProject string   // image project of the highest-precedence license
-	LicenseClass   string   // "marketplace" | "google-paid" | "google-free" | ""
+	// Marketplace fields — populated from attached disk license metadata.
+	// MarketplaceClass precedence: "marketplace" > "paid" > "free" > "".
+	Licenses          []string // license names aggregated across all attached disks
+	MarketplaceProject string  // image project of the highest-precedence license
+	MarketplaceClass   string  // "marketplace" | "paid" | "free" | ""
 }
 
 // DiskRef is a lightweight pointer to a disk used inside VMDetail; the full
@@ -44,10 +44,10 @@ type DiskDetail struct {
 	Zone     string
 	InUseBy  []ResourceRef
 	Snapshot string
-	// License fields — same three-state classification as VMDetail.
-	Licenses       []string
-	LicenseProject string
-	LicenseClass   string
+	// Marketplace fields — same three-state classification as VMDetail.
+	Licenses           []string
+	MarketplaceProject string
+	MarketplaceClass   string
 }
 
 // DatabaseDetail normalizes managed-database compute and storage shape.
@@ -68,14 +68,14 @@ type BucketDetail struct {
 	StorageClass string
 	PublicAccess bool
 	Versioning   bool
-	// SizeBytes and ObjectCount come from Cloud Monitoring (the GCS API
-	// itself does not expose either). The metric is a daily aggregate, so
-	// freshly created buckets show 0 for ~24h until the first sample lands.
+	// SizeBytes and ObjectCount come from the provider's monitoring API (the
+	// object-store API itself does not expose either). The metric is a daily
+	// aggregate so freshly created buckets show 0 for ~24h until first sample.
 	SizeBytes   int64
 	ObjectCount int64
 }
 
-// LoadBalancerDetail flattens GCP's multi-resource LB composition into one row.
+// LoadBalancerDetail flattens a provider's multi-resource LB composition into one row.
 type LoadBalancerDetail struct {
 	Scheme       string
 	Protocol     string
@@ -120,11 +120,11 @@ type ClusterDetail struct {
 	NodeCount   int32
 	NodeMachine string
 	NodeDiskGB  int64
-	Autopilot   bool
+	Serverless  bool // managed/serverless mode (GKE Autopilot, EKS Fargate, etc.)
 	Location    string
 }
 
-// FunctionDetail normalizes Cloud Run services and Cloud Functions gen2.
+// FunctionDetail normalizes function-platform services (Cloud Run, Lambda, etc.).
 type FunctionDetail struct {
 	Runtime   string
 	Trigger   string

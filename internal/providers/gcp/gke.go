@@ -92,7 +92,7 @@ func buildClusterResource(scopeID string, c *containerpb.Cluster, dumpNative boo
 	detail := inventory.ClusterDetail{
 		Version:   c.GetCurrentMasterVersion(),
 		NodeCount: c.GetCurrentNodeCount(),
-		Autopilot: c.GetAutopilot().GetEnabled(),
+		Serverless: c.GetAutopilot().GetEnabled(),
 		Location:  c.GetLocation(),
 	}
 	if pools := c.GetNodePools(); len(pools) > 0 {

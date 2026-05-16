@@ -44,133 +44,133 @@ var assetTypeToKind = map[string]inventory.Kind{
 	// Types not in CAI's searchable list silently return 0 rows.
 
 	// Vertex AI
-	"aiplatform.googleapis.com/BatchPredictionJob":           inventory.KindVertexAI,
-	"aiplatform.googleapis.com/CachedContent":                inventory.KindVertexAI,
-	"aiplatform.googleapis.com/CustomJob":                    inventory.KindVertexAI,
-	"aiplatform.googleapis.com/Dataset":                      inventory.KindVertexAI,
-	"aiplatform.googleapis.com/DeploymentResourcePool":       inventory.KindVertexAI,
-	"aiplatform.googleapis.com/Endpoint":                     inventory.KindVertexAI,
-	"aiplatform.googleapis.com/Featurestore":                 inventory.KindVertexAI,
-	"aiplatform.googleapis.com/FeatureGroup":                 inventory.KindVertexAI,
-	"aiplatform.googleapis.com/FeatureOnlineStore":           inventory.KindVertexAI,
-	"aiplatform.googleapis.com/HyperparameterTuningJob":      inventory.KindVertexAI,
-	"aiplatform.googleapis.com/Index":                        inventory.KindVertexAI,
-	"aiplatform.googleapis.com/IndexEndpoint":                inventory.KindVertexAI,
-	"aiplatform.googleapis.com/MetadataStore":                inventory.KindVertexAI,
-	"aiplatform.googleapis.com/Model":                        inventory.KindVertexAI,
-	"aiplatform.googleapis.com/ModelDeploymentMonitoringJob": inventory.KindVertexAI,
-	"aiplatform.googleapis.com/NotebookRuntime":              inventory.KindVertexAI,
-	"aiplatform.googleapis.com/NotebookRuntimeTemplate":      inventory.KindVertexAI,
-	"aiplatform.googleapis.com/PipelineJob":                  inventory.KindVertexAI,
-	"aiplatform.googleapis.com/ReasoningEngine":              inventory.KindVertexAI,
-	"aiplatform.googleapis.com/Schedule":                     inventory.KindVertexAI,
-	"aiplatform.googleapis.com/SpecialistPool":               inventory.KindVertexAI,
-	"aiplatform.googleapis.com/Tensorboard":                  inventory.KindVertexAI,
-	"aiplatform.googleapis.com/TrainingPipeline":             inventory.KindVertexAI,
-	"aiplatform.googleapis.com/TuningJob":                    inventory.KindVertexAI,
+	"aiplatform.googleapis.com/BatchPredictionJob":           inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/CachedContent":                inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/CustomJob":                    inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/Dataset":                      inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/DeploymentResourcePool":       inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/Endpoint":                     inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/Featurestore":                 inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/FeatureGroup":                 inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/FeatureOnlineStore":           inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/HyperparameterTuningJob":      inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/Index":                        inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/IndexEndpoint":                inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/MetadataStore":                inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/Model":                        inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/ModelDeploymentMonitoringJob": inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/NotebookRuntime":              inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/NotebookRuntimeTemplate":      inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/PipelineJob":                  inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/ReasoningEngine":              inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/Schedule":                     inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/SpecialistPool":               inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/Tensorboard":                  inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/TrainingPipeline":             inventory.KindGCPVertexAI,
+	"aiplatform.googleapis.com/TuningJob":                    inventory.KindGCPVertexAI,
 
 	// Apigee
-	"apigee.googleapis.com/ApiProxy":         inventory.KindApigee,
-	"apigee.googleapis.com/ApiProxyRevision": inventory.KindApigee,
-	"apigee.googleapis.com/Environment":      inventory.KindApigee,
-	"apigee.googleapis.com/Instance":         inventory.KindApigee,
-	"apigee.googleapis.com/Organization":     inventory.KindApigee,
+	"apigee.googleapis.com/ApiProxy":         inventory.KindGCPApigee,
+	"apigee.googleapis.com/ApiProxyRevision": inventory.KindGCPApigee,
+	"apigee.googleapis.com/Environment":      inventory.KindGCPApigee,
+	"apigee.googleapis.com/Instance":         inventory.KindGCPApigee,
+	"apigee.googleapis.com/Organization":     inventory.KindGCPApigee,
 
 	// Firebase
-	"firebase.googleapis.com/FirebaseAppInfo": inventory.KindFirebase,
-	"firebase.googleapis.com/FirebaseProject": inventory.KindFirebase,
+	"firebase.googleapis.com/FirebaseAppInfo": inventory.KindGCPFirebase,
+	"firebase.googleapis.com/FirebaseProject": inventory.KindGCPFirebase,
 
 	// App Engine
-	"appengine.googleapis.com/Application": inventory.KindAppEngine,
-	"appengine.googleapis.com/Service":     inventory.KindAppEngine,
-	"appengine.googleapis.com/Version":     inventory.KindAppEngine,
+	"appengine.googleapis.com/Application": inventory.KindGCPAppEngine,
+	"appengine.googleapis.com/Service":     inventory.KindGCPAppEngine,
+	"appengine.googleapis.com/Version":     inventory.KindGCPAppEngine,
 
 	// BigQuery
-	"bigquery.googleapis.com/Dataset":         inventory.KindBigQuery,
-	"bigquery.googleapis.com/Model":           inventory.KindBigQuery,
-	"bigquery.googleapis.com/Routine":         inventory.KindBigQuery,
-	"bigquery.googleapis.com/RowAccessPolicy": inventory.KindBigQuery,
-	"bigquery.googleapis.com/Table":           inventory.KindBigQuery,
+	"bigquery.googleapis.com/Dataset":         inventory.KindGCPBigQuery,
+	"bigquery.googleapis.com/Model":           inventory.KindGCPBigQuery,
+	"bigquery.googleapis.com/Routine":         inventory.KindGCPBigQuery,
+	"bigquery.googleapis.com/RowAccessPolicy": inventory.KindGCPBigQuery,
+	"bigquery.googleapis.com/Table":           inventory.KindGCPBigQuery,
 
 	// Cloud DNS
-	"dns.googleapis.com/ManagedZone":    inventory.KindDNS,
-	"dns.googleapis.com/Policy":         inventory.KindDNS,
-	"dns.googleapis.com/ResponsePolicy": inventory.KindDNS,
+	"dns.googleapis.com/ManagedZone":    inventory.KindGCPDNS,
+	"dns.googleapis.com/Policy":         inventory.KindGCPDNS,
+	"dns.googleapis.com/ResponsePolicy": inventory.KindGCPDNS,
 
 	// Memorystore
-	"memcache.googleapis.com/Instance": inventory.KindMemorystore,
-	"redis.googleapis.com/Cluster":     inventory.KindMemorystore,
-	"redis.googleapis.com/Instance":    inventory.KindMemorystore,
+	"memcache.googleapis.com/Instance": inventory.KindGCPMemorystore,
+	"redis.googleapis.com/Cluster":     inventory.KindGCPMemorystore,
+	"redis.googleapis.com/Instance":    inventory.KindGCPMemorystore,
 
 	// Artifact Registry
-	"artifactregistry.googleapis.com/DockerImage": inventory.KindArtifactRegistry,
-	"artifactregistry.googleapis.com/Repository":  inventory.KindArtifactRegistry,
+	"artifactregistry.googleapis.com/DockerImage": inventory.KindGCPArtifactRegistry,
+	"artifactregistry.googleapis.com/Repository":  inventory.KindGCPArtifactRegistry,
 
 	// Cloud Scheduler
-	"cloudscheduler.googleapis.com/Job": inventory.KindCloudScheduler,
+	"cloudscheduler.googleapis.com/Job": inventory.KindGCPCloudScheduler,
 
 	// Pub/Sub
-	"pubsub.googleapis.com/Schema":       inventory.KindPubSub,
-	"pubsub.googleapis.com/Snapshot":     inventory.KindPubSub,
-	"pubsub.googleapis.com/Subscription": inventory.KindPubSub,
-	"pubsub.googleapis.com/Topic":        inventory.KindPubSub,
+	"pubsub.googleapis.com/Schema":       inventory.KindGCPPubSub,
+	"pubsub.googleapis.com/Snapshot":     inventory.KindGCPPubSub,
+	"pubsub.googleapis.com/Subscription": inventory.KindGCPPubSub,
+	"pubsub.googleapis.com/Topic":        inventory.KindGCPPubSub,
 
 	// Spanner
-	"spanner.googleapis.com/Backup":   inventory.KindSpanner,
-	"spanner.googleapis.com/Database": inventory.KindSpanner,
-	"spanner.googleapis.com/Instance": inventory.KindSpanner,
+	"spanner.googleapis.com/Backup":   inventory.KindGCPSpanner,
+	"spanner.googleapis.com/Database": inventory.KindGCPSpanner,
+	"spanner.googleapis.com/Instance": inventory.KindGCPSpanner,
 
 	// Bigtable
-	"bigtableadmin.googleapis.com/Backup":   inventory.KindBigtable,
-	"bigtableadmin.googleapis.com/Cluster":  inventory.KindBigtable,
-	"bigtableadmin.googleapis.com/Instance": inventory.KindBigtable,
-	"bigtableadmin.googleapis.com/Table":    inventory.KindBigtable,
+	"bigtableadmin.googleapis.com/Backup":   inventory.KindGCPBigtable,
+	"bigtableadmin.googleapis.com/Cluster":  inventory.KindGCPBigtable,
+	"bigtableadmin.googleapis.com/Instance": inventory.KindGCPBigtable,
+	"bigtableadmin.googleapis.com/Table":    inventory.KindGCPBigtable,
 
 	// Cloud KMS
-	"cloudkms.googleapis.com/CryptoKey": inventory.KindKMS,
-	"cloudkms.googleapis.com/KeyRing":   inventory.KindKMS,
+	"cloudkms.googleapis.com/CryptoKey": inventory.KindGCPKMS,
+	"cloudkms.googleapis.com/KeyRing":   inventory.KindGCPKMS,
 
 	// Secret Manager
-	"secretmanager.googleapis.com/Secret": inventory.KindSecretManager,
+	"secretmanager.googleapis.com/Secret": inventory.KindGCPSecretManager,
 
 	// Dataflow
-	"dataflow.googleapis.com/Job": inventory.KindDataflow,
+	"dataflow.googleapis.com/Job": inventory.KindGCPDataflow,
 
 	// Dataproc
-	"dataproc.googleapis.com/Cluster": inventory.KindDataproc,
-	"dataproc.googleapis.com/Job":     inventory.KindDataproc,
+	"dataproc.googleapis.com/Cluster": inventory.KindGCPDataproc,
+	"dataproc.googleapis.com/Job":     inventory.KindGCPDataproc,
 
 	// Cloud Composer
-	"composer.googleapis.com/Environment": inventory.KindComposer,
+	"composer.googleapis.com/Environment": inventory.KindGCPComposer,
 
 	// Cloud Tasks
-	"cloudtasks.googleapis.com/Queue": inventory.KindCloudTasks,
+	"cloudtasks.googleapis.com/Queue": inventory.KindGCPCloudTasks,
 
 	// Cloud Monitoring
-	"monitoring.googleapis.com/AlertPolicy":         inventory.KindMonitoring,
-	"monitoring.googleapis.com/NotificationChannel": inventory.KindMonitoring,
-	"monitoring.googleapis.com/Snooze":              inventory.KindMonitoring,
+	"monitoring.googleapis.com/AlertPolicy":         inventory.KindGCPMonitoring,
+	"monitoring.googleapis.com/NotificationChannel": inventory.KindGCPMonitoring,
+	"monitoring.googleapis.com/Snooze":              inventory.KindGCPMonitoring,
 
 	// Cloud Logging
-	"logging.googleapis.com/LogBucket": inventory.KindLogging,
-	"logging.googleapis.com/LogMetric": inventory.KindLogging,
-	"logging.googleapis.com/LogSink":   inventory.KindLogging,
+	"logging.googleapis.com/LogBucket": inventory.KindGCPLogging,
+	"logging.googleapis.com/LogMetric": inventory.KindGCPLogging,
+	"logging.googleapis.com/LogSink":   inventory.KindGCPLogging,
 
 	// OS Config (VM Manager)
-	"osconfig.googleapis.com/OSPolicyAssignment": inventory.KindOSConfig,
-	"osconfig.googleapis.com/PatchDeployment":    inventory.KindOSConfig,
+	"osconfig.googleapis.com/OSPolicyAssignment": inventory.KindGCPOSConfig,
+	"osconfig.googleapis.com/PatchDeployment":    inventory.KindGCPOSConfig,
 
 	// Cloud VPN (compute sub-resources)
-	"compute.googleapis.com/ExternalVpnGateway": inventory.KindVPN,
-	"compute.googleapis.com/VpnGateway":         inventory.KindVPN,
-	"compute.googleapis.com/VpnTunnel":          inventory.KindVPN,
+	"compute.googleapis.com/ExternalVpnGateway": inventory.KindGCPVPN,
+	"compute.googleapis.com/VpnGateway":         inventory.KindGCPVPN,
+	"compute.googleapis.com/VpnTunnel":          inventory.KindGCPVPN,
 
 	// Cloud Router (compute sub-resource)
-	"compute.googleapis.com/Router": inventory.KindRouter,
+	"compute.googleapis.com/Router": inventory.KindGCPRouter,
 
 	// Cloud Build
-	"cloudbuild.googleapis.com/Build":        inventory.KindCloudBuild,
-	"cloudbuild.googleapis.com/BuildTrigger": inventory.KindCloudBuild,
+	"cloudbuild.googleapis.com/Build":        inventory.KindGCPCloudBuild,
+	"cloudbuild.googleapis.com/BuildTrigger": inventory.KindGCPCloudBuild,
 }
 
 // assetTypesForKinds returns the asset.googleapis.com filter strings for the

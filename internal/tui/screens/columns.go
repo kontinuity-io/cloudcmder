@@ -50,30 +50,30 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 		cols = bucketColumns()
 	case inventory.KindFunction:
 		cols = functionColumns()
-	case inventory.KindVertexAI,
-		inventory.KindApigee,
-		inventory.KindFirebase,
-		inventory.KindAppEngine,
-		inventory.KindBigQuery,
-		inventory.KindDNS,
-		inventory.KindMemorystore,
-		inventory.KindArtifactRegistry,
-		inventory.KindCloudScheduler,
-		inventory.KindPubSub,
-		inventory.KindSpanner,
-		inventory.KindBigtable,
-		inventory.KindKMS,
-		inventory.KindSecretManager,
-		inventory.KindDataflow,
-		inventory.KindDataproc,
-		inventory.KindComposer,
-		inventory.KindCloudTasks,
-		inventory.KindMonitoring,
-		inventory.KindLogging,
-		inventory.KindOSConfig,
-		inventory.KindVPN,
-		inventory.KindRouter,
-		inventory.KindCloudBuild:
+	case inventory.KindGCPVertexAI,
+		inventory.KindGCPApigee,
+		inventory.KindGCPFirebase,
+		inventory.KindGCPAppEngine,
+		inventory.KindGCPBigQuery,
+		inventory.KindGCPDNS,
+		inventory.KindGCPMemorystore,
+		inventory.KindGCPArtifactRegistry,
+		inventory.KindGCPCloudScheduler,
+		inventory.KindGCPPubSub,
+		inventory.KindGCPSpanner,
+		inventory.KindGCPBigtable,
+		inventory.KindGCPKMS,
+		inventory.KindGCPSecretManager,
+		inventory.KindGCPDataflow,
+		inventory.KindGCPDataproc,
+		inventory.KindGCPComposer,
+		inventory.KindGCPCloudTasks,
+		inventory.KindGCPMonitoring,
+		inventory.KindGCPLogging,
+		inventory.KindGCPOSConfig,
+		inventory.KindGCPVPN,
+		inventory.KindGCPRouter,
+		inventory.KindGCPCloudBuild:
 		cols = stubColumns()
 	default:
 		return nil, false
@@ -151,30 +151,30 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.BucketDetail{})
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
-	case inventory.KindVertexAI,
-		inventory.KindApigee,
-		inventory.KindFirebase,
-		inventory.KindAppEngine,
-		inventory.KindBigQuery,
-		inventory.KindDNS,
-		inventory.KindMemorystore,
-		inventory.KindArtifactRegistry,
-		inventory.KindCloudScheduler,
-		inventory.KindPubSub,
-		inventory.KindSpanner,
-		inventory.KindBigtable,
-		inventory.KindKMS,
-		inventory.KindSecretManager,
-		inventory.KindDataflow,
-		inventory.KindDataproc,
-		inventory.KindComposer,
-		inventory.KindCloudTasks,
-		inventory.KindMonitoring,
-		inventory.KindLogging,
-		inventory.KindOSConfig,
-		inventory.KindVPN,
-		inventory.KindRouter,
-		inventory.KindCloudBuild:
+	case inventory.KindGCPVertexAI,
+		inventory.KindGCPApigee,
+		inventory.KindGCPFirebase,
+		inventory.KindGCPAppEngine,
+		inventory.KindGCPBigQuery,
+		inventory.KindGCPDNS,
+		inventory.KindGCPMemorystore,
+		inventory.KindGCPArtifactRegistry,
+		inventory.KindGCPCloudScheduler,
+		inventory.KindGCPPubSub,
+		inventory.KindGCPSpanner,
+		inventory.KindGCPBigtable,
+		inventory.KindGCPKMS,
+		inventory.KindGCPSecretManager,
+		inventory.KindGCPDataflow,
+		inventory.KindGCPDataproc,
+		inventory.KindGCPComposer,
+		inventory.KindGCPCloudTasks,
+		inventory.KindGCPMonitoring,
+		inventory.KindGCPLogging,
+		inventory.KindGCPOSConfig,
+		inventory.KindGCPVPN,
+		inventory.KindGCPRouter,
+		inventory.KindGCPCloudBuild:
 		return unmarshalOrNil(raw, &inventory.StubDetail{})
 	}
 	return nil
@@ -212,53 +212,53 @@ func AliasToKind(alias string) (inventory.Kind, bool) {
 	case "fn":
 		return inventory.KindFunction, true
 	case "vertex", "ai":
-		return inventory.KindVertexAI, true
+		return inventory.KindGCPVertexAI, true
 	case "apigee":
-		return inventory.KindApigee, true
+		return inventory.KindGCPApigee, true
 	case "firebase", "fb":
-		return inventory.KindFirebase, true
+		return inventory.KindGCPFirebase, true
 	case "appengine", "gae", "ae":
-		return inventory.KindAppEngine, true
+		return inventory.KindGCPAppEngine, true
 	case "bigquery", "bq":
-		return inventory.KindBigQuery, true
+		return inventory.KindGCPBigQuery, true
 	case "dns":
-		return inventory.KindDNS, true
+		return inventory.KindGCPDNS, true
 	case "memorystore", "redis", "memcache":
-		return inventory.KindMemorystore, true
+		return inventory.KindGCPMemorystore, true
 	case "artifactregistry", "ar":
-		return inventory.KindArtifactRegistry, true
+		return inventory.KindGCPArtifactRegistry, true
 	case "scheduler", "cron":
-		return inventory.KindCloudScheduler, true
+		return inventory.KindGCPCloudScheduler, true
 	case "pubsub", "ps":
-		return inventory.KindPubSub, true
+		return inventory.KindGCPPubSub, true
 	case "spanner":
-		return inventory.KindSpanner, true
+		return inventory.KindGCPSpanner, true
 	case "bigtable", "bt":
-		return inventory.KindBigtable, true
+		return inventory.KindGCPBigtable, true
 	case "kms":
-		return inventory.KindKMS, true
+		return inventory.KindGCPKMS, true
 	case "secrets", "sm":
-		return inventory.KindSecretManager, true
+		return inventory.KindGCPSecretManager, true
 	case "dataflow", "df":
-		return inventory.KindDataflow, true
+		return inventory.KindGCPDataflow, true
 	case "dataproc", "dp":
-		return inventory.KindDataproc, true
+		return inventory.KindGCPDataproc, true
 	case "composer", "airflow":
-		return inventory.KindComposer, true
+		return inventory.KindGCPComposer, true
 	case "tasks":
-		return inventory.KindCloudTasks, true
+		return inventory.KindGCPCloudTasks, true
 	case "monitoring", "stackdriver":
-		return inventory.KindMonitoring, true
+		return inventory.KindGCPMonitoring, true
 	case "logging", "logs":
-		return inventory.KindLogging, true
+		return inventory.KindGCPLogging, true
 	case "osconfig", "vmm":
-		return inventory.KindOSConfig, true
+		return inventory.KindGCPOSConfig, true
 	case "vpn":
-		return inventory.KindVPN, true
+		return inventory.KindGCPVPN, true
 	case "router":
-		return inventory.KindRouter, true
+		return inventory.KindGCPRouter, true
 	case "build", "cb":
-		return inventory.KindCloudBuild, true
+		return inventory.KindGCPCloudBuild, true
 	}
 	return "", false
 }

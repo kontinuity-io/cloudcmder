@@ -22,34 +22,34 @@ func TestStubDetailForKindKnownTypes(t *testing.T) {
 		at      string
 		wantSub string
 	}{
-		{"VertexAI Endpoint", inventory.KindVertexAI, "aiplatform.googleapis.com/Endpoint", "Endpoint"},
-		{"VertexAI Model", inventory.KindVertexAI, "aiplatform.googleapis.com/Model", "Model"},
-		{"Apigee Organization", inventory.KindApigee, "apigee.googleapis.com/Organization", "Organization"},
-		{"Apigee ApiProxy", inventory.KindApigee, "apigee.googleapis.com/ApiProxy", "ApiProxy"},
-		{"Firebase Project", inventory.KindFirebase, "firebase.googleapis.com/FirebaseProject", "Project"},
-		{"AppEngine Application", inventory.KindAppEngine, "appengine.googleapis.com/Application", "Application"},
-		{"BigQuery Dataset", inventory.KindBigQuery, "bigquery.googleapis.com/Dataset", "Dataset"},
-		{"BigQuery Table", inventory.KindBigQuery, "bigquery.googleapis.com/Table", "Table"},
-		{"DNS ManagedZone", inventory.KindDNS, "dns.googleapis.com/ManagedZone", "ManagedZone"},
-		{"Memorystore Redis", inventory.KindMemorystore, "redis.googleapis.com/Instance", "Redis"},
-		{"Memorystore Memcache", inventory.KindMemorystore, "memcache.googleapis.com/Instance", "Memcache"},
-		{"ArtifactRegistry Repo", inventory.KindArtifactRegistry, "artifactregistry.googleapis.com/Repository", "Repository"},
-		{"CloudScheduler Job", inventory.KindCloudScheduler, "cloudscheduler.googleapis.com/Job", "Job"},
-		{"PubSub Topic", inventory.KindPubSub, "pubsub.googleapis.com/Topic", "Topic"},
-		{"Spanner Instance", inventory.KindSpanner, "spanner.googleapis.com/Instance", "Instance"},
-		{"Bigtable Instance", inventory.KindBigtable, "bigtableadmin.googleapis.com/Instance", "Instance"},
-		{"KMS CryptoKey", inventory.KindKMS, "cloudkms.googleapis.com/CryptoKey", "CryptoKey"},
-		{"SecretManager Secret", inventory.KindSecretManager, "secretmanager.googleapis.com/Secret", "Secret"},
-		{"Dataflow Job", inventory.KindDataflow, "dataflow.googleapis.com/Job", "Job"},
-		{"Dataproc Cluster", inventory.KindDataproc, "dataproc.googleapis.com/Cluster", "Cluster"},
-		{"Composer Environment", inventory.KindComposer, "composer.googleapis.com/Environment", "Environment"},
-		{"CloudTasks Queue", inventory.KindCloudTasks, "cloudtasks.googleapis.com/Queue", "Queue"},
-		{"Monitoring AlertPolicy", inventory.KindMonitoring, "monitoring.googleapis.com/AlertPolicy", "AlertPolicy"},
-		{"Logging LogSink", inventory.KindLogging, "logging.googleapis.com/LogSink", "LogSink"},
-		{"OSConfig PatchDeployment", inventory.KindOSConfig, "osconfig.googleapis.com/PatchDeployment", "PatchDeployment"},
-		{"VPN VpnTunnel", inventory.KindVPN, "compute.googleapis.com/VpnTunnel", "VpnTunnel"},
-		{"Router", inventory.KindRouter, "compute.googleapis.com/Router", "Router"},
-		{"CloudBuild BuildTrigger", inventory.KindCloudBuild, "cloudbuild.googleapis.com/BuildTrigger", "BuildTrigger"},
+		{"VertexAI Endpoint", inventory.KindGCPVertexAI, "aiplatform.googleapis.com/Endpoint", "Endpoint"},
+		{"VertexAI Model", inventory.KindGCPVertexAI, "aiplatform.googleapis.com/Model", "Model"},
+		{"Apigee Organization", inventory.KindGCPApigee, "apigee.googleapis.com/Organization", "Organization"},
+		{"Apigee ApiProxy", inventory.KindGCPApigee, "apigee.googleapis.com/ApiProxy", "ApiProxy"},
+		{"Firebase Project", inventory.KindGCPFirebase, "firebase.googleapis.com/FirebaseProject", "Project"},
+		{"AppEngine Application", inventory.KindGCPAppEngine, "appengine.googleapis.com/Application", "Application"},
+		{"BigQuery Dataset", inventory.KindGCPBigQuery, "bigquery.googleapis.com/Dataset", "Dataset"},
+		{"BigQuery Table", inventory.KindGCPBigQuery, "bigquery.googleapis.com/Table", "Table"},
+		{"DNS ManagedZone", inventory.KindGCPDNS, "dns.googleapis.com/ManagedZone", "ManagedZone"},
+		{"Memorystore Redis", inventory.KindGCPMemorystore, "redis.googleapis.com/Instance", "Redis"},
+		{"Memorystore Memcache", inventory.KindGCPMemorystore, "memcache.googleapis.com/Instance", "Memcache"},
+		{"ArtifactRegistry Repo", inventory.KindGCPArtifactRegistry, "artifactregistry.googleapis.com/Repository", "Repository"},
+		{"CloudScheduler Job", inventory.KindGCPCloudScheduler, "cloudscheduler.googleapis.com/Job", "Job"},
+		{"PubSub Topic", inventory.KindGCPPubSub, "pubsub.googleapis.com/Topic", "Topic"},
+		{"Spanner Instance", inventory.KindGCPSpanner, "spanner.googleapis.com/Instance", "Instance"},
+		{"Bigtable Instance", inventory.KindGCPBigtable, "bigtableadmin.googleapis.com/Instance", "Instance"},
+		{"KMS CryptoKey", inventory.KindGCPKMS, "cloudkms.googleapis.com/CryptoKey", "CryptoKey"},
+		{"SecretManager Secret", inventory.KindGCPSecretManager, "secretmanager.googleapis.com/Secret", "Secret"},
+		{"Dataflow Job", inventory.KindGCPDataflow, "dataflow.googleapis.com/Job", "Job"},
+		{"Dataproc Cluster", inventory.KindGCPDataproc, "dataproc.googleapis.com/Cluster", "Cluster"},
+		{"Composer Environment", inventory.KindGCPComposer, "composer.googleapis.com/Environment", "Environment"},
+		{"CloudTasks Queue", inventory.KindGCPCloudTasks, "cloudtasks.googleapis.com/Queue", "Queue"},
+		{"Monitoring AlertPolicy", inventory.KindGCPMonitoring, "monitoring.googleapis.com/AlertPolicy", "AlertPolicy"},
+		{"Logging LogSink", inventory.KindGCPLogging, "logging.googleapis.com/LogSink", "LogSink"},
+		{"OSConfig PatchDeployment", inventory.KindGCPOSConfig, "osconfig.googleapis.com/PatchDeployment", "PatchDeployment"},
+		{"VPN VpnTunnel", inventory.KindGCPVPN, "compute.googleapis.com/VpnTunnel", "VpnTunnel"},
+		{"Router", inventory.KindGCPRouter, "compute.googleapis.com/Router", "Router"},
+		{"CloudBuild BuildTrigger", inventory.KindGCPCloudBuild, "cloudbuild.googleapis.com/BuildTrigger", "BuildTrigger"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -62,7 +62,7 @@ func TestStubDetailForKindKnownTypes(t *testing.T) {
 
 func TestStubDetailForKindFallsBackToOther(t *testing.T) {
 	// Known stub Kind + unknown asset type → Subtype "Other".
-	got := stubDetailForKind(inventory.KindVertexAI, "aiplatform.googleapis.com/FutureResource")
+	got := stubDetailForKind(inventory.KindGCPVertexAI, "aiplatform.googleapis.com/FutureResource")
 	require.NotNil(t, got)
 	assert.Equal(t, "Other", got.Subtype)
 }

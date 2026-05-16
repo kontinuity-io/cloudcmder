@@ -17,33 +17,37 @@ const (
 	KindFirewall     Kind = "Firewall"
 	KindCluster      Kind = "Cluster"
 	KindFunction     Kind = "Function"
-	KindVertexAI     Kind = "VertexAI"
+	// KindGCP* identifiers use the GCP prefix to distinguish them from the
+	// cloud-neutral Kinds above. Wire format (the string stored in the DB)
+	// is kept stable so existing DBs load correctly after this rename.
+	KindGCPVertexAI Kind = "VertexAI"
 
-	// Stub-only Kinds — surfaced via Cloud Asset Inventory Phase 1 only.
+	// Stub-only GCP Kinds — surfaced via Cloud Asset Inventory Phase 1 only.
 	// No Phase-2 enricher; Detail is *StubDetail{Subtype, Region}.
-	KindApigee           Kind = "Apigee"
-	KindFirebase         Kind = "Firebase"
-	KindAppEngine        Kind = "AppEngine"
-	KindBigQuery         Kind = "BigQuery"
-	KindDNS              Kind = "DNS"
-	KindMemorystore      Kind = "Memorystore"
-	KindArtifactRegistry Kind = "ArtifactRegistry"
-	KindCloudScheduler   Kind = "CloudScheduler"
-	KindPubSub           Kind = "PubSub"
-	KindSpanner          Kind = "Spanner"
-	KindBigtable         Kind = "Bigtable"
-	KindKMS              Kind = "KMS"
-	KindSecretManager    Kind = "SecretManager"
-	KindDataflow         Kind = "Dataflow"
-	KindDataproc         Kind = "Dataproc"
-	KindComposer         Kind = "Composer"
-	KindCloudTasks       Kind = "CloudTasks"
-	KindMonitoring       Kind = "Monitoring"
-	KindLogging          Kind = "Logging"
-	KindOSConfig         Kind = "OSConfig"
-	KindVPN              Kind = "VPN"
-	KindRouter           Kind = "Router"
-	KindCloudBuild       Kind = "CloudBuild"
+	// AWS-specific Kinds will follow the same KindAWS* naming convention.
+	KindGCPApigee           Kind = "Apigee"
+	KindGCPFirebase         Kind = "Firebase"
+	KindGCPAppEngine        Kind = "AppEngine"
+	KindGCPBigQuery         Kind = "BigQuery"
+	KindGCPDNS              Kind = "DNS"
+	KindGCPMemorystore      Kind = "Memorystore"
+	KindGCPArtifactRegistry Kind = "ArtifactRegistry"
+	KindGCPCloudScheduler   Kind = "CloudScheduler"
+	KindGCPPubSub           Kind = "PubSub"
+	KindGCPSpanner          Kind = "Spanner"
+	KindGCPBigtable         Kind = "Bigtable"
+	KindGCPKMS              Kind = "KMS"
+	KindGCPSecretManager    Kind = "SecretManager"
+	KindGCPDataflow         Kind = "Dataflow"
+	KindGCPDataproc         Kind = "Dataproc"
+	KindGCPComposer         Kind = "Composer"
+	KindGCPCloudTasks       Kind = "CloudTasks"
+	KindGCPMonitoring       Kind = "Monitoring"
+	KindGCPLogging          Kind = "Logging"
+	KindGCPOSConfig         Kind = "OSConfig"
+	KindGCPVPN              Kind = "VPN"
+	KindGCPRouter           Kind = "Router"
+	KindGCPCloudBuild       Kind = "CloudBuild"
 )
 
 // RefKind labels the directed edges in the interconnection graph.

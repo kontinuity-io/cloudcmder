@@ -13,7 +13,7 @@ import "cloudcmder.com/internal/inventory"
 
 var subtypeMaps = map[inventory.Kind]map[string]string{
 	// VertexAI — 24 aiplatform.googleapis.com/* types.
-	inventory.KindVertexAI: {
+	inventory.KindGCPVertexAI: {
 		"aiplatform.googleapis.com/BatchPredictionJob":           "BatchPredictionJob",
 		"aiplatform.googleapis.com/CachedContent":                "CachedContent",
 		"aiplatform.googleapis.com/CustomJob":                    "CustomJob",
@@ -40,7 +40,7 @@ var subtypeMaps = map[inventory.Kind]map[string]string{
 		"aiplatform.googleapis.com/TuningJob":                    "TuningJob",
 	},
 	// Apigee — API management platform.
-	inventory.KindApigee: {
+	inventory.KindGCPApigee: {
 		"apigee.googleapis.com/ApiProxy":         "ApiProxy",
 		"apigee.googleapis.com/ApiProxyRevision": "ApiProxyRevision",
 		"apigee.googleapis.com/Environment":      "Environment",
@@ -50,18 +50,18 @@ var subtypeMaps = map[inventory.Kind]map[string]string{
 	// Firebase — firebase.googleapis.com stub types. Hosting, Firestore, and
 	// Realtime DB are not searchable in CAI; only FirebaseProject and
 	// FirebaseAppInfo are confirmed searchable.
-	inventory.KindFirebase: {
+	inventory.KindGCPFirebase: {
 		"firebase.googleapis.com/FirebaseAppInfo":   "AppInfo",
 		"firebase.googleapis.com/FirebaseProject":   "Project",
 	},
 	// App Engine — appengine.googleapis.com.
-	inventory.KindAppEngine: {
+	inventory.KindGCPAppEngine: {
 		"appengine.googleapis.com/Application": "Application",
 		"appengine.googleapis.com/Service":     "Service",
 		"appengine.googleapis.com/Version":     "Version",
 	},
 	// BigQuery — bigquery.googleapis.com.
-	inventory.KindBigQuery: {
+	inventory.KindGCPBigQuery: {
 		"bigquery.googleapis.com/Dataset":         "Dataset",
 		"bigquery.googleapis.com/Model":           "Model",
 		"bigquery.googleapis.com/Routine":         "Routine",
@@ -69,30 +69,30 @@ var subtypeMaps = map[inventory.Kind]map[string]string{
 		"bigquery.googleapis.com/Table":           "Table",
 	},
 	// Cloud DNS — dns.googleapis.com.
-	inventory.KindDNS: {
+	inventory.KindGCPDNS: {
 		"dns.googleapis.com/ManagedZone":    "ManagedZone",
 		"dns.googleapis.com/Policy":         "Policy",
 		"dns.googleapis.com/ResponsePolicy": "ResponsePolicy",
 	},
 	// Memorystore — Redis and Memcache managed caches.
-	inventory.KindMemorystore: {
+	inventory.KindGCPMemorystore: {
 		"memcache.googleapis.com/Instance": "Memcache",
 		"redis.googleapis.com/Cluster":     "RedisCluster",
 		"redis.googleapis.com/Instance":    "Redis",
 	},
 	// Artifact Registry — artifactregistry.googleapis.com.
-	inventory.KindArtifactRegistry: {
+	inventory.KindGCPArtifactRegistry: {
 		"artifactregistry.googleapis.com/DockerImage": "DockerImage",
 		"artifactregistry.googleapis.com/Repository":  "Repository",
 	},
 	// Cloud Scheduler — cloudscheduler.googleapis.com.
 	// Searchability unconfirmed; graceful path returns 0 rows if not supported.
-	inventory.KindCloudScheduler: {
+	inventory.KindGCPCloudScheduler: {
 		"cloudscheduler.googleapis.com/Job": "Job",
 	},
 	// Pub/Sub — pubsub.googleapis.com.
 	// Searchability unconfirmed; graceful path returns 0 rows if not supported.
-	inventory.KindPubSub: {
+	inventory.KindGCPPubSub: {
 		"pubsub.googleapis.com/Schema":        "Schema",
 		"pubsub.googleapis.com/Snapshot":      "Snapshot",
 		"pubsub.googleapis.com/Subscription":  "Subscription",
@@ -100,77 +100,77 @@ var subtypeMaps = map[inventory.Kind]map[string]string{
 	},
 	// Spanner — spanner.googleapis.com.
 	// Searchability unconfirmed; graceful path returns 0 rows if not supported.
-	inventory.KindSpanner: {
+	inventory.KindGCPSpanner: {
 		"spanner.googleapis.com/Backup":   "Backup",
 		"spanner.googleapis.com/Database": "Database",
 		"spanner.googleapis.com/Instance": "Instance",
 	},
 	// Bigtable — bigtableadmin.googleapis.com.
 	// Searchability unconfirmed; graceful path returns 0 rows if not supported.
-	inventory.KindBigtable: {
+	inventory.KindGCPBigtable: {
 		"bigtableadmin.googleapis.com/Backup":   "Backup",
 		"bigtableadmin.googleapis.com/Cluster":  "Cluster",
 		"bigtableadmin.googleapis.com/Instance": "Instance",
 		"bigtableadmin.googleapis.com/Table":    "Table",
 	},
 	// Cloud KMS — cloudkms.googleapis.com.
-	inventory.KindKMS: {
+	inventory.KindGCPKMS: {
 		"cloudkms.googleapis.com/CryptoKey":     "CryptoKey",
 		"cloudkms.googleapis.com/KeyRing":       "KeyRing",
 	},
 	// Secret Manager — secretmanager.googleapis.com.
 	// Searchability unconfirmed; graceful path returns 0 rows if not supported.
-	inventory.KindSecretManager: {
+	inventory.KindGCPSecretManager: {
 		"secretmanager.googleapis.com/Secret": "Secret",
 	},
 	// Dataflow — dataflow.googleapis.com.
-	inventory.KindDataflow: {
+	inventory.KindGCPDataflow: {
 		"dataflow.googleapis.com/Job": "Job",
 	},
 	// Dataproc — dataproc.googleapis.com.
-	inventory.KindDataproc: {
+	inventory.KindGCPDataproc: {
 		"dataproc.googleapis.com/Cluster":          "Cluster",
 		"dataproc.googleapis.com/Job":              "Job",
 	},
 	// Cloud Composer — composer.googleapis.com.
-	inventory.KindComposer: {
+	inventory.KindGCPComposer: {
 		"composer.googleapis.com/Environment": "Environment",
 	},
 	// Cloud Tasks — cloudtasks.googleapis.com.
 	// Searchability unconfirmed; graceful path returns 0 rows if not supported.
-	inventory.KindCloudTasks: {
+	inventory.KindGCPCloudTasks: {
 		"cloudtasks.googleapis.com/Queue": "Queue",
 	},
 	// Cloud Monitoring — monitoring.googleapis.com.
-	inventory.KindMonitoring: {
+	inventory.KindGCPMonitoring: {
 		"monitoring.googleapis.com/AlertPolicy":         "AlertPolicy",
 		"monitoring.googleapis.com/NotificationChannel": "NotificationChannel",
 		"monitoring.googleapis.com/Snooze":              "Snooze",
 	},
 	// Cloud Logging — logging.googleapis.com.
-	inventory.KindLogging: {
+	inventory.KindGCPLogging: {
 		"logging.googleapis.com/LogBucket": "LogBucket",
 		"logging.googleapis.com/LogMetric": "LogMetric",
 		"logging.googleapis.com/LogSink":   "LogSink",
 	},
 	// OS Config (VM Manager) — osconfig.googleapis.com.
 	// Searchability unconfirmed; graceful path returns 0 rows if not supported.
-	inventory.KindOSConfig: {
+	inventory.KindGCPOSConfig: {
 		"osconfig.googleapis.com/OSPolicyAssignment": "OSPolicyAssignment",
 		"osconfig.googleapis.com/PatchDeployment":    "PatchDeployment",
 	},
 	// Cloud VPN — compute.googleapis.com VPN sub-resources.
-	inventory.KindVPN: {
+	inventory.KindGCPVPN: {
 		"compute.googleapis.com/ExternalVpnGateway": "ExternalVpnGateway",
 		"compute.googleapis.com/VpnGateway":         "VpnGateway",
 		"compute.googleapis.com/VpnTunnel":          "VpnTunnel",
 	},
 	// Cloud Router — compute.googleapis.com/Router.
-	inventory.KindRouter: {
+	inventory.KindGCPRouter: {
 		"compute.googleapis.com/Router": "Router",
 	},
 	// Cloud Build — cloudbuild.googleapis.com.
-	inventory.KindCloudBuild: {
+	inventory.KindGCPCloudBuild: {
 		"cloudbuild.googleapis.com/Build":        "Build",
 		"cloudbuild.googleapis.com/BuildTrigger": "BuildTrigger",
 	},

@@ -16,14 +16,14 @@ func TestColumnsForReturnsKnownKinds(t *testing.T) {
 		inventory.KindDatabase, inventory.KindCluster, inventory.KindBucket,
 		inventory.KindFunction,
 		// stub-only Kinds
-		inventory.KindVertexAI, inventory.KindApigee, inventory.KindFirebase,
-		inventory.KindAppEngine, inventory.KindBigQuery, inventory.KindDNS,
-		inventory.KindMemorystore, inventory.KindArtifactRegistry, inventory.KindCloudScheduler,
-		inventory.KindPubSub, inventory.KindSpanner, inventory.KindBigtable,
-		inventory.KindKMS, inventory.KindSecretManager, inventory.KindDataflow,
-		inventory.KindDataproc, inventory.KindComposer, inventory.KindCloudTasks,
-		inventory.KindMonitoring, inventory.KindLogging, inventory.KindOSConfig,
-		inventory.KindVPN, inventory.KindRouter, inventory.KindCloudBuild,
+		inventory.KindGCPVertexAI, inventory.KindGCPApigee, inventory.KindGCPFirebase,
+		inventory.KindGCPAppEngine, inventory.KindGCPBigQuery, inventory.KindGCPDNS,
+		inventory.KindGCPMemorystore, inventory.KindGCPArtifactRegistry, inventory.KindGCPCloudScheduler,
+		inventory.KindGCPPubSub, inventory.KindGCPSpanner, inventory.KindGCPBigtable,
+		inventory.KindGCPKMS, inventory.KindGCPSecretManager, inventory.KindGCPDataflow,
+		inventory.KindGCPDataproc, inventory.KindGCPComposer, inventory.KindGCPCloudTasks,
+		inventory.KindGCPMonitoring, inventory.KindGCPLogging, inventory.KindGCPOSConfig,
+		inventory.KindGCPVPN, inventory.KindGCPRouter, inventory.KindGCPCloudBuild,
 	} {
 		cols, ok := columnsFor(k, 0)
 		assert.True(t, ok, "kind %s should be registered", k)

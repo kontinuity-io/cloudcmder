@@ -40,11 +40,11 @@ func TestTranslateResultPopulatesStubDetail(t *testing.T) {
 		wantKind  inventory.Kind
 		wantSub   string
 	}{
-		{"VertexAI Endpoint", "aiplatform.googleapis.com/Endpoint", inventory.KindVertexAI, "Endpoint"},
-		{"Apigee Organization", "apigee.googleapis.com/Organization", inventory.KindApigee, "Organization"},
-		{"BigQuery Dataset", "bigquery.googleapis.com/Dataset", inventory.KindBigQuery, "Dataset"},
-		{"PubSub Topic", "pubsub.googleapis.com/Topic", inventory.KindPubSub, "Topic"},
-		{"KMS CryptoKey", "cloudkms.googleapis.com/CryptoKey", inventory.KindKMS, "CryptoKey"},
+		{"VertexAI Endpoint", "aiplatform.googleapis.com/Endpoint", inventory.KindGCPVertexAI, "Endpoint"},
+		{"Apigee Organization", "apigee.googleapis.com/Organization", inventory.KindGCPApigee, "Organization"},
+		{"BigQuery Dataset", "bigquery.googleapis.com/Dataset", inventory.KindGCPBigQuery, "Dataset"},
+		{"PubSub Topic", "pubsub.googleapis.com/Topic", inventory.KindGCPPubSub, "Topic"},
+		{"KMS CryptoKey", "cloudkms.googleapis.com/CryptoKey", inventory.KindGCPKMS, "CryptoKey"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -352,10 +352,10 @@ func TestStreamAssetStubsOneCallPerType(t *testing.T) {
 	fake := &fakeAssetClient{} // no pages: every call returns iterator.Done immediately
 	ch := make(chan inventory.ResourceOrErr, 256)
 	streamAssetStubs(context.Background(), fake, inventory.Scope{ID: "p1"},
-		[]inventory.Kind{inventory.KindVertexAI}, ch)
+		[]inventory.Kind{inventory.KindGCPVertexAI}, ch)
 	close(ch)
 
-	wantCalls := len(subtypeMaps[inventory.KindVertexAI])
+	wantCalls := len(subtypeMaps[inventory.KindGCPVertexAI])
 	if got := atomic.LoadInt32(&fake.callCount); int(got) != wantCalls {
 		t.Errorf("SearchAllResources calls = %d, want %d (one per VertexAI asset type)", got, wantCalls)
 	}
@@ -386,7 +386,7 @@ func TestStreamAssetStubsIsolatesPerTypeFailures(t *testing.T) {
 
 	ch := make(chan inventory.ResourceOrErr, 256)
 	streamAssetStubs(context.Background(), fake, inventory.Scope{ID: "p1"},
-		[]inventory.Kind{inventory.KindVertexAI}, ch)
+		[]inventory.Kind{inventory.KindGCPVertexAI}, ch)
 	close(ch)
 
 	var got []string

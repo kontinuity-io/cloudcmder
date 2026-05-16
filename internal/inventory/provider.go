@@ -6,6 +6,9 @@ import "context"
 type Provider interface {
 	Name() string
 
+	// Close releases the provider's underlying API clients.
+	Close() error
+
 	ListScopes(ctx context.Context) ([]Scope, error)
 
 	ListResources(ctx context.Context, s Scope, kinds []Kind) (<-chan ResourceOrErr, error)

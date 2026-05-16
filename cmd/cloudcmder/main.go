@@ -1,5 +1,5 @@
 // cloudcmder — interactive cloud asset inventory TUI.
-// Run inside GCP CloudShell (or any environment with Application Default Credentials)
+// Run inside CloudShell (or any environment with Application Default Credentials)
 // to browse and export your cloud estate without copying keys to a laptop.
 package main
 
@@ -47,6 +47,7 @@ func newRootCmd() *cobra.Command {
 	var (
 		dbPath       string
 		logLevel     string
+		providerName string
 		checkFlag    bool
 		checkProject string
 		listScopes   bool
@@ -69,7 +70,7 @@ func newRootCmd() *cobra.Command {
 		Use:   "cloudcmder",
 		Short: "Interactive cloud asset inventory TUI",
 		Long: `cloudcmder (cloud commander) is an interactive TUI for inventorying
-GCP resources. Run it inside GCP CloudShell with no additional setup — it uses
+cloud resources. Run it inside CloudShell with no additional setup — it uses
 your existing credentials automatically.
 
 Assessment data is stored in a local SQLite file so scans survive interruptions
@@ -81,15 +82,15 @@ and the file can be exported for offline analysis.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
 			case checkFlag:
-				return runCheck(cmd, checkProject)
+				return runCheck(cmd, providerName, checkProject)
 			case listScopes:
-				return runListScopes(cmd)
+				return runListScopes(cmd, providerName)
 			case scanAll:
-				return runScanMany(cmd, dbPath, "", dumpNative, scanFailFast)
+				return runScanMany(cmd, dbPath, providerName, "", dumpNative, scanFailFast)
 			case scanProjects != "":
-				return runScanMany(cmd, dbPath, scanProjects, dumpNative, scanFailFast)
+				return runScanMany(cmd, dbPath, providerName, scanProjects, dumpNative, scanFailFast)
 			case scanProject != "":
-				return runScan(cmd, dbPath, scanProject, dumpNative)
+				return runScan(cmd, dbPath, providerName, scanProject, dumpNative)
 			case listRunsFlag:
 				return runListRuns(cmd, dbPath)
 			case showRunUUID != "":
@@ -108,21 +109,27 @@ and the file can be exported for offline analysis.`,
 		defaultDBPath(), "path to the SQLite assessment database")
 	root.PersistentFlags().StringVar(&logLevel, "log-level",
 		"info", "log level: debug, info, warn, error (written to ~/.cloudcmder/cloudcmder.log)")
+	root.PersistentFlags().StringVar(&providerName, "provider",
+		"gcp", "cloud provider to use: gcp, aws")
 	root.PersistentFlags().BoolVar(&singleView, "single-view", false,
 		"open the alternative single-screen 4-pane TUI layout (only meaningful for the default TUI action)")
 
 	root.Flags().BoolVar(&checkFlag, "check", false,
-		"check that required GCP APIs are enabled; prints missing ones and the gcloud command to enable them (read-only)")
+		"check that required APIs are enabled; prints missing ones and the command to enable them (read-only; GCP only)")
 	root.Flags().StringVar(&checkProject, "project", "",
-		"limit --check to a single project ID (default: all accessible projects)")
+		"limit --check to a single scope ID (default: all accessible scopes)")
 	root.Flags().BoolVar(&listScopes, "list-scopes", false,
-		"list all GCP projects accessible to the current credentials and exit (JSON output)")
+		"list all scopes accessible to the current credentials and exit (JSON output)")
 	root.Flags().StringVar(&scanProject, "scan", "",
-		"discover all resources in the given GCP project and write them to the store")
+		"discover all resources in the given scope and write them to the store")
+	root.Flags().StringVar(&scanProject, "scope", "",
+		"alias for --scan")
 	root.Flags().BoolVar(&scanAll, "scan-all", false,
-		"scan every accessible GCP project sequentially (one run per project)")
+		"scan every accessible scope sequentially (one run per scope)")
 	root.Flags().StringVar(&scanProjects, "scan-projects", "",
-		"scan a comma-separated list of project IDs sequentially")
+		"scan a comma-separated list of scope IDs sequentially")
+	root.Flags().StringVar(&scanProjects, "scan-scopes", "",
+		"alias for --scan-projects")
 	root.Flags().BoolVar(&scanFailFast, "fail-fast", false,
 		"abort --scan-all/--scan-projects on the first project that errors (default: continue)")
 	root.Flags().BoolVar(&listRunsFlag, "list-runs", false,
@@ -160,10 +167,23 @@ and the file can be exported for offline analysis.`,
 	return root
 }
 
-// runListScopes prints every project the caller can see as a JSON array.
-func runListScopes(cmd *cobra.Command) error {
+// newProvider returns the inventory.Provider for the given provider name.
+// Only "gcp" is fully implemented; "aws" returns a stub error until v2.
+func newProvider(ctx context.Context, name string) (inventory.Provider, error) {
+	switch name {
+	case "gcp":
+		return gcp.New(ctx)
+	case "aws":
+		return nil, fmt.Errorf("aws provider not yet implemented — coming in v2")
+	default:
+		return nil, fmt.Errorf("unknown provider %q — supported: gcp, aws", name)
+	}
+}
+
+// runListScopes prints every scope the caller can see as a JSON array.
+func runListScopes(cmd *cobra.Command, providerName string) error {
 	ctx := cmd.Context()
-	p, err := gcp.New(ctx)
+	p, err := newProvider(ctx, providerName)
 	if err != nil {
 		return err
 	}
@@ -179,30 +199,36 @@ func runListScopes(cmd *cobra.Command) error {
 	return enc.Encode(scopes)
 }
 
-// runCheck calls Service Usage to diff required vs enabled APIs per project
-// and prints a copy-paste-ready gcloud enable command for any that are not yet
+// runCheck calls Service Usage to diff required vs enabled APIs per scope
+// and prints a copy-paste-ready enable command for any that are not yet
 // enabled. Exits non-zero when any are missing — composable with &&.
-func runCheck(cmd *cobra.Command, projectFilter string) error {
+// Currently only supported for the GCP provider.
+func runCheck(cmd *cobra.Command, providerName, scopeFilter string) error {
 	ctx := cmd.Context()
-	p, err := gcp.New(ctx)
+	p, err := newProvider(ctx, providerName)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = p.Close() }()
 
+	gp, ok := p.(*gcp.GCPProvider)
+	if !ok {
+		return fmt.Errorf("--check is only supported for --provider gcp")
+	}
+
 	scopes, err := p.ListScopes(ctx)
 	if err != nil {
 		return fmt.Errorf("preflight: list scopes: %w", err)
 	}
-	if projectFilter != "" {
+	if scopeFilter != "" {
 		var filtered []inventory.Scope
 		for _, s := range scopes {
-			if s.ID == projectFilter {
+			if s.ID == scopeFilter {
 				filtered = append(filtered, s)
 			}
 		}
 		if len(filtered) == 0 {
-			return fmt.Errorf("preflight: project %q not in accessible scopes", projectFilter)
+			return fmt.Errorf("preflight: scope %q not in accessible scopes", scopeFilter)
 		}
 		scopes = filtered
 	}
@@ -210,16 +236,16 @@ func runCheck(cmd *cobra.Command, projectFilter string) error {
 	w := cmd.OutOrStdout()
 	var totalMissing int
 	for _, scope := range scopes {
-		r, err := p.Preflight(ctx, scope)
+		r, err := gp.Preflight(ctx, scope)
 		if err != nil {
-			fmt.Fprintf(w, "Project: %s\n  ERROR: %v\n\n", scope.ID, err)
+			fmt.Fprintf(w, "Scope: %s\n  ERROR: %v\n\n", scope.ID, err)
 			continue
 		}
 		enabledOfRequired := len(r.Required) - len(r.Missing)
 		if len(r.Missing) == 0 {
-			fmt.Fprintf(w, "Project: %s\n  All %d required APIs enabled. ✓\n\n", scope.ID, len(r.Required))
+			fmt.Fprintf(w, "Scope: %s\n  All %d required APIs enabled. ✓\n\n", scope.ID, len(r.Required))
 		} else {
-			fmt.Fprintf(w, "Project: %s\n  %d of %d required APIs enabled — %d not enabled:\n",
+			fmt.Fprintf(w, "Scope: %s\n  %d of %d required APIs enabled — %d not enabled:\n",
 				scope.ID, enabledOfRequired, len(r.Required), len(r.Missing))
 			for _, m := range r.Missing {
 				fmt.Fprintf(w, "    - %s\n", m)
@@ -235,11 +261,11 @@ func runCheck(cmd *cobra.Command, projectFilter string) error {
 	return nil
 }
 
-// runScan opens the store, opens a run, and streams Asset Inventory results
+// runScan opens the store, opens a run, and streams provider results
 // into 200-row WriteBatch calls. On Ctrl-C the run row stays at status='running'
 // with whatever rows the chunked transactions had committed; that's the
 // crash-safety contract from architecture.md.
-func runScan(cmd *cobra.Command, dbPath, projectID string, dumpNative bool) error {
+func runScan(cmd *cobra.Command, dbPath, providerName, scopeID string, dumpNative bool) error {
 	ctx := cmd.Context()
 
 	st, err := store.Open(dbPath)
@@ -248,20 +274,22 @@ func runScan(cmd *cobra.Command, dbPath, projectID string, dumpNative bool) erro
 	}
 	defer func() { _ = st.Close() }()
 
-	p, err := gcp.New(ctx)
+	p, err := newProvider(ctx, providerName)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = p.Close() }()
-	p.SetDumpNative(dumpNative)
+	if d, ok := p.(interface{ SetDumpNative(bool) }); ok {
+		d.SetDumpNative(dumpNative)
+	}
 
-	runID, runUUID, err := st.OpenRun(ctx, "gcp", projectID, projectID, version.Version)
+	runID, runUUID, err := st.OpenRun(ctx, p.Name(), scopeID, scopeID, version.Version)
 	if err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "%s\n", runUUID)
 
-	ch, err := p.ListResources(ctx, inventory.Scope{ProviderID: "gcp", ID: projectID}, nil)
+	ch, err := p.ListResources(ctx, inventory.Scope{ProviderID: p.Name(), ID: scopeID}, nil)
 	if err != nil {
 		_ = st.FinishRun(context.Background(), runID, "failed", err.Error())
 		return err
@@ -421,27 +449,27 @@ func runExport(cmd *cobra.Command, dbPath, outPath, runUUID string) error {
 	return nil
 }
 
-// runScanMany scans each project in projectsCSV (comma-separated) sequentially,
-// or every accessible project when projectsCSV is empty. Each project gets its
-// own run row. On per-project error: logs a warning and continues unless
-// failFast is true. Returns non-zero when any project failed.
-func runScanMany(cmd *cobra.Command, dbPath, projectsCSV string, dumpNative, failFast bool) error {
+// runScanMany scans each scope in scopesCSV (comma-separated) sequentially,
+// or every accessible scope when scopesCSV is empty. Each scope gets its
+// own run row. On per-scope error: logs a warning and continues unless
+// failFast is true. Returns non-zero when any scope failed.
+func runScanMany(cmd *cobra.Command, dbPath, providerName, scopesCSV string, dumpNative, failFast bool) error {
 	ctx := cmd.Context()
 
-	p, err := gcp.New(ctx)
+	p, err := newProvider(ctx, providerName)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = p.Close() }()
 
 	var scopes []inventory.Scope
-	if projectsCSV != "" {
-		for _, id := range strings.Split(projectsCSV, ",") {
+	if scopesCSV != "" {
+		for _, id := range strings.Split(scopesCSV, ",") {
 			id = strings.TrimSpace(id)
 			if id == "" {
 				continue
 			}
-			scopes = append(scopes, inventory.Scope{ProviderID: "gcp", ID: id, DisplayName: id})
+			scopes = append(scopes, inventory.Scope{ProviderID: p.Name(), ID: id, DisplayName: id})
 		}
 	} else {
 		scopes, err = p.ListScopes(ctx)
@@ -450,7 +478,7 @@ func runScanMany(cmd *cobra.Command, dbPath, projectsCSV string, dumpNative, fai
 		}
 	}
 	if len(scopes) == 0 {
-		return errors.New("scan-all: no projects to scan")
+		return errors.New("scan-all: no scopes to scan")
 	}
 
 	st, err := store.Open(dbPath)
@@ -458,19 +486,21 @@ func runScanMany(cmd *cobra.Command, dbPath, projectsCSV string, dumpNative, fai
 		return err
 	}
 	defer func() { _ = st.Close() }()
-	p.SetDumpNative(dumpNative)
+	if d, ok := p.(interface{ SetDumpNative(bool) }); ok {
+		d.SetDumpNative(dumpNative)
+	}
 
 	w := cmd.OutOrStdout()
-	fmt.Fprintf(w, "scanning %d project(s)…\n", len(scopes))
+	fmt.Fprintf(w, "scanning %d scope(s)…\n", len(scopes))
 
 	var failed []string
 	for i, scope := range scopes {
 		fmt.Fprintf(w, "[%d/%d] %s … ", i+1, len(scopes), scope.ID)
 
-		runID, runUUID, err := st.OpenRun(ctx, "gcp", scope.ID, scope.DisplayName, version.Version)
+		runID, runUUID, err := st.OpenRun(ctx, p.Name(), scope.ID, scope.DisplayName, version.Version)
 		if err != nil {
 			fmt.Fprintf(w, "open: %v\n", err)
-			slog.Warn("scan-many: open run failed", "project", scope.ID, "error", err)
+			slog.Warn("scan-many: open run failed", "scope", scope.ID, "error", err)
 			failed = append(failed, scope.ID)
 			if failFast {
 				return err
@@ -482,7 +512,7 @@ func runScanMany(cmd *cobra.Command, dbPath, projectsCSV string, dumpNative, fai
 		if err != nil {
 			_ = st.FinishRun(context.Background(), runID, "failed", err.Error())
 			fmt.Fprintf(w, "list: %v\n", err)
-			slog.Warn("scan-many: list resources failed", "project", scope.ID, "error", err)
+			slog.Warn("scan-many: list resources failed", "scope", scope.ID, "error", err)
 			failed = append(failed, scope.ID)
 			if failFast {
 				return err
@@ -498,7 +528,7 @@ func runScanMany(cmd *cobra.Command, dbPath, projectsCSV string, dumpNative, fai
 		case scanErr != nil:
 			_ = st.FinishRun(context.Background(), runID, "failed", scanErr.Error())
 			fmt.Fprintf(w, "scan: %v\n", scanErr)
-			slog.Warn("scan-many: drain failed", "project", scope.ID, "error", scanErr)
+			slog.Warn("scan-many: drain failed", "scope", scope.ID, "error", scanErr)
 			failed = append(failed, scope.ID)
 			if failFast {
 				return scanErr
@@ -511,7 +541,7 @@ func runScanMany(cmd *cobra.Command, dbPath, projectsCSV string, dumpNative, fai
 	}
 
 	if len(failed) > 0 {
-		return fmt.Errorf("scan-all: %d/%d project(s) failed: %s",
+		return fmt.Errorf("scan-all: %d/%d scope(s) failed: %s",
 			len(failed), len(scopes), strings.Join(failed, ", "))
 	}
 	return nil
@@ -543,7 +573,7 @@ func runExportMulti(cmd *cobra.Command, dbPath, outPath, runsCSV, scopesCSV stri
 	if err := export.WriteMultiWorkbook(ctx, st, runs, outPath); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "wrote %s (%d project(s))\n", outPath, len(runs))
+	fmt.Fprintf(cmd.OutOrStdout(), "wrote %s (%d scope(s))\n", outPath, len(runs))
 	return nil
 }
 

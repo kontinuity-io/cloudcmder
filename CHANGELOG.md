@@ -8,6 +8,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### v1.5 — Cross-cloud decoupling (pre-AWS gate)
+
+- `--provider {gcp,aws}` PersistentFlag added (default: `gcp` — fully backward-compatible). `--provider aws` returns a clear "not yet implemented" error until v2 ships.
+- `--scope` alias for `--scan`; `--scan-scopes` alias for `--scan-projects`.
+- `inventory.Provider` interface gains `Close() error` (every provider should release connections).
+- GCP-shape field renames in `internal/inventory/detail.go` — **user-visible Excel column rename**:
+  - `LicenseProject` → `MarketplaceProject` (VM + Disk sheets)
+  - `LicenseClass` → `MarketplaceClass` (VM + Disk sheets)
+  - `ClusterDetail.Autopilot` → `Serverless` (GKE Autopilot → generic serverless-mode flag for future EKS Fargate etc.; `AUTOPILOT` table column → `SERVERLESS`)
+- 24 GCP-branded `Kind` identifiers prefixed with `KindGCP` (e.g. `KindApigee` → `KindGCPApigee`). Wire-format string values unchanged — existing DBs load correctly without migration.
+- Excel multi-workbook `"Project"` first-column header renamed to `"Scope"` across Summary, Scopes, per-kind, and Edges sheets.
+- TUI scope-screen hints updated: `--scan <project-id>` → `--scan <scope-id>`.
+- `.gitignore` extended: goreleaser `--snapshot` tarballs, `website/downloads/`, scan-output xlsx files.
+
 #### v1.4 — Tabbed Detail chrome
 
 - Replaced the hidden `m` mode cycle in the right-pane Detail with a visible

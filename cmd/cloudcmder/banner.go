@@ -19,7 +19,7 @@ func providerBanner(providerID string) string {
 			return text
 		}
 		var buf strings.Builder
-		_ = figurine.Write(&buf, text, "ANSI Regular.flf")
+		_ = figurine.Write(&buf, text, "Cybersmall.flf")
 		return strings.TrimRight(buf.String(), "\n")
 	default:
 		return text

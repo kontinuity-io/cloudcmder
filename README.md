@@ -757,8 +757,6 @@ gcloud services disable \
 - **Start fresh** — `rm ~/.cloudcmder/cloudcmder.db` deletes every stored run; the next `--scan` rebuilds from scratch.
 - **Open the SQLite directly** — `sqlite3 ~/.cloudcmder/cloudcmder.db`.
 
-## Contributing
-
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE).

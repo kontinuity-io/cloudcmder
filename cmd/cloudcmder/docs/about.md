@@ -22,7 +22,7 @@ Run `cloudcmder` inside GCP CloudShell (or any environment with Application Defa
 
 ## How it stores data
 
-Every scan writes to a local SQLite file (`~/.cloudcmder/cloudcmder.db` by default). Scans are crash-safe: interrupt at any time and the rows already written stay on disk. The TUI and export commands read exclusively from the store — no live GCP calls during navigation.
+Every scan writes to a local SQLite file (`~/.cloudcmder/cloudcmder.db` by default). Scans are crash-safe: interrupt at any time and the rows already written stay on disk. The TUI and export commands read exclusively from the store — no live GCP calls during navigation. Run `cloudcmder --export-all` to bundle the DB, log, and most recent Excel export into a single zip next to the binary — useful for CloudShell downloads or attaching to a support ticket.
 
 ## Single static binary
 

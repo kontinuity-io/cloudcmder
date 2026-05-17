@@ -339,8 +339,10 @@ CGO_ENABLED=0 go build -o cloudcmder ./cmd/cloudcmder
 
 > **Don't forget to copy your data out.** CloudShell's `$HOME` is
 > ephemeral — when the session ends, `~/.cloudcmder/cloudcmder.db` and
-> any `.xlsx` exports vanish. Use the CloudShell **⋮ → Download** menu
-> to pull files off before disconnecting.
+> any `.xlsx` exports vanish. Run `cloudcmder --export-all` to bundle the
+> SQLite DB, log, and most recent Excel export into a single
+> `cloudcmder-bundle-<timestamp>.zip` next to the binary, then use the
+> CloudShell **⋮ → Download** menu to pull it off before disconnecting.
 
 ### Release binary (post-v1.0.0)
 

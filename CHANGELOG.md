@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### v1.5.8 — `--export-all` CloudShell bundle
+
+- `--export-all` bundles the SQLite DB (plus WAL/SHM sidecar files if present), `cloudcmder.log`, and the most recent Excel export from `~/.cloudcmder/exports/` into a single `cloudcmder-bundle-<YYYYMMDD-HHMMSS>.zip` placed next to the binary. One command for the CloudShell download workflow instead of manually locating and zipping three separate files.
+- Zip uses a `cloudcmder-bundle-<ts>/` folder prefix so unzipping produces a tidy directory.
+- DB is required (errors with a clear message if missing); log and Excel are best-effort and silently omitted if absent.
+- Binary location resolved via `os.Executable()` + `filepath.EvalSymlinks` so the zip lands next to the real binary even if launched through a symlink.
+- Pure stdlib implementation (`archive/zip`) — no new dependencies.
+
 #### v1.5.7 — Provider brand banner
 
 - Scan progress view now opens with a full 6-row ANSI Regular.flf block-pixel wordmark above the `scanning N scope(s)` header, rendered via `github.com/arsham/figurine` with its rainbow gradient — same visual style as the `cloudcmder version` banner. GCP and AWS both get the styled wordmark; future providers fall back to plain upper-cased text.

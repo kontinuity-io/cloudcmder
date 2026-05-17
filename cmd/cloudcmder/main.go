@@ -64,6 +64,7 @@ func newRootCmd() *cobra.Command {
 		exportMulti  string
 		exportRunIDs string
 		exportScopes string
+		exportAll    bool
 		dumpNative   bool
 		singleView   bool
 	)
@@ -97,6 +98,8 @@ and the file can be exported for offline analysis.`,
 				return runListRuns(cmd, dbPath)
 			case showRunUUID != "":
 				return runShowRun(cmd, dbPath, showRunUUID)
+			case exportAll:
+				return runExportAll(cmd, dbPath)
 			case exportMulti != "":
 				return runExportMulti(cmd, dbPath, exportMulti, exportRunIDs, exportScopes)
 			case exportPath != "":
@@ -148,6 +151,8 @@ and the file can be exported for offline analysis.`,
 		"comma-separated run UUIDs to include in --export-multi")
 	root.Flags().StringVar(&exportScopes, "scopes", "",
 		"comma-separated scope IDs for --export-multi (uses latest run per scope)")
+	root.Flags().BoolVar(&exportAll, "export-all", false,
+		"bundle the SQLite DB, log, and most recent Excel export into a zip next to the binary")
 	root.Flags().BoolVar(&dumpNative, "dump-native", false,
 		"store raw GCP API payloads in native_json (off by default; roughly doubles DB size)")
 

@@ -8,6 +8,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### v1.5.9 — GPU/accelerator visibility on VMs and GKE node pools
+
+- GCE VMs now expose attached GPU info in `VMDetail.Accelerators`: explicit `GuestAccelerators` (N1+GPU) and implicit derivation from accelerator-optimized machine families (A2 → A100, A3 → H100/H200, G2 → L4). CPU-only VMs remain unaffected (empty field).
+- GKE `ClusterDetail.Accelerators` aggregates GPU counts across all node pools, weighted by node count. Supports both explicit `NodeConfig.Accelerators` and implicit A2/A3/G2 machine types.
+- New `GPU` column in the TUI VM and Cluster resource tables (sparse — blank for CPU-only rows).
+- New `GPUType` and `GPUCount` columns in the VM and Cluster Excel export sheets. `=SUMIF(GPUType,"nvidia-h100-80gb",GPUCount)` works directly.
+- New file `internal/inventory/accelerator.go` — `AcceleratorSummary`, `AcceleratorTotalCount`, `AcceleratorTypeList` helper functions.
+- New file `internal/providers/gcp/accelerators.go` — `vmAccelerators`, `implicitAccelerators`, `nodePoolAccelerators`, `g2L4Counts` mapping table.
+- No new dependencies. `Accelerator` type is provider-agnostic — AWS/Azure enrichers will reuse the same `VMDetail.Accelerators` field when those providers land.
+
 #### v1.5.8 — `--export-all` CloudShell bundle
 
 - `--export-all` bundles the SQLite DB (plus WAL/SHM sidecar files if present), `cloudcmder.log`, and the most recent Excel export from `~/.cloudcmder/exports/` into a single `cloudcmder-bundle-<YYYYMMDD-HHMMSS>.zip` placed next to the binary. One command for the CloudShell download workflow instead of manually locating and zipping three separate files.

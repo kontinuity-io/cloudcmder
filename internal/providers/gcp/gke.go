@@ -100,6 +100,7 @@ func buildClusterResource(scopeID string, c *containerpb.Cluster, dumpNative boo
 			detail.NodeMachine = cfg.GetMachineType()
 			detail.NodeDiskGB = int64(cfg.GetDiskSizeGb())
 		}
+		detail.Accelerators = nodePoolAccelerators(pools)
 	}
 	return inventory.Resource{
 		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindCluster, ID: c.GetName()},

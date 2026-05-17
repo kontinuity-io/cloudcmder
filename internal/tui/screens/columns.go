@@ -320,6 +320,12 @@ func vmColumns() []ColumnDef {
 			}
 			return ""
 		}},
+		{Header: "GPU", Width: 10, Extract: func(_ inventory.Resource, d any) string {
+			if vm := vmOf(d); vm != nil {
+				return inventory.AcceleratorSummary(vm.Accelerators)
+			}
+			return ""
+		}},
 		{Header: "OS", Width: 10, Extract: func(_ inventory.Resource, d any) string {
 			if vm := vmOf(d); vm != nil {
 				return vm.OSFamily
@@ -547,6 +553,12 @@ func clusterColumns() []ColumnDef {
 		{Header: "NODES", Width: 6, Extract: func(_ inventory.Resource, d any) string {
 			if cd, ok := d.(*inventory.ClusterDetail); ok && cd != nil {
 				return fmt.Sprintf("%d", cd.NodeCount)
+			}
+			return ""
+		}},
+		{Header: "GPU", Width: 12, Extract: func(_ inventory.Resource, d any) string {
+			if cd, ok := d.(*inventory.ClusterDetail); ok && cd != nil {
+				return inventory.AcceleratorSummary(cd.Accelerators)
 			}
 			return ""
 		}},

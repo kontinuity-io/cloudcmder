@@ -282,3 +282,76 @@ func newProviderWithFakeInstances(t *testing.T, fake instancesAPI) *GCPProvider 
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func TestBuildVMResourceAccelerators(t *testing.T) {
+	noopResolve := func(_ context.Context, _, _ string) (int32, int64, error) {
+		return 0, 0, nil
+	}
+
+	tests := []struct {
+		name     string
+		inst     *computepb.Instance
+		wantAccs []inventory.Accelerator
+	}{
+		{
+			name: "explicit GuestAccelerators (N1+T4)",
+			inst: &computepb.Instance{
+				Name:        ptr("vm-gpu"),
+				Zone:        ptr("zones/us-central1-a"),
+				MachineType: ptr("machineTypes/n1-standard-8"),
+				Status:      ptr("RUNNING"),
+				GuestAccelerators: []*computepb.AcceleratorConfig{
+					{
+						AcceleratorType:  ptr("projects/p1/zones/us-central1-a/acceleratorTypes/nvidia-tesla-t4"),
+						AcceleratorCount: ptr(int32(2)),
+					},
+				},
+			},
+			wantAccs: []inventory.Accelerator{{Type: "nvidia-tesla-t4", Count: 2}},
+		},
+		{
+			name: "implicit A3 (H100)",
+			inst: &computepb.Instance{
+				Name:        ptr("vm-a3"),
+				Zone:        ptr("zones/us-central1-a"),
+				MachineType: ptr("machineTypes/a3-highgpu-8g"),
+				Status:      ptr("RUNNING"),
+			},
+			wantAccs: []inventory.Accelerator{{Type: "nvidia-h100-80gb", Count: 8}},
+		},
+		{
+			name: "CPU-only VM has no accelerators",
+			inst: &computepb.Instance{
+				Name:        ptr("vm-cpu"),
+				Zone:        ptr("zones/us-central1-a"),
+				MachineType: ptr("machineTypes/n1-standard-4"),
+				Status:      ptr("RUNNING"),
+			},
+			wantAccs: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := buildVMResource(context.Background(), "proj", tt.inst, noopResolve, false)
+			detail, ok := r.Detail.(*inventory.VMDetail)
+			if !ok {
+				t.Fatal("detail is not *VMDetail")
+			}
+			if len(tt.wantAccs) == 0 {
+				if len(detail.Accelerators) != 0 {
+					t.Errorf("got %v, want nil/empty", detail.Accelerators)
+				}
+			} else {
+				if len(detail.Accelerators) != len(tt.wantAccs) {
+					t.Fatalf("got %v, want %v", detail.Accelerators, tt.wantAccs)
+				}
+				for i, a := range detail.Accelerators {
+					if a != tt.wantAccs[i] {
+						t.Errorf("[%d] got %v, want %v", i, a, tt.wantAccs[i])
+					}
+				}
+			}
+		})
+	}
+}

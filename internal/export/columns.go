@@ -201,6 +201,14 @@ func vmColumns() []ColumnDef {
 			return fmt.Sprintf("%d", d.MemoryMiB)
 		})},
 		{Header: "CPUPlatform", Extract: vmField(func(d *inventory.VMDetail) string { return d.CPUPlatform })},
+		{Header: "GPUType", Extract: vmField(func(d *inventory.VMDetail) string { return inventory.AcceleratorTypeList(d.Accelerators) })},
+		{Header: "GPUCount", Extract: vmField(func(d *inventory.VMDetail) string {
+			n := inventory.AcceleratorTotalCount(d.Accelerators)
+			if n == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", n)
+		})},
 		{Header: "OSFamily", Extract: vmField(func(d *inventory.VMDetail) string { return d.OSFamily })},
 		{Header: "OSImage", Extract: vmField(func(d *inventory.VMDetail) string { return d.OSImage })},
 		{Header: "Licenses", Extract: vmField(func(d *inventory.VMDetail) string { return strings.Join(d.Licenses, ";") })},
@@ -470,6 +478,14 @@ func clusterColumns() []ColumnDef {
 			return fmt.Sprintf("%d", d.NodeCount)
 		})},
 		{Header: "NodeMachine", Extract: clField(func(d *inventory.ClusterDetail) string { return d.NodeMachine })},
+		{Header: "GPUType", Extract: clField(func(d *inventory.ClusterDetail) string { return inventory.AcceleratorTypeList(d.Accelerators) })},
+		{Header: "GPUCount", Extract: clField(func(d *inventory.ClusterDetail) string {
+			n := inventory.AcceleratorTotalCount(d.Accelerators)
+			if n == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", n)
+		})},
 		{Header: "NodeDiskGB", Extract: clField(func(d *inventory.ClusterDetail) string {
 			if d.NodeDiskGB == 0 {
 				return ""

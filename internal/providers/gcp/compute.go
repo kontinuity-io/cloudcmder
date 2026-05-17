@@ -182,9 +182,10 @@ func buildVMResource(ctx context.Context, scopeID string, inst *computepb.Instan
 	mt := lastSegment(inst.GetMachineType())
 
 	detail := inventory.VMDetail{
-		MachineType: mt,
-		Zone:        zone,
-		CPUPlatform: inst.GetCpuPlatform(),
+		MachineType:  mt,
+		Zone:         zone,
+		CPUPlatform:  inst.GetCpuPlatform(),
+		Accelerators: vmAccelerators(inst),
 	}
 	if v, m, err := resolveMT(ctx, zone, mt); err == nil {
 		detail.VCPUs = v

@@ -1,5 +1,12 @@
 package inventory
 
+// Accelerator captures one accelerator type and count attached to a VM or
+// node pool. A slice allows for multi-type configurations.
+type Accelerator struct {
+	Type  string // short type name, e.g. "nvidia-tesla-t4", "nvidia-l4"
+	Count int32
+}
+
 // VMDetail captures the compute-instance fields the TUI and exporter render.
 type VMDetail struct {
 	MachineType   string
@@ -16,9 +23,10 @@ type VMDetail struct {
 	Zone          string
 	// Marketplace fields — populated from attached disk license metadata.
 	// MarketplaceClass precedence: "marketplace" > "paid" > "free" > "".
-	Licenses          []string // license names aggregated across all attached disks
-	MarketplaceProject string  // image project of the highest-precedence license
-	MarketplaceClass   string  // "marketplace" | "paid" | "free" | ""
+	Licenses           []string // license names aggregated across all attached disks
+	MarketplaceProject string   // image project of the highest-precedence license
+	MarketplaceClass   string   // "marketplace" | "paid" | "free" | ""
+	Accelerators       []Accelerator
 }
 
 // DiskRef is a lightweight pointer to a disk used inside VMDetail; the full
@@ -116,12 +124,13 @@ type FirewallRule struct {
 
 // ClusterDetail describes a managed Kubernetes cluster.
 type ClusterDetail struct {
-	Version     string
-	NodeCount   int32
-	NodeMachine string
-	NodeDiskGB  int64
-	Serverless  bool // managed/serverless mode (GKE Autopilot, EKS Fargate, etc.)
-	Location    string
+	Version      string
+	NodeCount    int32
+	NodeMachine  string
+	NodeDiskGB   int64
+	Serverless   bool // managed/serverless mode (GKE Autopilot, EKS Fargate, etc.)
+	Location     string
+	Accelerators []Accelerator // aggregated across all node pools
 }
 
 // FunctionDetail normalizes function-platform services (Cloud Run, Lambda, etc.).

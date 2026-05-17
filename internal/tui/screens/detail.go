@@ -455,7 +455,7 @@ func clusterDetailRows(res inventory.Resource, detail any) []string {
 	if cd == nil {
 		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
 	}
-	return []string{
+	out := []string{
 		kvLine("Version", cd.Version),
 		kvLine("Location", cd.Location),
 		kvLine("Nodes", fmt.Sprintf("%d", cd.NodeCount)),
@@ -464,6 +464,10 @@ func clusterDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Serverless", boolStr(cd.Serverless)),
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 	}
+	if s := inventory.AcceleratorSummary(cd.Accelerators); s != "" {
+		out = append(out, kvLine("GPUs", s))
+	}
+	return out
 }
 
 func bucketDetailRows(_ inventory.Resource, detail any) []string {
@@ -538,6 +542,9 @@ func vmDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 		kvLine("Zone", vm.Zone),
 		kvLine("CPU Plat", vm.CPUPlatform),
+	}
+	if s := inventory.AcceleratorSummary(vm.Accelerators); s != "" {
+		out = append(out, kvLine("GPUs", s))
 	}
 	if vm.MarketplaceClass != "" {
 		out = append(out, kvLine("Marketplace", vm.MarketplaceClass))

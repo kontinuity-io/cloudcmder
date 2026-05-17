@@ -209,6 +209,13 @@ func vmColumns() []ColumnDef {
 			}
 			return fmt.Sprintf("%d", n)
 		})},
+		{Header: "GPUMemGB", Extract: vmField(func(d *inventory.VMDetail) string {
+			n := inventory.AcceleratorTotalVRAMGB(d.Accelerators)
+			if n == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", n)
+		})},
 		{Header: "OSFamily", Extract: vmField(func(d *inventory.VMDetail) string { return d.OSFamily })},
 		{Header: "OSImage", Extract: vmField(func(d *inventory.VMDetail) string { return d.OSImage })},
 		{Header: "Licenses", Extract: vmField(func(d *inventory.VMDetail) string { return strings.Join(d.Licenses, ";") })},
@@ -481,6 +488,13 @@ func clusterColumns() []ColumnDef {
 		{Header: "GPUType", Extract: clField(func(d *inventory.ClusterDetail) string { return inventory.AcceleratorTypeList(d.Accelerators) })},
 		{Header: "GPUCount", Extract: clField(func(d *inventory.ClusterDetail) string {
 			n := inventory.AcceleratorTotalCount(d.Accelerators)
+			if n == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", n)
+		})},
+		{Header: "GPUMemGB", Extract: clField(func(d *inventory.ClusterDetail) string {
+			n := inventory.AcceleratorTotalVRAMGB(d.Accelerators)
 			if n == 0 {
 				return ""
 			}

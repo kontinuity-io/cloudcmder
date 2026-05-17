@@ -128,6 +128,136 @@ func TestWriteWorkbookSheetsAndContent(t *testing.T) {
 	}
 }
 
+func TestVMGPUColumnsRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(":memory:")
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	runID, runUUID, err := st.OpenRun(ctx, "gcp", "p-gpu", "GPU Project", "test")
+	if err != nil {
+		t.Fatalf("OpenRun: %v", err)
+	}
+
+	batch := []inventory.Resource{{
+		Ref:    inventory.ResourceRef{Provider: "gcp", ScopeID: "p-gpu", Kind: inventory.KindVM, ID: "gpu-vm"},
+		Kind:   inventory.KindVM,
+		Name:   "gpu-vm",
+		Region: "us-central1-a",
+		Status: "RUNNING",
+		Detail: &inventory.VMDetail{
+			MachineType: "n1-standard-8",
+			CPUPlatform: "Intel Skylake",
+			Accelerators: []inventory.Accelerator{
+				{Type: "nvidia-l4", Count: 2},
+			},
+		},
+	}}
+	if err := st.WriteBatch(ctx, runID, batch); err != nil {
+		t.Fatalf("WriteBatch: %v", err)
+	}
+	if err := st.FinishRun(ctx, runID, "ok", ""); err != nil {
+		t.Fatalf("FinishRun: %v", err)
+	}
+	run, err := st.FindRunByUUID(ctx, runUUID)
+	if err != nil || run == nil {
+		t.Fatalf("FindRunByUUID: run=%v err=%v", run, err)
+	}
+
+	// --- single-run export ---
+	out := filepath.Join(t.TempDir(), "gpu.xlsx")
+	if err := WriteWorkbook(ctx, st, *run, out); err != nil {
+		t.Fatalf("WriteWorkbook: %v", err)
+	}
+	wb, err := excelize.OpenFile(out)
+	if err != nil {
+		t.Fatalf("OpenFile: %v", err)
+	}
+	t.Cleanup(func() { _ = wb.Close() })
+
+	hdr, _ := wb.GetRows(sheetVMs)
+	if len(hdr) < 2 {
+		t.Fatalf("VMs: want at least 2 rows (header+data), got %d", len(hdr))
+	}
+	colIdx := map[string]int{}
+	for i, h := range hdr[0] {
+		colIdx[h] = i
+	}
+	gpuTypeIdx, ok1 := colIdx["GPUType"]
+	gpuCountIdx, ok2 := colIdx["GPUCount"]
+	if !ok1 || !ok2 {
+		t.Fatalf("GPUType/GPUCount not in header: %v", hdr[0])
+	}
+	dataRow := hdr[1]
+	if gpuTypeIdx >= len(dataRow) || dataRow[gpuTypeIdx] != "nvidia-l4" {
+		t.Errorf("GPUType = %q, want nvidia-l4", func() string {
+			if gpuTypeIdx < len(dataRow) {
+				return dataRow[gpuTypeIdx]
+			}
+			return "<missing>"
+		}())
+	}
+	if gpuCountIdx >= len(dataRow) || dataRow[gpuCountIdx] != "2" {
+		t.Errorf("GPUCount = %q, want 2", func() string {
+			if gpuCountIdx < len(dataRow) {
+				return dataRow[gpuCountIdx]
+			}
+			return "<missing>"
+		}())
+	}
+	// nvidia-l4 = 24 GB/card × 2 = 48 GB total
+	gpuMemIdx, ok3 := colIdx["GPUMemGB"]
+	if !ok3 {
+		t.Fatal("GPUMemGB not in header")
+	}
+	if gpuMemIdx >= len(dataRow) || dataRow[gpuMemIdx] != "48" {
+		t.Errorf("GPUMemGB = %q, want 48", func() string {
+			if gpuMemIdx < len(dataRow) {
+				return dataRow[gpuMemIdx]
+			}
+			return "<missing>"
+		}())
+	}
+
+	// --- multi-run export uses the same WriteMultiWorkbook path ---
+	outMulti := filepath.Join(t.TempDir(), "gpu-multi.xlsx")
+	if err := WriteMultiWorkbook(ctx, st, []store.RunSummary{*run}, outMulti); err != nil {
+		t.Fatalf("WriteMultiWorkbook: %v", err)
+	}
+	wbm, err := excelize.OpenFile(outMulti)
+	if err != nil {
+		t.Fatalf("OpenFile multi: %v", err)
+	}
+	t.Cleanup(func() { _ = wbm.Close() })
+
+	mRows, _ := wbm.GetRows(sheetVMs)
+	if len(mRows) < 2 {
+		t.Fatalf("multi VMs: want ≥2 rows, got %d", len(mRows))
+	}
+	mColIdx := map[string]int{}
+	for i, h := range mRows[0] {
+		mColIdx[h] = i
+	}
+	if _, ok := mColIdx["GPUType"]; !ok {
+		t.Fatalf("multi GPUType not in header: %v", mRows[0])
+	}
+	mData := mRows[1]
+	mGPUType := mData[mColIdx["GPUType"]]
+	mGPUCount := mData[mColIdx["GPUCount"]]
+	mGPUMem := mData[mColIdx["GPUMemGB"]]
+	if mGPUType != "nvidia-l4" {
+		t.Errorf("multi GPUType = %q, want nvidia-l4", mGPUType)
+	}
+	if mGPUCount != "2" {
+		t.Errorf("multi GPUCount = %q, want 2", mGPUCount)
+	}
+	if mGPUMem != "48" {
+		t.Errorf("multi GPUMemGB = %q, want 48", mGPUMem)
+	}
+}
+
 func TestDefaultPathContainsScopeAndShortUUID(t *testing.T) {
 	run := store.RunSummary{
 		UUID:    "be603380-aaaa-bbbb-cccc-dddddddddddd",

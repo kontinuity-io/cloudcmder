@@ -651,7 +651,6 @@ say `ELF 64-bit LSB executable, x86-64, ..., statically linked`.
 | v1.4 Tabbed Detail chrome | ✅ |
 | v1.3 Telemetry overlay | 🔲 |
 
-See `plan.md` for full milestone details and acceptance criteria.
 
 ## Troubleshooting
 
@@ -756,15 +755,9 @@ gcloud services disable \
 - **TUI rendering looks corrupted** — check `~/.cloudcmder/cloudcmder.log`. Debug output is routed there so it can't trash the alt-screen; if anything went sideways the trace is in that file.
 - **Stuck on `loading…` forever** — usually a slow GCP API call. `q` to quit cleanly, then `tail ~/.cloudcmder/cloudcmder.log`.
 - **Start fresh** — `rm ~/.cloudcmder/cloudcmder.db` deletes every stored run; the next `--scan` rebuilds from scratch.
-- **Open the SQLite directly** — `sqlite3 ~/.cloudcmder/cloudcmder.db`. Schema is documented in `architecture.md`.
-
-## Architecture
-
-See `architecture.md` for the full design: layer diagram, Provider interface, SQLite schema, GCP API choices, TUI screen flow, Excel layout, and the multi-cloud extension guide.
+- **Open the SQLite directly** — `sqlite3 ~/.cloudcmder/cloudcmder.db`.
 
 ## Contributing
-
-See `CLAUDE.md` for coding standards, the dependency rules between layers, and checklists for adding new resource kinds or cloud providers.
 
 ## License
 

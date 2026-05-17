@@ -45,11 +45,4 @@ checksum:
 #   - artifacts: archive
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "Merge pull request"
-      - "Merge branch"
+  disable: true

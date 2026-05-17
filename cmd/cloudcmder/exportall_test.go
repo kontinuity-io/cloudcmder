@@ -52,6 +52,28 @@ func TestNewestXLSX(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(d, "notes.txt"), []byte("x"), 0o644))
 		assert.Equal(t, "", newestXLSX(d))
 	})
+
+	t.Run("picks newest across multiple dirs", func(t *testing.T) {
+		d1 := t.TempDir()
+		d2 := t.TempDir()
+		old := filepath.Join(d1, "old.xlsx")
+		newest := filepath.Join(d2, "newest.xlsx")
+		require.NoError(t, os.WriteFile(old, []byte("a"), 0o644))
+		require.NoError(t, os.WriteFile(newest, []byte("b"), 0o644))
+
+		now := time.Now()
+		require.NoError(t, os.Chtimes(old, now.Add(-1*time.Hour), now.Add(-1*time.Hour)))
+		require.NoError(t, os.Chtimes(newest, now, now))
+
+		assert.Equal(t, newest, newestXLSXAny(d1, d2))
+	})
+
+	t.Run("deduplicates repeated dir", func(t *testing.T) {
+		d := t.TempDir()
+		p := filepath.Join(d, "report.xlsx")
+		require.NoError(t, os.WriteFile(p, []byte("x"), 0o644))
+		assert.Equal(t, p, newestXLSXAny(d, d))
+	})
 }
 
 func TestCollectBundleEntries(t *testing.T) {

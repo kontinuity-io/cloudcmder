@@ -51,34 +51,48 @@ func collectBundleEntries(dbPath, dbDir, bundleName string) []bundleEntry {
 	if logPath := defaultLogPath(); fileExists(logPath) {
 		out = append(out, bundleEntry{bundleName + "/cloudcmder.log", logPath})
 	}
-	if xl := newestXLSX(filepath.Join(dbDir, "exports")); xl != "" {
+	// Search the default exports dir AND the binary's directory so that
+	// relative-path --export / --export-multi outputs are found too.
+	if xl := newestXLSXAny(filepath.Join(dbDir, "exports"), binaryDir()); xl != "" {
 		out = append(out, bundleEntry{bundleName + "/exports/" + filepath.Base(xl), xl})
 	}
 	return out
 }
 
-func newestXLSX(dir string) string {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return ""
-	}
+// newestXLSXAny returns the path of the most recently modified .xlsx file
+// found across all supplied directories. Returns "" if none exist.
+func newestXLSXAny(dirs ...string) string {
+	seen := make(map[string]bool)
 	var best string
 	var bestMod int64
-	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".xlsx" {
+	for _, dir := range dirs {
+		if seen[dir] {
 			continue
 		}
-		info, err := e.Info()
+		seen[dir] = true
+		entries, err := os.ReadDir(dir)
 		if err != nil {
 			continue
 		}
-		if info.ModTime().UnixNano() > bestMod {
-			bestMod = info.ModTime().UnixNano()
-			best = filepath.Join(dir, e.Name())
+		for _, e := range entries {
+			if e.IsDir() || filepath.Ext(e.Name()) != ".xlsx" {
+				continue
+			}
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			if info.ModTime().UnixNano() > bestMod {
+				bestMod = info.ModTime().UnixNano()
+				best = filepath.Join(dir, e.Name())
+			}
 		}
 	}
 	return best
 }
+
+// newestXLSX is kept for test compatibility.
+func newestXLSX(dir string) string { return newestXLSXAny(dir) }
 
 func writeZip(outPath string, entries []bundleEntry) error {
 	f, err := os.Create(outPath)

@@ -59,9 +59,10 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return secretManagerColumns()
 	case inventory.KindGCPAppEngine:
 		return appEngineColumns()
+	case inventory.KindGCPFirebase:
+		return firebaseColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
-		inventory.KindGCPFirebase,
 		inventory.KindGCPDNS,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -122,9 +123,10 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.SecretManagerDetail{})
 	case inventory.KindGCPAppEngine:
 		return unmarshalOrNil(raw, &inventory.AppEngineDetail{})
+	case inventory.KindGCPFirebase:
+		return unmarshalOrNil(raw, &inventory.FirebaseDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
-		inventory.KindGCPFirebase,
 		inventory.KindGCPDNS,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -840,5 +842,38 @@ func aeField(get func(*inventory.AppEngineDetail) string) func(inventory.Resourc
 			return ""
 		}
 		return get(ae)
+	}
+}
+
+// --- Firebase --------------------------------------------------------------
+
+func firebaseColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Status", Extract: statusOf},
+		{Header: "DisplayName", Extract: fbField(func(d *inventory.FirebaseDetail) string { return d.DisplayName })},
+		{Header: "ProjectNumber", Extract: fbField(func(d *inventory.FirebaseDetail) string {
+			if d.ProjectNumber == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.ProjectNumber)
+		})},
+		{Header: "LocationID", Extract: fbField(func(d *inventory.FirebaseDetail) string { return d.LocationID })},
+		{Header: "WebApps", Extract: fbField(func(d *inventory.FirebaseDetail) string { return fmt.Sprintf("%d", d.WebAppCount) })},
+		{Header: "AndroidApps", Extract: fbField(func(d *inventory.FirebaseDetail) string { return fmt.Sprintf("%d", d.AndroidAppCount) })},
+		{Header: "IOSApps", Extract: fbField(func(d *inventory.FirebaseDetail) string { return fmt.Sprintf("%d", d.IOSAppCount) })},
+		{Header: "TotalApps", Extract: fbField(func(d *inventory.FirebaseDetail) string { return fmt.Sprintf("%d", d.TotalApps) })},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func fbField(get func(*inventory.FirebaseDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		fb, ok := d.(*inventory.FirebaseDetail)
+		if !ok || fb == nil {
+			return ""
+		}
+		return get(fb)
 	}
 }

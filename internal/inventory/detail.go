@@ -169,6 +169,21 @@ type AppEngineDetail struct {
 	ServiceCount    int    // number of services (from ListServices)
 }
 
+// FirebaseDetail captures the enriched fields for a Firebase project.
+// Subtype and Region MUST remain the first two fields so a StubDetail JSON
+// blob decodes losslessly into FirebaseDetail (INSERT OR REPLACE overwrite).
+type FirebaseDetail struct {
+	Subtype         string // always "Project" for the Project grain
+	Region          string // resource location ID (e.g. "us-central1"), may be empty
+	DisplayName     string // user-assigned display name of the Firebase project
+	ProjectNumber   int64  // globally unique Google-assigned project number
+	LocationID      string // same as Region; kept for explicit naming clarity
+	WebAppCount     int    // number of Web apps registered with this project
+	AndroidAppCount int    // number of Android apps registered with this project
+	IOSAppCount     int    // number of iOS apps registered with this project
+	TotalApps       int    // WebAppCount + AndroidAppCount + IOSAppCount
+}
+
 // StubDetail is the shared Detail type for all stub-only Kinds: VertexAI,
 // Apigee, and the other CAI-listed Kinds without a Phase-2 enricher. Detail
 // carries only the Subtype label derived from the CAI asset type string.

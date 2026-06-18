@@ -319,9 +319,10 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, secretManagerDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPAppEngine:
 		rows = append(rows, appEngineDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPFirebase:
+		rows = append(rows, firebaseDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
-		inventory.KindGCPFirebase,
 		inventory.KindGCPDNS,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -684,6 +685,35 @@ func secretManagerDetailRows(res inventory.Resource, detail any) []string {
 	out = append(out, kvLine("Access ops", formatCount(sd.AccessOperations)))
 	return out
 }
+
+func firebaseDetailRows(_ inventory.Resource, detail any) []string {
+	fb, _ := detail.(*inventory.FirebaseDetail)
+	if fb == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	displayName := fb.DisplayName
+	if displayName == "" {
+		displayName = "—"
+	}
+	location := fb.LocationID
+	if location == "" {
+		location = "—"
+	}
+	projNum := "—"
+	if fb.ProjectNumber != 0 {
+		projNum = fmt.Sprintf("%d", fb.ProjectNumber)
+	}
+	return []string{
+		kvLine("Display", displayName),
+		kvLine("Proj#", projNum),
+		kvLine("Location", location),
+		kvLine("Web apps", fmt.Sprintf("%d", fb.WebAppCount)),
+		kvLine("Android", fmt.Sprintf("%d", fb.AndroidAppCount)),
+		kvLine("iOS", fmt.Sprintf("%d", fb.IOSAppCount)),
+		kvLine("Total apps", fmt.Sprintf("%d", fb.TotalApps)),
+	}
+}
+
 func stubDetailRows(res inventory.Resource, detail any) []string {
 	sd, _ := detail.(*inventory.StubDetail)
 	if sd == nil {

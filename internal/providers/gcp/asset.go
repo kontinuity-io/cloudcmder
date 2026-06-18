@@ -279,6 +279,7 @@ var allEnrichers = []kindEnricher{
 	{inventory.KindGCPArtifactRegistry, enrichArtifactRegistry},
 	{inventory.KindGCPSecretManager, enrichSecretManager},
 	{inventory.KindGCPAppEngine, enrichAppEngine},
+	{inventory.KindGCPFirebase, enrichFirebase},
 }
 
 // runEnrichers is the production entry point — fans Phase 2 across the

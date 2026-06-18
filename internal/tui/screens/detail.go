@@ -309,6 +309,8 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, functionDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPBigQuery:
 		rows = append(rows, bigQueryDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPPubSub:
+		rows = append(rows, pubSubDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -317,7 +319,6 @@ func (d *Detail) detailPane() string {
 		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
-		inventory.KindGCPPubSub,
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
 		inventory.KindGCPKMS,
@@ -534,6 +535,33 @@ func bigQueryDetailRows(res inventory.Resource, detail any) []string {
 	out = append(out, kvLine("Edition", edition))
 	if bd.Slots > 0 {
 		out = append(out, kvLine("Slots", fmt.Sprintf("%d", bd.Slots)))
+	}
+	return out
+}
+
+func pubSubDetailRows(res inventory.Resource, detail any) []string {
+	pd, _ := detail.(*inventory.PubSubDetail)
+	if pd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	out := []string{
+		kvLine("Subtype", pd.Subtype),
+		kvLine("Region", pd.Region),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+	retention := pd.MessageRetention
+	if retention == "" {
+		retention = "—"
+	}
+	out = append(out, kvLine("Retention", retention))
+	switch pd.Subtype {
+	case "Subscription":
+		out = append(out, kvLine("Delivery", pd.DeliveryType))
+	case "Topic":
+		out = append(out,
+			kvLine("Subs", fmt.Sprintf("%d", pd.SubscriptionCount)),
+			kvLine("Published", formatBytes(pd.PublishedBytes)),
+		)
 	}
 	return out
 }

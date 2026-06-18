@@ -168,3 +168,15 @@ type BigQueryDetail struct {
 	Edition      string // STANDARD | ENTERPRISE | ENTERPRISE_PLUS (project reservation; best-effort)
 	Slots        int64  // reservation slot capacity for the project (best-effort)
 }
+
+// PubSubDetail describes a Pub/Sub topic or subscription. Enriched at the
+// Topic and Subscription grain in one pass; Schema/Snapshot stub rows keep
+// only Subtype/Region (the remaining fields stay zero and render as "—").
+type PubSubDetail struct {
+	Subtype           string // "Topic" | "Subscription"
+	Region            string
+	DeliveryType      string // subscriptions: "push" | "pull" | "bigquery" | "cloudstorage"; empty for topics
+	SubscriptionCount int    // topics: number of attached subscriptions
+	MessageRetention  string // human duration, e.g. "7d" / "10m" (topic or subscription retention)
+	PublishedBytes    int64  // topics: published bytes over the metric window (best-effort via monitoring; 0 if unavailable)
+}

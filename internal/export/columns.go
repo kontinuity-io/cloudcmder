@@ -49,6 +49,8 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return functionColumns()
 	case inventory.KindGCPBigQuery:
 		return bigQueryColumns()
+	case inventory.KindGCPPubSub:
+		return pubSubColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -57,7 +59,6 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
-		inventory.KindGCPPubSub,
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
 		inventory.KindGCPKMS,
@@ -107,6 +108,8 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
 	case inventory.KindGCPBigQuery:
 		return unmarshalOrNil(raw, &inventory.BigQueryDetail{})
+	case inventory.KindGCPPubSub:
+		return unmarshalOrNil(raw, &inventory.PubSubDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -115,7 +118,6 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
-		inventory.KindGCPPubSub,
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
 		inventory.KindGCPKMS,
@@ -628,6 +630,43 @@ func bqField(get func(*inventory.BigQueryDetail) string) func(inventory.Resource
 			return ""
 		}
 		return get(bd)
+	}
+}
+
+// --- Pub/Sub ---------------------------------------------------------------
+
+func pubSubColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Status", Extract: statusOf},
+		{Header: "Subtype", Extract: psField(func(d *inventory.PubSubDetail) string { return d.Subtype })},
+		{Header: "DeliveryType", Extract: psField(func(d *inventory.PubSubDetail) string { return d.DeliveryType })},
+		{Header: "SubscriptionCount", Extract: psField(func(d *inventory.PubSubDetail) string {
+			if d.SubscriptionCount == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.SubscriptionCount)
+		})},
+		{Header: "MessageRetention", Extract: psField(func(d *inventory.PubSubDetail) string { return d.MessageRetention })},
+		// Raw integer so Excel SUM / sort works without parsing display strings.
+		{Header: "PublishedBytes", Extract: psField(func(d *inventory.PubSubDetail) string {
+			if d.PublishedBytes == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.PublishedBytes)
+		})},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func psField(get func(*inventory.PubSubDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		pd, ok := d.(*inventory.PubSubDetail)
+		if !ok || pd == nil {
+			return ""
+		}
+		return get(pd)
 	}
 }
 

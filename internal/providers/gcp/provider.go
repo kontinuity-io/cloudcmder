@@ -38,6 +38,7 @@ type GCPProvider struct {
 	runsvc    runClientState
 	funcs     functionsClientState
 	bq        bigQueryClientState
+	pubsub    pubsubClientState
 
 	// dumpNative controls whether raw provider API payloads are stored in
 	// resources.native_json. Off by default — roughly doubles DB size.
@@ -97,6 +98,7 @@ func (p *GCPProvider) Close() error {
 		p.closeRunClient,
 		p.closeFunctionsClient,
 		p.closeBigQueryClient,
+		p.closePubSubClient,
 	} {
 		if err := closer(); err != nil {
 			errs = append(errs, err)

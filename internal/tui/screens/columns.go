@@ -56,6 +56,8 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 		cols = loggingListColumns()
 	case inventory.KindGCPMonitoring:
 		cols = monitoringListColumns()
+	case inventory.KindGCPProject:
+		cols = projectListColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -160,6 +162,8 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.LoggingDetail{})
 	case inventory.KindGCPMonitoring:
 		return unmarshalOrNil(raw, &inventory.MonitoringDetail{})
+	case inventory.KindGCPProject:
+		return unmarshalOrNil(raw, &inventory.ProjectDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -773,6 +777,35 @@ func monitoringListColumns() []ColumnDef {
 			}
 			return ""
 		}},
+	}
+}
+
+// --- Project (billing) list columns ----------------------------------------
+
+// projectListColumns is the resource-list view for the synthetic KindGCPProject
+// row, surfacing the project's Cloud Billing association.
+func projectListColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "NAME", Width: 24, Extract: nameOf},
+		{Header: "BILLING", Width: 8, Extract: func(_ inventory.Resource, d any) string {
+			if pd, ok := d.(*inventory.ProjectDetail); ok && pd != nil {
+				return boolStr(pd.BillingEnabled)
+			}
+			return ""
+		}},
+		{Header: "ACCOUNT", Width: 22, Extract: func(_ inventory.Resource, d any) string {
+			if pd, ok := d.(*inventory.ProjectDetail); ok && pd != nil && pd.BillingAccountID != "" {
+				return pd.BillingAccountID
+			}
+			return "—"
+		}},
+		{Header: "ACCT NAME", Width: 24, Extract: func(_ inventory.Resource, d any) string {
+			if pd, ok := d.(*inventory.ProjectDetail); ok && pd != nil {
+				return pd.BillingAccountName
+			}
+			return ""
+		}},
+		{Header: "STATUS", Width: 10, Extract: statusOf},
 	}
 }
 

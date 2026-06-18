@@ -46,6 +46,7 @@ type GCPProvider struct {
 	firebase         firebaseClientState
 	logging          loggingClientState
 	monitoringAlerts monitoringAlertsClientState
+	billing          billingClientState
 
 	// dumpNative controls whether raw provider API payloads are stored in
 	// resources.native_json. Off by default — roughly doubles DB size.
@@ -113,6 +114,7 @@ func (p *GCPProvider) Close() error {
 		p.closeFirebaseClient,
 		p.closeLoggingClient,
 		p.closeMonitoringAlertsClient,
+		p.closeBillingClient,
 	} {
 		if err := closer(); err != nil {
 			errs = append(errs, err)

@@ -175,7 +175,10 @@ func TestListResourcesStreamsAndFiltersUnknown(t *testing.T) {
 		names = append(names, x.Resource.Name)
 	}
 	sort.Strings(names)
-	want := []string{"b1", "vm1", "vm2"}
+	// "p1" is the synthetic per-scope project summary row emitted by the billing
+	// enricher on every successful scan (here from the zero-value fake billing
+	// client: billing not enabled, no error).
+	want := []string{"b1", "p1", "vm1", "vm2"}
 	if len(names) != len(want) {
 		t.Fatalf("names = %v, want %v", names, want)
 	}
@@ -487,6 +490,9 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	}
 	p.monitoringAlerts.factory = func(_ context.Context, _ ...option.ClientOption) (monitoringAlertsAPI, error) {
 		return &fakeMonitoringAlertsClient{}, nil
+	}
+	p.billing.factory = func(_ context.Context, _ ...option.ClientOption) (billingAPI, error) {
+		return &fakeBillingClient{}, nil
 	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p

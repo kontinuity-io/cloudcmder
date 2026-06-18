@@ -65,6 +65,8 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return loggingColumns()
 	case inventory.KindGCPMonitoring:
 		return monitoringColumns()
+	case inventory.KindGCPProject:
+		return projectColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPDNS,
@@ -131,6 +133,8 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.LoggingDetail{})
 	case inventory.KindGCPMonitoring:
 		return unmarshalOrNil(raw, &inventory.MonitoringDetail{})
+	case inventory.KindGCPProject:
+		return unmarshalOrNil(raw, &inventory.ProjectDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPDNS,
@@ -946,5 +950,29 @@ func mnField(get func(*inventory.MonitoringDetail) string) func(inventory.Resour
 			return ""
 		}
 		return get(md)
+	}
+}
+
+// --- Project (billing) -----------------------------------------------------
+
+func projectColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Status", Extract: statusOf},
+		{Header: "BillingEnabled", Extract: pjField(func(d *inventory.ProjectDetail) string { return boolStr(d.BillingEnabled) })},
+		{Header: "BillingAccountID", Extract: pjField(func(d *inventory.ProjectDetail) string { return d.BillingAccountID })},
+		{Header: "BillingAccountName", Extract: pjField(func(d *inventory.ProjectDetail) string { return d.BillingAccountName })},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func pjField(get func(*inventory.ProjectDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		pd, ok := d.(*inventory.ProjectDetail)
+		if !ok || pd == nil {
+			return ""
+		}
+		return get(pd)
 	}
 }

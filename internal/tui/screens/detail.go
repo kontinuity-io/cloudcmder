@@ -325,6 +325,8 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, loggingDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPMonitoring:
 		rows = append(rows, monitoringDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPProject:
+		rows = append(rows, projectDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPDNS,
@@ -764,6 +766,27 @@ func monitoringDetailRows(res inventory.Resource, detail any) []string {
 	}
 	// Fall back to stub rendering for NotificationChannel/Snooze.
 	return stubDetailRows(res, detail)
+}
+
+func projectDetailRows(res inventory.Resource, detail any) []string {
+	pd, _ := detail.(*inventory.ProjectDetail)
+	if pd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	account := pd.BillingAccountID
+	if account == "" {
+		account = "—"
+	}
+	out := []string{
+		kvLine("Subtype", pd.Subtype),
+		kvLine("Billing", boolStr(pd.BillingEnabled)),
+		kvLine("Account", account),
+	}
+	if pd.BillingAccountName != "" {
+		out = append(out, kvLine("Acct name", pd.BillingAccountName))
+	}
+	out = append(out, kvLine("Status", style.Status(res.Status).Render(res.Status)))
+	return out
 }
 
 func stubDetailRows(res inventory.Resource, detail any) []string {

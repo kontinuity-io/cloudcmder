@@ -275,3 +275,15 @@ type MonitoringDetail struct {
 	Combiner                 string // "AND" | "OR" | "AND_WITH_MATCHING_RESOURCE"
 	NotificationChannelCount int    // number of notification channels attached
 }
+
+// ProjectDetail captures project-level metadata surfaced once per scan as a
+// synthetic KindGCPProject row (ID = project ID). It currently focuses on the
+// Cloud Billing association. Subtype/Region lead the struct for convention
+// parity with the other GCP Detail types — there is no CAI stub to overwrite.
+type ProjectDetail struct {
+	Subtype            string // always "Project"
+	Region             string // always "global" (projects are not regional)
+	BillingAccountID   string // short ID, e.g. "01ABCD-234567-89EFGH"; empty if not associated
+	BillingAccountName string // billing account display name (best-effort; empty without billing.accounts.get)
+	BillingEnabled     bool   // whether billing is enabled on the project
+}

@@ -48,6 +48,11 @@ const (
 	KindGCPVPN              Kind = "VPN"
 	KindGCPRouter           Kind = "Router"
 	KindGCPCloudBuild       Kind = "CloudBuild"
+
+	// KindGCPProject is a synthetic project-level summary emitted once per scan
+	// (ID = project ID). It has no Cloud Asset Inventory asset type — the
+	// Phase-2 billing enricher inserts a single ProjectDetail row directly.
+	KindGCPProject Kind = "Project"
 )
 
 // RefKind labels the directed edges in the interconnection graph.

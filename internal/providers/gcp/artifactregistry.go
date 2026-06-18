@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -11,6 +12,7 @@ import (
 	"cloud.google.com/go/artifactregistry/apiv1/artifactregistrypb"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	locationpb "google.golang.org/genproto/googleapis/cloud/location"
 
 	"cloudcmder.com/internal/inventory"
 )
@@ -51,27 +53,60 @@ func (r *realArtifactRegistryClient) ListRepositories(ctx context.Context, proje
 	}
 	defer func() { _ = c.Close() }()
 
-	// "-" location wildcard lists repositories across every region in one call.
-	parent := "projects/" + projectID + "/locations/-"
+	// Artifact Registry's ListRepositories does not accept a "locations/-"
+	// wildcard parent (it returns InvalidArgument or hangs), so enumerate the
+	// project's available locations first and list repositories per location.
+	locations, err := r.listLocations(ctx, c, projectID)
+	if err != nil {
+		return nil, err
+	}
+
 	var out []arRepository
-	it := c.ListRepositories(ctx, &artifactregistrypb.ListRepositoriesRequest{Parent: parent})
+	for _, loc := range locations {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		parent := fmt.Sprintf("projects/%s/locations/%s", projectID, loc)
+		it := c.ListRepositories(ctx, &artifactregistrypb.ListRepositoriesRequest{Parent: parent})
+		for {
+			repo, err := it.Next()
+			if errors.Is(err, iterator.Done) {
+				break
+			}
+			if err != nil {
+				return nil, fmt.Errorf("list repositories in %s: %w", loc, err)
+			}
+			out = append(out, arRepository{
+				Name:      repo.GetName(),
+				Region:    regionFromResourceName(repo.GetName()),
+				Format:    artifactRegistryFormat(repo.GetFormat()),
+				Mode:      artifactRegistryMode(repo.GetMode()),
+				SizeBytes: repo.GetSizeBytes(),
+			})
+		}
+	}
+	return out, nil
+}
+
+// listLocations returns the Artifact Registry location IDs available to the
+// project (e.g. "us-central1", "europe-west1"). ListRepositories is then issued
+// once per location since the API has no cross-region listing.
+func (r *realArtifactRegistryClient) listLocations(ctx context.Context, c *artifactregistry.Client, projectID string) ([]string, error) {
+	var locs []string
+	it := c.ListLocations(ctx, &locationpb.ListLocationsRequest{Name: "projects/" + projectID})
 	for {
-		repo, err := it.Next()
+		loc, err := it.Next()
 		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("list repositories: %w", err)
+			return nil, fmt.Errorf("list artifact registry locations: %w", err)
 		}
-		out = append(out, arRepository{
-			Name:      repo.GetName(),
-			Region:    regionFromResourceName(repo.GetName()),
-			Format:    artifactRegistryFormat(repo.GetFormat()),
-			Mode:      artifactRegistryMode(repo.GetMode()),
-			SizeBytes: repo.GetSizeBytes(),
-		})
+		if id := loc.GetLocationId(); id != "" {
+			locs = append(locs, id)
+		}
 	}
-	return out, nil
+	return locs, nil
 }
 
 func (r *realArtifactRegistryClient) Close() error { return nil }
@@ -143,6 +178,15 @@ func enrichArtifactRegistry(ctx context.Context, p *GCPProvider, scope inventory
 	}
 	repos, err := ac.ListRepositories(ctx, scope.ID)
 	if err != nil {
+		// A disabled Artifact Registry API or a missing list permission is a
+		// per-kind failure, not a scan failure: keep the CAI Phase-1 stub rows
+		// and surface the issue as a warning (architecture.md §"Error
+		// Handling").
+		if IsRecoverableScanErr(err) {
+			slog.Warn("scan: artifact registry unavailable; keeping stub rows",
+				"project", scope.ID, "error", err)
+			return
+		}
 		sendOrCancel(ctx, ch, inventory.ResourceOrErr{Err: fmt.Errorf("gcp: list artifact registry repositories: %w", err)})
 		return
 	}

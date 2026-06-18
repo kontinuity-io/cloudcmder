@@ -482,6 +482,12 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	p.firebase.factory = func(_ context.Context, _ ...option.ClientOption) (firebaseAPI, error) {
 		return &fakeFirebaseClient{}, nil
 	}
+	p.logging.factory = func(_ context.Context, _ ...option.ClientOption) (loggingAPI, error) {
+		return &fakeLoggingClient{}, nil
+	}
+	p.monitoringAlerts.factory = func(_ context.Context, _ ...option.ClientOption) (monitoringAlertsAPI, error) {
+		return &fakeMonitoringAlertsClient{}, nil
+	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p
 }

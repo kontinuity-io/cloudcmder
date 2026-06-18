@@ -61,6 +61,10 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return appEngineColumns()
 	case inventory.KindGCPFirebase:
 		return firebaseColumns()
+	case inventory.KindGCPLogging:
+		return loggingColumns()
+	case inventory.KindGCPMonitoring:
+		return monitoringColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPDNS,
@@ -72,8 +76,6 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		inventory.KindGCPDataproc,
 		inventory.KindGCPComposer,
 		inventory.KindGCPCloudTasks,
-		inventory.KindGCPMonitoring,
-		inventory.KindGCPLogging,
 		inventory.KindGCPOSConfig,
 		inventory.KindGCPVPN,
 		inventory.KindGCPRouter,
@@ -125,6 +127,10 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.AppEngineDetail{})
 	case inventory.KindGCPFirebase:
 		return unmarshalOrNil(raw, &inventory.FirebaseDetail{})
+	case inventory.KindGCPLogging:
+		return unmarshalOrNil(raw, &inventory.LoggingDetail{})
+	case inventory.KindGCPMonitoring:
+		return unmarshalOrNil(raw, &inventory.MonitoringDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPDNS,
@@ -136,8 +142,6 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		inventory.KindGCPDataproc,
 		inventory.KindGCPComposer,
 		inventory.KindGCPCloudTasks,
-		inventory.KindGCPMonitoring,
-		inventory.KindGCPLogging,
 		inventory.KindGCPOSConfig,
 		inventory.KindGCPVPN,
 		inventory.KindGCPRouter,
@@ -835,6 +839,63 @@ func appEngineColumns() []ColumnDef {
 	}
 }
 
+// --- Cloud Logging ---------------------------------------------------------
+
+func loggingColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: lgField(func(d *inventory.LoggingDetail) string { return d.Region })},
+		{Header: "Status", Extract: lgField(func(d *inventory.LoggingDetail) string { return d.LifecycleState })},
+		{Header: "Subtype", Extract: lgField(func(d *inventory.LoggingDetail) string { return d.Subtype })},
+		{Header: "RetentionDays", Extract: lgField(func(d *inventory.LoggingDetail) string {
+			if d.RetentionDays == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.RetentionDays)
+		})},
+		{Header: "Locked", Extract: lgField(func(d *inventory.LoggingDetail) string { return boolStr(d.Locked) })},
+		{Header: "AnalyticsEnabled", Extract: lgField(func(d *inventory.LoggingDetail) string { return boolStr(d.AnalyticsEnabled) })},
+		{Header: "StorageBytes", Extract: lgField(func(d *inventory.LoggingDetail) string { return fmt.Sprintf("%d", d.StorageBytes) })},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func lgField(get func(*inventory.LoggingDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		ld, ok := d.(*inventory.LoggingDetail)
+		if !ok || ld == nil {
+			return ""
+		}
+		return get(ld)
+	}
+}
+
+// --- Cloud Monitoring ------------------------------------------------------
+
+func monitoringColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: mnField(func(d *inventory.MonitoringDetail) string { return d.Region })},
+		{Header: "Status", Extract: statusOf},
+		{Header: "Subtype", Extract: mnField(func(d *inventory.MonitoringDetail) string { return d.Subtype })},
+		{Header: "Enabled", Extract: mnField(func(d *inventory.MonitoringDetail) string { return boolStr(d.Enabled) })},
+		{Header: "ConditionCount", Extract: mnField(func(d *inventory.MonitoringDetail) string {
+			if d.ConditionCount == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.ConditionCount)
+		})},
+		{Header: "Combiner", Extract: mnField(func(d *inventory.MonitoringDetail) string { return d.Combiner })},
+		{Header: "NotificationChannels", Extract: mnField(func(d *inventory.MonitoringDetail) string {
+			if d.NotificationChannelCount == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.NotificationChannelCount)
+		})},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
 func aeField(get func(*inventory.AppEngineDetail) string) func(inventory.Resource, any) string {
 	return func(_ inventory.Resource, d any) string {
 		ae, ok := d.(*inventory.AppEngineDetail)
@@ -875,5 +936,15 @@ func fbField(get func(*inventory.FirebaseDetail) string) func(inventory.Resource
 			return ""
 		}
 		return get(fb)
+	}
+}
+
+func mnField(get func(*inventory.MonitoringDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		md, ok := d.(*inventory.MonitoringDetail)
+		if !ok || md == nil {
+			return ""
+		}
+		return get(md)
 	}
 }

@@ -251,3 +251,27 @@ type SecretManagerDetail struct {
 	RotationTopic    string // Pub/Sub topic for rotation notifications; empty if none
 	AccessOperations int64  // access-version operations over the metric window (best-effort via monitoring; 0 if unavailable)
 }
+
+// LoggingDetail holds enriched Cloud Logging log-bucket fields. Subtype and
+// Region MUST remain the first two fields so the Phase-2 overwrite pattern
+// (INSERT OR REPLACE keyed on ResourceRef) works correctly.
+type LoggingDetail struct {
+	Subtype          string // "LogBucket" for enriched rows; other subtypes stay StubDetail
+	Region           string // bucket location
+	RetentionDays    int32  // configured retention; 0 = API default (30 days)
+	Locked           bool   // locked bucket — retention cannot be shortened
+	AnalyticsEnabled bool   // Log Analytics enabled on this bucket
+	LifecycleState   string // "ACTIVE", "DELETE_REQUESTED", "CREATING", etc.
+	StorageBytes     int64  // best-effort from Cloud Monitoring; 0 if unavailable
+}
+
+// MonitoringDetail holds enriched Cloud Monitoring alert-policy fields.
+// Subtype and Region MUST remain the first two fields.
+type MonitoringDetail struct {
+	Subtype                  string // "AlertPolicy" for enriched rows
+	Region                   string // always "global" for alert policies
+	Enabled                  bool   // alert policy is enabled
+	ConditionCount           int    // number of conditions on the policy
+	Combiner                 string // "AND" | "OR" | "AND_WITH_MATCHING_RESOURCE"
+	NotificationChannelCount int    // number of notification channels attached
+}

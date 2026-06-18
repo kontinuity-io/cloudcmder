@@ -321,6 +321,10 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, appEngineDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPFirebase:
 		rows = append(rows, firebaseDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPLogging:
+		rows = append(rows, loggingDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPMonitoring:
+		rows = append(rows, monitoringDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPDNS,
@@ -332,8 +336,6 @@ func (d *Detail) detailPane() string {
 		inventory.KindGCPDataproc,
 		inventory.KindGCPComposer,
 		inventory.KindGCPCloudTasks,
-		inventory.KindGCPMonitoring,
-		inventory.KindGCPLogging,
 		inventory.KindGCPOSConfig,
 		inventory.KindGCPVPN,
 		inventory.KindGCPRouter,
@@ -712,6 +714,56 @@ func firebaseDetailRows(_ inventory.Resource, detail any) []string {
 		kvLine("iOS", fmt.Sprintf("%d", fb.IOSAppCount)),
 		kvLine("Total apps", fmt.Sprintf("%d", fb.TotalApps)),
 	}
+}
+
+func loggingDetailRows(res inventory.Resource, detail any) []string {
+	// LogBucket grains carry LoggingDetail; LogMetric/LogSink carry StubDetail.
+	if ld, ok := detail.(*inventory.LoggingDetail); ok && ld != nil {
+		retention := "—"
+		if ld.RetentionDays > 0 {
+			retention = fmt.Sprintf("%d days", ld.RetentionDays)
+		}
+		rows := []string{
+			kvLine("Subtype", ld.Subtype),
+			kvLine("Region", ld.Region),
+			kvLine("Retention", retention),
+			kvLine("Locked", boolStr(ld.Locked)),
+			kvLine("Analytics", boolStr(ld.AnalyticsEnabled)),
+			kvLine("Lifecycle", ld.LifecycleState),
+			kvLine("Storage", formatBytes(ld.StorageBytes)),
+		}
+		if ld.StorageBytes == 0 {
+			rows = append(rows, style.Dim.Render("(Cloud Monitoring ingestion metric; 0 = unavailable)"))
+		}
+		return rows
+	}
+	// Fall back to stub rendering for LogMetric/LogSink.
+	return stubDetailRows(res, detail)
+}
+
+func monitoringDetailRows(res inventory.Resource, detail any) []string {
+	// AlertPolicy grains carry MonitoringDetail; others carry StubDetail.
+	if md, ok := detail.(*inventory.MonitoringDetail); ok && md != nil {
+		conditions := "—"
+		if md.ConditionCount > 0 {
+			conditions = fmt.Sprintf("%d", md.ConditionCount)
+		}
+		channels := "—"
+		if md.NotificationChannelCount > 0 {
+			channels = fmt.Sprintf("%d", md.NotificationChannelCount)
+		}
+		return []string{
+			kvLine("Subtype", md.Subtype),
+			kvLine("Region", md.Region),
+			kvLine("Enabled", boolStr(md.Enabled)),
+			kvLine("Conditions", conditions),
+			kvLine("Combiner", md.Combiner),
+			kvLine("Channels", channels),
+			kvLine("Status", style.Status(res.Status).Render(res.Status)),
+		}
+	}
+	// Fall back to stub rendering for NotificationChannel/Snooze.
+	return stubDetailRows(res, detail)
 }
 
 func stubDetailRows(res inventory.Resource, detail any) []string {

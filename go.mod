@@ -13,6 +13,7 @@ require (
 	cloud.google.com/go/compute v1.61.0
 	cloud.google.com/go/container v1.50.0
 	cloud.google.com/go/functions v1.23.0
+	cloud.google.com/go/logging v1.13.2
 	cloud.google.com/go/memcache v1.16.0
 	cloud.google.com/go/monitoring v1.29.0
 	cloud.google.com/go/pubsub v1.50.1

@@ -52,6 +52,10 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 		cols = functionColumns()
 	case inventory.KindGCPAppEngine:
 		cols = appEngineListColumns()
+	case inventory.KindGCPLogging:
+		cols = loggingListColumns()
+	case inventory.KindGCPMonitoring:
+		cols = monitoringListColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -69,8 +73,6 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 		inventory.KindGCPDataproc,
 		inventory.KindGCPComposer,
 		inventory.KindGCPCloudTasks,
-		inventory.KindGCPMonitoring,
-		inventory.KindGCPLogging,
 		inventory.KindGCPOSConfig,
 		inventory.KindGCPVPN,
 		inventory.KindGCPRouter,
@@ -154,6 +156,10 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
 	case inventory.KindGCPAppEngine:
 		return unmarshalOrNil(raw, &inventory.AppEngineDetail{})
+	case inventory.KindGCPLogging:
+		return unmarshalOrNil(raw, &inventory.LoggingDetail{})
+	case inventory.KindGCPMonitoring:
+		return unmarshalOrNil(raw, &inventory.MonitoringDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -171,8 +177,6 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		inventory.KindGCPDataproc,
 		inventory.KindGCPComposer,
 		inventory.KindGCPCloudTasks,
-		inventory.KindGCPMonitoring,
-		inventory.KindGCPLogging,
 		inventory.KindGCPOSConfig,
 		inventory.KindGCPVPN,
 		inventory.KindGCPRouter,
@@ -693,6 +697,82 @@ func stubColumns() []ColumnDef {
 		}},
 		{Header: "REGION", Width: 14, Extract: func(r inventory.Resource, _ any) string { return r.Region }},
 		{Header: "STATUS", Width: 10, Extract: statusOf},
+	}
+}
+
+// --- Cloud Logging list columns --------------------------------------------
+
+// loggingListColumns is the resource-list view for KindGCPLogging.
+// LogBucket rows carry LoggingDetail; LogMetric/LogSink rows carry StubDetail,
+// so extractors guard against nil and fall back gracefully.
+func loggingListColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "NAME", Width: 24, Extract: nameOf},
+		{Header: "SUBTYPE", Width: 12, Extract: func(_ inventory.Resource, d any) string {
+			if ld, ok := d.(*inventory.LoggingDetail); ok && ld != nil {
+				return ld.Subtype
+			}
+			if sd, ok := d.(*inventory.StubDetail); ok && sd != nil {
+				return sd.Subtype
+			}
+			return ""
+		}},
+		{Header: "REGION", Width: 14, Extract: func(r inventory.Resource, d any) string {
+			if ld, ok := d.(*inventory.LoggingDetail); ok && ld != nil {
+				return ld.Region
+			}
+			return r.Region
+		}},
+		{Header: "RETENTION", Width: 10, Extract: func(_ inventory.Resource, d any) string {
+			if ld, ok := d.(*inventory.LoggingDetail); ok && ld != nil && ld.RetentionDays > 0 {
+				return fmt.Sprintf("%dd", ld.RetentionDays)
+			}
+			return "—"
+		}},
+		{Header: "LOCKED", Width: 8, Extract: func(_ inventory.Resource, d any) string {
+			if ld, ok := d.(*inventory.LoggingDetail); ok && ld != nil {
+				return boolStr(ld.Locked)
+			}
+			return ""
+		}},
+		{Header: "STATUS", Width: 10, Extract: statusOf},
+	}
+}
+
+// --- Cloud Monitoring list columns -----------------------------------------
+
+// monitoringListColumns is the resource-list view for KindGCPMonitoring.
+// AlertPolicy rows carry MonitoringDetail; other subtypes carry StubDetail.
+func monitoringListColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "NAME", Width: 24, Extract: nameOf},
+		{Header: "SUBTYPE", Width: 16, Extract: func(_ inventory.Resource, d any) string {
+			if md, ok := d.(*inventory.MonitoringDetail); ok && md != nil {
+				return md.Subtype
+			}
+			if sd, ok := d.(*inventory.StubDetail); ok && sd != nil {
+				return sd.Subtype
+			}
+			return ""
+		}},
+		{Header: "ENABLED", Width: 8, Extract: func(_ inventory.Resource, d any) string {
+			if md, ok := d.(*inventory.MonitoringDetail); ok && md != nil {
+				return boolStr(md.Enabled)
+			}
+			return ""
+		}},
+		{Header: "CONDITIONS", Width: 11, Extract: func(_ inventory.Resource, d any) string {
+			if md, ok := d.(*inventory.MonitoringDetail); ok && md != nil && md.ConditionCount > 0 {
+				return fmt.Sprintf("%d", md.ConditionCount)
+			}
+			return "—"
+		}},
+		{Header: "CHANNELS", Width: 9, Extract: func(_ inventory.Resource, d any) string {
+			if md, ok := d.(*inventory.MonitoringDetail); ok && md != nil {
+				return fmt.Sprintf("%d", md.NotificationChannelCount)
+			}
+			return ""
+		}},
 	}
 }
 

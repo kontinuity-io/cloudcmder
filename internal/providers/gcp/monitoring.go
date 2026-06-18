@@ -44,10 +44,14 @@ type bucketMetrics struct {
 	ObjectCount int64
 }
 
-// metricsAPI is the seam between the bucket enrich loop and Cloud Monitoring.
+// metricsAPI is the seam between the bucket/logging enrich loops and Cloud Monitoring.
 // Tests inject a fake; production uses realMetricsClient.
 type metricsAPI interface {
 	ListBucketMetrics(ctx context.Context, projectID string) (map[string]bucketMetrics, error)
+	// ListLogBucketMetrics returns bytes_ingested keyed by full log-bucket
+	// resource name (projects/p/locations/loc/buckets/b). Best-effort:
+	// callers treat nil/empty as "unavailable" and leave StorageBytes = 0.
+	ListLogBucketMetrics(ctx context.Context, projectID string) (map[string]int64, error)
 	Close() error
 }
 
@@ -100,6 +104,48 @@ func (r *realMetricsClient) fetchMetricSeries(
 			return nil, err
 		}
 		out = append(out, ts)
+	}
+	return out, nil
+}
+
+// ListLogBucketMetrics fetches the logging bytes_ingested metric for the
+// project and returns a map of full bucket resource name → bytes. The metric
+// is a DELTA/INT64 sampled every hour; we query a 26h window and take the
+// most-recent point to get the latest hourly ingestion figure. For a true
+// cumulative storage figure GCP does not expose a public metric — this
+// captures ingestion rate only; callers document the limitation.
+//
+// Metric: logging.googleapis.com/billing/bytes_ingested
+// Resource label "resource_container" = projects/{number}; labels vary by
+// API version. As a fallback we key by the time-series labels[bucket_name]
+// when available; if absent we skip the series. StorageBytes is left 0 for
+// buckets with no data.
+func (r *realMetricsClient) ListLogBucketMetrics(ctx context.Context, projectID string) (map[string]int64, error) {
+	const metricType = "logging.googleapis.com/billing/bytes_ingested"
+	now := time.Now()
+	series, err := r.fetchMetricSeries(ctx, projectID, metricType, now)
+	if err != nil {
+		return nil, fmt.Errorf("list log bucket bytes_ingested: %w", err)
+	}
+	out := make(map[string]int64, len(series))
+	for _, ts := range series {
+		if ts == nil || len(ts.GetPoints()) == 0 {
+			continue
+		}
+		// The metric labels include "log_bucket" as the bucket short name and
+		// "resource_container" as the project. We reconstruct a best-effort
+		// resource key from the labels; if absent we skip.
+		labels := ts.GetMetric().GetLabels()
+		bucket := labels["log_bucket"]
+		if bucket == "" {
+			// Some versions use "bucket_name"; try both.
+			bucket = labels["bucket_name"]
+		}
+		if bucket == "" {
+			continue
+		}
+		// Metric points are ordered newest-first from ListTimeSeries.
+		out[bucket] += pointInt64(ts.GetPoints()[0])
 	}
 	return out, nil
 }

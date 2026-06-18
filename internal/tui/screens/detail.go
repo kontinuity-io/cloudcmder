@@ -317,10 +317,11 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, artifactRegistryDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPSecretManager:
 		rows = append(rows, secretManagerDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPAppEngine:
+		rows = append(rows, appEngineDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
-		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -624,6 +625,38 @@ func artifactRegistryDetailRows(res inventory.Resource, detail any) []string {
 	}
 }
 
+func appEngineDetailRows(res inventory.Resource, detail any) []string {
+	ae, _ := detail.(*inventory.AppEngineDetail)
+	if ae == nil {
+		// Stub detail (Service or Version grain) — fall back to generic stub view.
+		return stubDetailRows(res, detail)
+	}
+	hostname := ae.DefaultHostname
+	if hostname == "" {
+		hostname = "—"
+	}
+	authDomain := ae.AuthDomain
+	if authDomain == "" {
+		authDomain = "—"
+	}
+	dbType := ae.DatabaseType
+	if dbType == "" {
+		dbType = "—"
+	}
+	svcCount := "—"
+	if ae.ServiceCount > 0 {
+		svcCount = fmt.Sprintf("%d", ae.ServiceCount)
+	}
+	return []string{
+		kvLine("Location", ae.LocationID),
+		kvLine("Hostname", hostname),
+		kvLine("Auth domain", authDomain),
+		kvLine("DB type", dbType),
+		kvLine("Services", svcCount),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+}
+
 func secretManagerDetailRows(res inventory.Resource, detail any) []string {
 	sd, _ := detail.(*inventory.SecretManagerDetail)
 	if sd == nil {
@@ -651,7 +684,6 @@ func secretManagerDetailRows(res inventory.Resource, detail any) []string {
 	out = append(out, kvLine("Access ops", formatCount(sd.AccessOperations)))
 	return out
 }
-
 func stubDetailRows(res inventory.Resource, detail any) []string {
 	sd, _ := detail.(*inventory.StubDetail)
 	if sd == nil {

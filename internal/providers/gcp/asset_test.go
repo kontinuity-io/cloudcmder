@@ -476,6 +476,9 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	p.secretManager.factory = func(_ context.Context, _ ...option.ClientOption) (secretManagerAPI, error) {
 		return &fakeSecretManagerClient{}, nil
 	}
+	p.appEngine.factory = func(_ context.Context, _ ...option.ClientOption) (appEngineAPI, error) {
+		return &fakeAppEngineClient{}, nil
+	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p
 }

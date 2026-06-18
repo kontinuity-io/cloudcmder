@@ -42,6 +42,7 @@ type GCPProvider struct {
 	memorystore      memorystoreClientState
 	artifactRegistry artifactRegistryClientState
 	secretManager    secretManagerClientState
+	appEngine        appEngineClientState
 
 	// dumpNative controls whether raw provider API payloads are stored in
 	// resources.native_json. Off by default — roughly doubles DB size.
@@ -105,6 +106,7 @@ func (p *GCPProvider) Close() error {
 		p.closeMemorystoreClient,
 		p.closeArtifactRegistryClient,
 		p.closeSecretManagerClient,
+		p.closeAppEngineClient,
 	} {
 		if err := closer(); err != nil {
 			errs = append(errs, err)

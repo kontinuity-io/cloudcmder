@@ -50,10 +50,11 @@ func columnsFor(kind inventory.Kind, availableWidth int) ([]ColumnDef, bool) {
 		cols = bucketColumns()
 	case inventory.KindFunction:
 		cols = functionColumns()
+	case inventory.KindGCPAppEngine:
+		cols = appEngineListColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
-		inventory.KindGCPAppEngine,
 		inventory.KindGCPBigQuery,
 		inventory.KindGCPDNS,
 		inventory.KindGCPMemorystore,
@@ -151,10 +152,11 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.BucketDetail{})
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
+	case inventory.KindGCPAppEngine:
+		return unmarshalOrNil(raw, &inventory.AppEngineDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
-		inventory.KindGCPAppEngine,
 		inventory.KindGCPBigQuery,
 		inventory.KindGCPDNS,
 		inventory.KindGCPMemorystore,
@@ -650,6 +652,33 @@ func functionColumns() []ColumnDef {
 }
 
 // --- Stub-only Kinds (VertexAI, Apigee, Firebase, BigQuery, …) ----------------
+
+// --- App Engine -------------------------------------------------------------
+
+func appEngineListColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "NAME", Width: 24, Extract: nameOf},
+		{Header: "LOCATION", Width: 14, Extract: func(_ inventory.Resource, d any) string {
+			if ae, ok := d.(*inventory.AppEngineDetail); ok && ae != nil {
+				return ae.LocationID
+			}
+			return ""
+		}},
+		{Header: "HOSTNAME", Width: 28, Extract: func(_ inventory.Resource, d any) string {
+			if ae, ok := d.(*inventory.AppEngineDetail); ok && ae != nil {
+				return ae.DefaultHostname
+			}
+			return ""
+		}},
+		{Header: "SERVICES", Width: 8, Extract: func(_ inventory.Resource, d any) string {
+			if ae, ok := d.(*inventory.AppEngineDetail); ok && ae != nil && ae.ServiceCount > 0 {
+				return fmt.Sprintf("%d", ae.ServiceCount)
+			}
+			return ""
+		}},
+		{Header: "STATUS", Width: 12, Extract: statusOf},
+	}
+}
 
 // stubColumns returns the standard 4-column layout shared by all stub-only Kinds:
 // NAME · SUBTYPE · REGION · STATUS.

@@ -57,10 +57,11 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return artifactRegistryColumns()
 	case inventory.KindGCPSecretManager:
 		return secretManagerColumns()
+	case inventory.KindGCPAppEngine:
+		return appEngineColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
-		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -119,10 +120,11 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.ArtifactRegistryDetail{})
 	case inventory.KindGCPSecretManager:
 		return unmarshalOrNil(raw, &inventory.SecretManagerDetail{})
+	case inventory.KindGCPAppEngine:
+		return unmarshalOrNil(raw, &inventory.AppEngineDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
-		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -806,5 +808,37 @@ func stubField(get func(*inventory.StubDetail) string) func(inventory.Resource, 
 			return ""
 		}
 		return get(sd)
+	}
+}
+
+// --- App Engine ------------------------------------------------------------
+
+func appEngineColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Status", Extract: statusOf},
+		{Header: "ServingStatus", Extract: aeField(func(d *inventory.AppEngineDetail) string { return d.ServingStatus })},
+		{Header: "LocationID", Extract: aeField(func(d *inventory.AppEngineDetail) string { return d.LocationID })},
+		{Header: "DefaultHostname", Extract: aeField(func(d *inventory.AppEngineDetail) string { return d.DefaultHostname })},
+		{Header: "AuthDomain", Extract: aeField(func(d *inventory.AppEngineDetail) string { return d.AuthDomain })},
+		{Header: "DatabaseType", Extract: aeField(func(d *inventory.AppEngineDetail) string { return d.DatabaseType })},
+		{Header: "ServiceCount", Extract: aeField(func(d *inventory.AppEngineDetail) string {
+			if d.ServiceCount == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.ServiceCount)
+		})},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func aeField(get func(*inventory.AppEngineDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		ae, ok := d.(*inventory.AppEngineDetail)
+		if !ok || ae == nil {
+			return ""
+		}
+		return get(ae)
 	}
 }

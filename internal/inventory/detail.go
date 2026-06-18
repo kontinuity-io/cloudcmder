@@ -154,6 +154,21 @@ type ArtifactRegistryDetail struct {
 	SizeBytes int64  // repository size in bytes (Repository.SizeBytes)
 }
 
+// AppEngineDetail captures the enriched spec for a GCP App Engine Application.
+// Subtype and Region MUST be the first two fields so a StubDetail JSON payload
+// decodes losslessly into this struct (Phase-1 stub overwrite compatibility).
+type AppEngineDetail struct {
+	Subtype string // always "Application" for enriched rows
+	Region  string // GCP region, e.g. "us-central1"
+	// App Engine–specific fields populated by Phase-2 enrichment via GetApplication.
+	ServingStatus   string // e.g. "SERVING", "DISABLED", "USER_DISABLED"
+	LocationID      string // App Engine location id, e.g. "us-central"
+	DefaultHostname string // e.g. "myapp.appspot.com"
+	AuthDomain      string // Google Apps domain controlling access, e.g. "gmail.com"
+	DatabaseType    string // e.g. "CLOUD_FIRESTORE", "CLOUD_DATASTORE_COMPATIBILITY"
+	ServiceCount    int    // number of services (from ListServices)
+}
+
 // StubDetail is the shared Detail type for all stub-only Kinds: VertexAI,
 // Apigee, and the other CAI-listed Kinds without a Phase-2 enricher. Detail
 // carries only the Subtype label derived from the CAI asset type string.

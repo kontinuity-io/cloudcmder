@@ -156,6 +156,23 @@ type StubDetail struct {
 	Region  string
 }
 
+// MemorystoreDetail describes a Memorystore cache instance. The three GCP
+// sub-services (classic Redis, Redis Cluster, Memcache) all normalize to
+// KindGCPMemorystore; Subtype distinguishes them and which fields are
+// populated. Fields that a given sub-service does not expose stay zero/empty
+// and render as "—".
+type MemorystoreDetail struct {
+	Subtype      string // "Redis" | "RedisCluster" | "Memcache"
+	Region       string
+	ServiceType  string // same family label, e.g. "Redis", "Redis Cluster", "Memcached"
+	NodeType     string // cluster node type / memcache nodeConfig; empty if N/A
+	Tier         string // BASIC | STANDARD_HA for classic Redis; empty otherwise
+	MemorySizeGB int    // provisioned memory (sum for memcache nodes * memory)
+	ShardCount   int32  // cluster shard count; 0 for classic Redis/memcache
+	ReplicaCount int32  // replicas per shard (cluster); 0 otherwise
+	Version      string // redis/memcache engine version
+}
+
 // BigQueryDetail describes a BigQuery dataset and the project's reservation
 // capacity. Enriched at the dataset grain; Table/Model/Routine stub rows keep
 // only Subtype/Region (the remaining fields stay zero and render as "—").

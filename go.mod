@@ -11,8 +11,10 @@ require (
 	cloud.google.com/go/compute v1.61.0
 	cloud.google.com/go/container v1.50.0
 	cloud.google.com/go/functions v1.23.0
+	cloud.google.com/go/memcache v1.16.0
 	cloud.google.com/go/monitoring v1.29.0
 	cloud.google.com/go/pubsub v1.50.1
+	cloud.google.com/go/redis v1.23.0
 	cloud.google.com/go/resourcemanager v1.14.0
 	cloud.google.com/go/run v1.20.0
 	cloud.google.com/go/storage v1.62.1

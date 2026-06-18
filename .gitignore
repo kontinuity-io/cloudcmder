@@ -18,6 +18,7 @@ vendor/
 
 # Worktrees
 .worktrees/
+.claude/worktrees/
 
 # Editor
 .idea/

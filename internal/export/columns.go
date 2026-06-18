@@ -51,12 +51,13 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return bigQueryColumns()
 	case inventory.KindGCPPubSub:
 		return pubSubColumns()
+	case inventory.KindGCPMemorystore:
+		return memorystoreColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
-		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -110,12 +111,13 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.BigQueryDetail{})
 	case inventory.KindGCPPubSub:
 		return unmarshalOrNil(raw, &inventory.PubSubDetail{})
+	case inventory.KindGCPMemorystore:
+		return unmarshalOrNil(raw, &inventory.MemorystoreDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
-		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -667,6 +669,50 @@ func psField(get func(*inventory.PubSubDetail) string) func(inventory.Resource, 
 			return ""
 		}
 		return get(pd)
+	}
+}
+
+// --- Memorystore -----------------------------------------------------------
+
+func memorystoreColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Status", Extract: statusOf},
+		{Header: "Subtype", Extract: msField(func(d *inventory.MemorystoreDetail) string { return d.Subtype })},
+		{Header: "ServiceType", Extract: msField(func(d *inventory.MemorystoreDetail) string { return d.ServiceType })},
+		{Header: "Tier", Extract: msField(func(d *inventory.MemorystoreDetail) string { return d.Tier })},
+		{Header: "NodeType", Extract: msField(func(d *inventory.MemorystoreDetail) string { return d.NodeType })},
+		{Header: "MemorySizeGB", Extract: msField(func(d *inventory.MemorystoreDetail) string {
+			if d.MemorySizeGB == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.MemorySizeGB)
+		})},
+		{Header: "ShardCount", Extract: msField(func(d *inventory.MemorystoreDetail) string {
+			if d.ShardCount == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.ShardCount)
+		})},
+		{Header: "ReplicaCount", Extract: msField(func(d *inventory.MemorystoreDetail) string {
+			if d.ReplicaCount == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.ReplicaCount)
+		})},
+		{Header: "Version", Extract: msField(func(d *inventory.MemorystoreDetail) string { return d.Version })},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func msField(get func(*inventory.MemorystoreDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		md, ok := d.(*inventory.MemorystoreDetail)
+		if !ok || md == nil {
+			return ""
+		}
+		return get(md)
 	}
 }
 

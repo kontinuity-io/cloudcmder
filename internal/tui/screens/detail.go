@@ -311,12 +311,13 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, bigQueryDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPPubSub:
 		rows = append(rows, pubSubDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPMemorystore:
+		rows = append(rows, memorystoreDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
-		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
@@ -562,6 +563,38 @@ func pubSubDetailRows(res inventory.Resource, detail any) []string {
 			kvLine("Subs", fmt.Sprintf("%d", pd.SubscriptionCount)),
 			kvLine("Published", formatBytes(pd.PublishedBytes)),
 		)
+	}
+	return out
+}
+
+func memorystoreDetailRows(res inventory.Resource, detail any) []string {
+	md, _ := detail.(*inventory.MemorystoreDetail)
+	if md == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	out := []string{
+		kvLine("Subtype", md.Subtype),
+		kvLine("Service", md.ServiceType),
+		kvLine("Region", md.Region),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+	if md.MemorySizeGB > 0 {
+		out = append(out, kvLine("Memory", fmt.Sprintf("%d GB", md.MemorySizeGB)))
+	}
+	if md.Version != "" {
+		out = append(out, kvLine("Version", md.Version))
+	}
+	if md.Tier != "" {
+		out = append(out, kvLine("Tier", md.Tier))
+	}
+	if md.NodeType != "" {
+		out = append(out, kvLine("Node type", md.NodeType))
+	}
+	if md.ShardCount > 0 {
+		out = append(out, kvLine("Shards", formatCount(int64(md.ShardCount))))
+	}
+	if md.ReplicaCount > 0 {
+		out = append(out, kvLine("Replicas", formatCount(int64(md.ReplicaCount))))
 	}
 	return out
 }

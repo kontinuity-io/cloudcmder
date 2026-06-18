@@ -35,10 +35,11 @@ type GCPProvider struct {
 	gke       gkeClientState
 	buckets   bucketsClientState
 	metrics   metricsClientState
-	runsvc    runClientState
-	funcs     functionsClientState
-	bq        bigQueryClientState
-	pubsub    pubsubClientState
+	runsvc      runClientState
+	funcs       functionsClientState
+	bq          bigQueryClientState
+	pubsub      pubsubClientState
+	memorystore memorystoreClientState
 
 	// dumpNative controls whether raw provider API payloads are stored in
 	// resources.native_json. Off by default — roughly doubles DB size.
@@ -99,6 +100,7 @@ func (p *GCPProvider) Close() error {
 		p.closeFunctionsClient,
 		p.closeBigQueryClient,
 		p.closePubSubClient,
+		p.closeMemorystoreClient,
 	} {
 		if err := closer(); err != nil {
 			errs = append(errs, err)

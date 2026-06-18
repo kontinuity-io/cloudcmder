@@ -464,6 +464,12 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	p.pubsub.factory = func(_ context.Context, _ ...option.ClientOption) (pubsubAPI, error) {
 		return &fakePubSubClient{}, nil
 	}
+	p.bq.factory = func(_ context.Context, _ ...option.ClientOption) (bigQueryAPI, error) {
+		return &fakeBigQueryClient{}, nil
+	}
+	p.memorystore.factory = func(_ context.Context, _ ...option.ClientOption) (memorystoreAPI, error) {
+		return &fakeMemorystoreClient{}, nil
+	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p
 }

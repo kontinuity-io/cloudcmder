@@ -470,6 +470,9 @@ func newProviderWithFakeAsset(t *testing.T, fake assetSearcher) *GCPProvider {
 	p.memorystore.factory = func(_ context.Context, _ ...option.ClientOption) (memorystoreAPI, error) {
 		return &fakeMemorystoreClient{}, nil
 	}
+	p.artifactRegistry.factory = func(_ context.Context, _ ...option.ClientOption) (artifactRegistryAPI, error) {
+		return &fakeArtifactRegistryClient{}, nil
+	}
 	t.Cleanup(func() { _ = p.Close() })
 	return p
 }

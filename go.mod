@@ -6,6 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.6
 	charm.land/lipgloss/v2 v2.0.3
+	cloud.google.com/go/artifactregistry v1.25.0
 	cloud.google.com/go/asset v1.26.0
 	cloud.google.com/go/bigquery v1.77.0
 	cloud.google.com/go/compute v1.61.0

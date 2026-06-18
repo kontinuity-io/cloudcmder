@@ -25,21 +25,22 @@ type GCPProvider struct {
 	// M6 lazy clients — one named field per kind family (no embedding to
 	// avoid name collisions across the per-client (once, cli, err, factory)
 	// quartets).
-	disks     disksClientState
-	networks  networksClientState
-	subnets   subnetsClientState
-	firewalls firewallsClientState
-	gfwd      globalForwardingRulesClientState
-	rfwd      forwardingRulesClientState
-	sql       sqlClientState
-	gke       gkeClientState
-	buckets   bucketsClientState
-	metrics   metricsClientState
-	runsvc      runClientState
-	funcs       functionsClientState
-	bq          bigQueryClientState
-	pubsub      pubsubClientState
-	memorystore memorystoreClientState
+	disks            disksClientState
+	networks         networksClientState
+	subnets          subnetsClientState
+	firewalls        firewallsClientState
+	gfwd             globalForwardingRulesClientState
+	rfwd             forwardingRulesClientState
+	sql              sqlClientState
+	gke              gkeClientState
+	buckets          bucketsClientState
+	metrics          metricsClientState
+	runsvc           runClientState
+	funcs            functionsClientState
+	bq               bigQueryClientState
+	pubsub           pubsubClientState
+	memorystore      memorystoreClientState
+	artifactRegistry artifactRegistryClientState
 
 	// dumpNative controls whether raw provider API payloads are stored in
 	// resources.native_json. Off by default — roughly doubles DB size.
@@ -101,6 +102,7 @@ func (p *GCPProvider) Close() error {
 		p.closeBigQueryClient,
 		p.closePubSubClient,
 		p.closeMemorystoreClient,
+		p.closeArtifactRegistryClient,
 	} {
 		if err := closer(); err != nil {
 			errs = append(errs, err)

@@ -69,11 +69,11 @@ type Detail struct {
 	loadErr error
 	edges   []store.Edge
 
-	mode        DetailMode
-	modeKey     key.Binding
-	prevTabKey  key.Binding
-	nextTabKey  key.Binding
-	jumpTabKey  key.Binding
+	mode       DetailMode
+	modeKey    key.Binding
+	prevTabKey key.Binding
+	nextTabKey key.Binding
+	jumpTabKey key.Binding
 
 	graphKey key.Binding
 
@@ -95,12 +95,12 @@ func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res i
 	vp.KeyMap.Right = key.NewBinding(key.WithDisabled())
 	return &Detail{
 		ctx: ctx, st: st, run: run, res: res, detail: detail, spin: s,
-		modeKey:    key.NewBinding(key.WithKeys("m")),
-		prevTabKey: key.NewBinding(key.WithKeys("shift+left")),
-		nextTabKey: key.NewBinding(key.WithKeys("shift+right")),
-		jumpTabKey: key.NewBinding(key.WithKeys("1", "2", "3", "4")),
-		graphKey:   key.NewBinding(key.WithKeys("g")),
-		vp:         vp,
+		modeKey:      key.NewBinding(key.WithKeys("m")),
+		prevTabKey:   key.NewBinding(key.WithKeys("shift+left")),
+		nextTabKey:   key.NewBinding(key.WithKeys("shift+right")),
+		jumpTabKey:   key.NewBinding(key.WithKeys("1", "2", "3", "4")),
+		graphKey:     key.NewBinding(key.WithKeys("g")),
+		vp:           vp,
 		contentDirty: true,
 	}
 }
@@ -313,12 +313,13 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, pubSubDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPMemorystore:
 		rows = append(rows, memorystoreDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPArtifactRegistry:
+		rows = append(rows, artifactRegistryDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
-		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
@@ -597,6 +598,29 @@ func memorystoreDetailRows(res inventory.Resource, detail any) []string {
 		out = append(out, kvLine("Replicas", formatCount(int64(md.ReplicaCount))))
 	}
 	return out
+}
+
+func artifactRegistryDetailRows(res inventory.Resource, detail any) []string {
+	ad, _ := detail.(*inventory.ArtifactRegistryDetail)
+	if ad == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	format := ad.Format
+	if format == "" {
+		format = "—"
+	}
+	mode := ad.Mode
+	if mode == "" {
+		mode = "—"
+	}
+	return []string{
+		kvLine("Subtype", ad.Subtype),
+		kvLine("Region", ad.Region),
+		kvLine("Format", format),
+		kvLine("Mode", mode),
+		kvLine("Size", formatBytes(ad.SizeBytes)),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
 }
 
 func stubDetailRows(res inventory.Resource, detail any) []string {

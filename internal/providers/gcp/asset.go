@@ -28,17 +28,17 @@ const enrichConcurrency = 4
 // architecture.md §"Discovery (asset.go)". Both Cloud Run Services and Cloud
 // Functions normalize to KindFunction; GCP uses the same backend for both.
 var assetTypeToKind = map[string]inventory.Kind{
-	"compute.googleapis.com/Instance":         inventory.KindVM,
-	"compute.googleapis.com/Disk":             inventory.KindDisk,
-	"compute.googleapis.com/Network":          inventory.KindNetwork,
-	"compute.googleapis.com/Subnetwork":       inventory.KindSubnet,
-	"compute.googleapis.com/Firewall":         inventory.KindFirewall,
-	"compute.googleapis.com/ForwardingRule":   inventory.KindLoadBalancer,
-	"sqladmin.googleapis.com/Instance":        inventory.KindDatabase,
-	"storage.googleapis.com/Bucket":           inventory.KindBucket,
-	"container.googleapis.com/Cluster":        inventory.KindCluster,
-	"run.googleapis.com/Service":              inventory.KindFunction,
-	"cloudfunctions.googleapis.com/Function":  inventory.KindFunction,
+	"compute.googleapis.com/Instance":        inventory.KindVM,
+	"compute.googleapis.com/Disk":            inventory.KindDisk,
+	"compute.googleapis.com/Network":         inventory.KindNetwork,
+	"compute.googleapis.com/Subnetwork":      inventory.KindSubnet,
+	"compute.googleapis.com/Firewall":        inventory.KindFirewall,
+	"compute.googleapis.com/ForwardingRule":  inventory.KindLoadBalancer,
+	"sqladmin.googleapis.com/Instance":       inventory.KindDatabase,
+	"storage.googleapis.com/Bucket":          inventory.KindBucket,
+	"container.googleapis.com/Cluster":       inventory.KindCluster,
+	"run.googleapis.com/Service":             inventory.KindFunction,
+	"cloudfunctions.googleapis.com/Function": inventory.KindFunction,
 	// --- Stub-only Kinds (CAI Phase 1 only; no Phase-2 enricher) ---------------
 	// All entries below are routed through searchAssetPage(graceful=true).
 	// Types not in CAI's searchable list silently return 0 rows.
@@ -276,6 +276,7 @@ var allEnrichers = []kindEnricher{
 	{inventory.KindGCPBigQuery, enrichBigQuery},
 	{inventory.KindGCPPubSub, enrichPubSub},
 	{inventory.KindGCPMemorystore, enrichMemorystore},
+	{inventory.KindGCPArtifactRegistry, enrichArtifactRegistry},
 }
 
 // runEnrichers is the production entry point — fans Phase 2 across the

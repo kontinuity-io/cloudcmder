@@ -143,6 +143,17 @@ type FunctionDetail struct {
 	Region    string
 }
 
+// ArtifactRegistryDetail captures one Artifact Registry repository's format,
+// mode, and storage size. Subtype+Region lead the struct so it overwrites the
+// CAI Phase-1 stub (StubDetail) by sharing the same field prefix on decode.
+type ArtifactRegistryDetail struct {
+	Subtype   string // "Repository"
+	Region    string
+	Format    string // DOCKER | MAVEN | NPM | PYTHON | APT | YUM | GO | KFP | ...
+	Mode      string // STANDARD_REPOSITORY | REMOTE_REPOSITORY | VIRTUAL_REPOSITORY
+	SizeBytes int64  // repository size in bytes (Repository.SizeBytes)
+}
+
 // StubDetail is the shared Detail type for all stub-only Kinds: VertexAI,
 // Apigee, and the other CAI-listed Kinds without a Phase-2 enricher. Detail
 // carries only the Subtype label derived from the CAI asset type string.

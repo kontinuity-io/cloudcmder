@@ -53,12 +53,13 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return pubSubColumns()
 	case inventory.KindGCPMemorystore:
 		return memorystoreColumns()
+	case inventory.KindGCPArtifactRegistry:
+		return artifactRegistryColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
-		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
@@ -113,12 +114,13 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.PubSubDetail{})
 	case inventory.KindGCPMemorystore:
 		return unmarshalOrNil(raw, &inventory.MemorystoreDetail{})
+	case inventory.KindGCPArtifactRegistry:
+		return unmarshalOrNil(raw, &inventory.ArtifactRegistryDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
 		inventory.KindGCPDNS,
-		inventory.KindGCPArtifactRegistry,
 		inventory.KindGCPCloudScheduler,
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
@@ -713,6 +715,36 @@ func msField(get func(*inventory.MemorystoreDetail) string) func(inventory.Resou
 			return ""
 		}
 		return get(md)
+	}
+}
+
+// --- Artifact Registry -----------------------------------------------------
+
+func artifactRegistryColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Subtype", Extract: arField(func(d *inventory.ArtifactRegistryDetail) string { return d.Subtype })},
+		{Header: "Format", Extract: arField(func(d *inventory.ArtifactRegistryDetail) string { return d.Format })},
+		{Header: "Mode", Extract: arField(func(d *inventory.ArtifactRegistryDetail) string { return d.Mode })},
+		// Raw integer so Excel SUM / sort works without parsing display strings.
+		{Header: "SizeBytes", Extract: arField(func(d *inventory.ArtifactRegistryDetail) string {
+			if d.SizeBytes == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.SizeBytes)
+		})},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func arField(get func(*inventory.ArtifactRegistryDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		ad, ok := d.(*inventory.ArtifactRegistryDetail)
+		if !ok || ad == nil {
+			return ""
+		}
+		return get(ad)
 	}
 }
 

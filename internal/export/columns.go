@@ -47,11 +47,12 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return bucketColumns()
 	case inventory.KindFunction:
 		return functionColumns()
+	case inventory.KindGCPBigQuery:
+		return bigQueryColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
-		inventory.KindGCPBigQuery,
 		inventory.KindGCPDNS,
 		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
@@ -104,11 +105,12 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.BucketDetail{})
 	case inventory.KindFunction:
 		return unmarshalOrNil(raw, &inventory.FunctionDetail{})
+	case inventory.KindGCPBigQuery:
+		return unmarshalOrNil(raw, &inventory.BigQueryDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
-		inventory.KindGCPBigQuery,
 		inventory.KindGCPDNS,
 		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
@@ -588,7 +590,48 @@ func fnField(get func(*inventory.FunctionDetail) string) func(inventory.Resource
 	}
 }
 
-// --- Stub-only Kinds (VertexAI, Apigee, Firebase, BigQuery, …) ----------------
+// --- BigQuery --------------------------------------------------------------
+
+func bigQueryColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Subtype", Extract: bqField(func(d *inventory.BigQueryDetail) string { return d.Subtype })},
+		{Header: "LocationType", Extract: bqField(func(d *inventory.BigQueryDetail) string { return d.LocationType })},
+		{Header: "StorageBytes", Extract: bqField(func(d *inventory.BigQueryDetail) string {
+			if d.StorageBytes == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.StorageBytes)
+		})},
+		{Header: "TableCount", Extract: bqField(func(d *inventory.BigQueryDetail) string {
+			if d.TableCount == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.TableCount)
+		})},
+		{Header: "Edition", Extract: bqField(func(d *inventory.BigQueryDetail) string { return d.Edition })},
+		{Header: "Slots", Extract: bqField(func(d *inventory.BigQueryDetail) string {
+			if d.Slots == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.Slots)
+		})},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func bqField(get func(*inventory.BigQueryDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		bd, ok := d.(*inventory.BigQueryDetail)
+		if !ok || bd == nil {
+			return ""
+		}
+		return get(bd)
+	}
+}
+
+// --- Stub-only Kinds (VertexAI, Apigee, Firebase, …) ----------------
 
 // stubColumns returns the standard 5-column Excel layout shared by all stub-only Kinds.
 func stubColumns() []ColumnDef {

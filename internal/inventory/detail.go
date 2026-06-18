@@ -144,10 +144,27 @@ type FunctionDetail struct {
 }
 
 // StubDetail is the shared Detail type for all stub-only Kinds: VertexAI,
-// Apigee, Firebase, AppEngine, BigQuery, and the other 19 CAI-listed Kinds.
-// No Phase-2 enricher is registered for any stub Kind; Detail carries only
-// the Subtype label derived from the CAI asset type string.
+// Apigee, and the other CAI-listed Kinds without a Phase-2 enricher. Detail
+// carries only the Subtype label derived from the CAI asset type string.
+//
+// Enriched GCP Kinds (BigQuery, PubSub, …) embed the same Subtype/Region pair
+// at the top of their own Detail struct so a CAI Phase-1 stub row (serialized
+// as {"Subtype":…,"Region":…}) decodes losslessly into the richer struct when
+// the Phase-2 enricher did not cover that particular asset subtype.
 type StubDetail struct {
 	Subtype string // type suffix, e.g. "Endpoint", "Dataset", "Topic", "Organization", …, "Other"
 	Region  string
+}
+
+// BigQueryDetail describes a BigQuery dataset and the project's reservation
+// capacity. Enriched at the dataset grain; Table/Model/Routine stub rows keep
+// only Subtype/Region (the remaining fields stay zero and render as "—").
+type BigQueryDetail struct {
+	Subtype      string
+	Region       string
+	LocationType string // "multi-region" | "region"
+	StorageBytes int64  // total logical bytes across the dataset's tables
+	TableCount   int
+	Edition      string // STANDARD | ENTERPRISE | ENTERPRISE_PLUS (project reservation; best-effort)
+	Slots        int64  // reservation slot capacity for the project (best-effort)
 }

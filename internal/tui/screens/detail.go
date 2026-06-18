@@ -307,11 +307,12 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, bucketDetailRows(d.res, d.detail)...)
 	case inventory.KindFunction:
 		rows = append(rows, functionDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPBigQuery:
+		rows = append(rows, bigQueryDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
 		inventory.KindGCPAppEngine,
-		inventory.KindGCPBigQuery,
 		inventory.KindGCPDNS,
 		inventory.KindGCPMemorystore,
 		inventory.KindGCPArtifactRegistry,
@@ -511,6 +512,30 @@ func functionDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Region", fd.Region),
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 	}
+}
+
+func bigQueryDetailRows(res inventory.Resource, detail any) []string {
+	bd, _ := detail.(*inventory.BigQueryDetail)
+	if bd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	out := []string{
+		kvLine("Subtype", bd.Subtype),
+		kvLine("Region", bd.Region),
+		kvLine("Loc type", bd.LocationType),
+		kvLine("Storage", formatBytes(bd.StorageBytes)),
+		kvLine("Tables", fmt.Sprintf("%d", bd.TableCount)),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+	edition := bd.Edition
+	if edition == "" {
+		edition = "on-demand"
+	}
+	out = append(out, kvLine("Edition", edition))
+	if bd.Slots > 0 {
+		out = append(out, kvLine("Slots", fmt.Sprintf("%d", bd.Slots)))
+	}
+	return out
 }
 
 func stubDetailRows(res inventory.Resource, detail any) []string {

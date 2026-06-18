@@ -273,6 +273,7 @@ var allEnrichers = []kindEnricher{
 	{inventory.KindCluster, enrichClusters},
 	{inventory.KindBucket, enrichBuckets},
 	{inventory.KindFunction, enrichFunctions},
+	{inventory.KindGCPBigQuery, enrichBigQuery},
 }
 
 // runEnrichers is the production entry point — fans Phase 2 across the

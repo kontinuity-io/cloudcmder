@@ -55,6 +55,8 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		return memorystoreColumns()
 	case inventory.KindGCPArtifactRegistry:
 		return artifactRegistryColumns()
+	case inventory.KindGCPSecretManager:
+		return secretManagerColumns()
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -64,7 +66,6 @@ func columnsFor(kind inventory.Kind) []ColumnDef {
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
 		inventory.KindGCPKMS,
-		inventory.KindGCPSecretManager,
 		inventory.KindGCPDataflow,
 		inventory.KindGCPDataproc,
 		inventory.KindGCPComposer,
@@ -116,6 +117,8 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		return unmarshalOrNil(raw, &inventory.MemorystoreDetail{})
 	case inventory.KindGCPArtifactRegistry:
 		return unmarshalOrNil(raw, &inventory.ArtifactRegistryDetail{})
+	case inventory.KindGCPSecretManager:
+		return unmarshalOrNil(raw, &inventory.SecretManagerDetail{})
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -125,7 +128,6 @@ func decodeDetail(kind inventory.Kind, raw json.RawMessage) any {
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
 		inventory.KindGCPKMS,
-		inventory.KindGCPSecretManager,
 		inventory.KindGCPDataflow,
 		inventory.KindGCPDataproc,
 		inventory.KindGCPComposer,
@@ -745,6 +747,42 @@ func arField(get func(*inventory.ArtifactRegistryDetail) string) func(inventory.
 			return ""
 		}
 		return get(ad)
+	}
+}
+
+// --- Secret Manager --------------------------------------------------------
+
+func secretManagerColumns() []ColumnDef {
+	return []ColumnDef{
+		{Header: "Name", Extract: nameOf},
+		{Header: "Region", Extract: regionOf},
+		{Header: "Subtype", Extract: smField(func(d *inventory.SecretManagerDetail) string { return d.Subtype })},
+		{Header: "Replication", Extract: smField(func(d *inventory.SecretManagerDetail) string { return d.Replication })},
+		{Header: "ActiveVersions", Extract: smField(func(d *inventory.SecretManagerDetail) string {
+			if d.ActiveVersions == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.ActiveVersions)
+		})},
+		{Header: "RotationPeriod", Extract: smField(func(d *inventory.SecretManagerDetail) string { return d.RotationPeriod })},
+		{Header: "RotationTopic", Extract: smField(func(d *inventory.SecretManagerDetail) string { return d.RotationTopic })},
+		{Header: "AccessOperations", Extract: smField(func(d *inventory.SecretManagerDetail) string {
+			if d.AccessOperations == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", d.AccessOperations)
+		})},
+		{Header: "Labels", Extract: labelsOf},
+	}
+}
+
+func smField(get func(*inventory.SecretManagerDetail) string) func(inventory.Resource, any) string {
+	return func(_ inventory.Resource, d any) string {
+		sd, ok := d.(*inventory.SecretManagerDetail)
+		if !ok || sd == nil {
+			return ""
+		}
+		return get(sd)
 	}
 }
 

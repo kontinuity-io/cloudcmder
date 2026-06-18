@@ -106,6 +106,63 @@ func (r *realMetricsClient) fetchMetricSeries(
 
 func (r *realMetricsClient) Close() error { return r.c.Close() }
 
+// metricSecretAccessCount is the Cloud Monitoring metric for Secret Manager
+// access-version operations, summed per secret over the window. Best-effort:
+// https://cloud.google.com/monitoring/api/metrics_gcp#gcp-secretmanager
+const metricSecretAccessCount = "secretmanager.googleapis.com/secret/access_count"
+
+// monitoringMetricClient builds a fresh Cloud Monitoring metric client from the
+// supplied credential options. The Secret Manager enricher uses this directly
+// (rather than the cached p.metrics client) so its --scan-all per-project
+// credential story stays self-contained, mirroring realSecretManagerClient.
+func monitoringMetricClient(ctx context.Context, opts []option.ClientOption) (*monitoring.MetricClient, error) {
+	return monitoring.NewMetricClient(ctx, opts...)
+}
+
+// listSecretAccessMetrics sums access_count over a ~26h window keyed by secret
+// short name (the metric's secret_id resource label). One ListTimeSeries call;
+// returns a map callers treat as best-effort (missing entries → 0).
+func listSecretAccessMetrics(ctx context.Context, mc *monitoring.MetricClient, projectID string) (map[string]int64, error) {
+	now := time.Now()
+	req := &monitoringpb.ListTimeSeriesRequest{
+		Name:   "projects/" + projectID,
+		Filter: fmt.Sprintf(`metric.type = %q`, metricSecretAccessCount),
+		Interval: &monitoringpb.TimeInterval{
+			StartTime: timestamppb.New(now.Add(-26 * time.Hour)),
+			EndTime:   timestamppb.New(now),
+		},
+		Aggregation: &monitoringpb.Aggregation{
+			// access_count is a DELTA — align as a sum per series over the
+			// whole window so each secret yields a single total.
+			AlignmentPeriod:  durationpb.New(26 * time.Hour),
+			PerSeriesAligner: monitoringpb.Aggregation_ALIGN_SUM,
+		},
+		View: monitoringpb.ListTimeSeriesRequest_FULL,
+	}
+	out := map[string]int64{}
+	it := mc.ListTimeSeries(ctx, req)
+	for {
+		ts, err := it.Next()
+		if errors.Is(err, iterator.Done) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if ts == nil || ts.GetResource() == nil {
+			continue
+		}
+		id := ts.GetResource().GetLabels()["secret_id"]
+		if id == "" {
+			continue
+		}
+		for _, pt := range ts.GetPoints() {
+			out[id] += pointInt64(pt)
+		}
+	}
+	return out, nil
+}
+
 // parseBucketTimeSeries collapses the per-(bucket, storage_class) time series
 // into one bucketMetrics row per bucket name. Buckets with Autoclass produce
 // one series per storage class, so size and object_count are summed across

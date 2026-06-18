@@ -208,3 +208,16 @@ type PubSubDetail struct {
 	MessageRetention  string // human duration, e.g. "7d" / "10m" (topic or subscription retention)
 	PublishedBytes    int64  // topics: published bytes over the metric window (best-effort via monitoring; 0 if unavailable)
 }
+
+// SecretManagerDetail describes a Secret Manager secret: its replication policy,
+// active version count, and rotation configuration. Enriched at the secret
+// grain (matching the CAI stub ID = secret short name).
+type SecretManagerDetail struct {
+	Subtype          string // "Secret"
+	Region           string // "" for automatic (global) replication; region for user-managed
+	ActiveVersions   int    // count of ENABLED versions across all locations
+	Replication      string // "automatic" | "user-managed"
+	RotationPeriod   string // human duration, e.g. "30d"; empty if no rotation
+	RotationTopic    string // Pub/Sub topic for rotation notifications; empty if none
+	AccessOperations int64  // access-version operations over the metric window (best-effort via monitoring; 0 if unavailable)
+}

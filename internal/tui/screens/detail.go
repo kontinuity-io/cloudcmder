@@ -315,6 +315,8 @@ func (d *Detail) detailPane() string {
 		rows = append(rows, memorystoreDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPArtifactRegistry:
 		rows = append(rows, artifactRegistryDetailRows(d.res, d.detail)...)
+	case inventory.KindGCPSecretManager:
+		rows = append(rows, secretManagerDetailRows(d.res, d.detail)...)
 	case inventory.KindGCPVertexAI,
 		inventory.KindGCPApigee,
 		inventory.KindGCPFirebase,
@@ -324,7 +326,6 @@ func (d *Detail) detailPane() string {
 		inventory.KindGCPSpanner,
 		inventory.KindGCPBigtable,
 		inventory.KindGCPKMS,
-		inventory.KindGCPSecretManager,
 		inventory.KindGCPDataflow,
 		inventory.KindGCPDataproc,
 		inventory.KindGCPComposer,
@@ -621,6 +622,34 @@ func artifactRegistryDetailRows(res inventory.Resource, detail any) []string {
 		kvLine("Size", formatBytes(ad.SizeBytes)),
 		kvLine("Status", style.Status(res.Status).Render(res.Status)),
 	}
+}
+
+func secretManagerDetailRows(res inventory.Resource, detail any) []string {
+	sd, _ := detail.(*inventory.SecretManagerDetail)
+	if sd == nil {
+		return []string{style.Dim.Render("(no enriched detail — re-run --scan)")}
+	}
+	region := sd.Region
+	if region == "" {
+		region = "global"
+	}
+	out := []string{
+		kvLine("Subtype", sd.Subtype),
+		kvLine("Region", region),
+		kvLine("Replication", sd.Replication),
+		kvLine("Versions", fmt.Sprintf("%d", sd.ActiveVersions)),
+		kvLine("Status", style.Status(res.Status).Render(res.Status)),
+	}
+	rotation := sd.RotationPeriod
+	if rotation == "" {
+		rotation = "—"
+	}
+	out = append(out, kvLine("Rotation", rotation))
+	if sd.RotationTopic != "" {
+		out = append(out, kvLine("Topic", sd.RotationTopic))
+	}
+	out = append(out, kvLine("Access ops", formatCount(sd.AccessOperations)))
+	return out
 }
 
 func stubDetailRows(res inventory.Resource, detail any) []string {

@@ -18,6 +18,7 @@ require (
 	cloud.google.com/go/redis v1.23.0
 	cloud.google.com/go/resourcemanager v1.14.0
 	cloud.google.com/go/run v1.20.0
+	cloud.google.com/go/secretmanager v1.20.0
 	cloud.google.com/go/storage v1.62.1
 	github.com/arsham/figurine v1.3.0
 	github.com/charmbracelet/glamour v1.0.0

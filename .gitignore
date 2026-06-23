@@ -36,3 +36,9 @@ vendor/
 /inventory.xlsx
 /docs/sku_billing_Reports*.xlsx
 
+# Internal docs — never commit
+CLAUDE.md
+architecture.md
+plan.md
+.internal/
+docs/

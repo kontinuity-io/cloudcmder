@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **TUI**: Detail pane footer now shows context-aware key hints. When focus is on the Detail pane (`Tab` to switch), footer displays tab-navigation bindings (`m`/`Shift+→` next tab, `Shift+←` prev tab, `1`–`4` jump to tab) instead of the left-pane hints. Previously these keys were undiscoverable.
+
 ### Added
 
 #### v1.5.9 — GPU/accelerator visibility on VMs and GKE node pools

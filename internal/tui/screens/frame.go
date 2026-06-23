@@ -428,20 +428,29 @@ func (f *Frame) borderFor(p PaneFocus) lipgloss.Style {
 }
 
 func (f *Frame) footerView() string {
-	focusStr := "left"
+	var hints []string
 	if f.focus == focusRight {
-		focusStr = "right"
-	}
-	hints := []string{
-		"focus: " + focusStr,
-		"tab=swap",
-		"enter=zoom/drill",
-		"esc=back",
-		":alias=jump",
-		"H=runs",
-		"g=graph",
-		"e=export",
-		"q=quit",
+		hints = []string{
+			"focus: detail",
+			"tab=swap",
+			"m/⇧→=next tab",
+			"⇧←=prev tab",
+			"1-4=jump tab",
+			"esc=back",
+			"q=quit",
+		}
+	} else {
+		hints = []string{
+			"focus: left",
+			"tab=swap",
+			"enter=zoom/drill",
+			"esc=back",
+			":alias=jump",
+			"H=runs",
+			"g=graph",
+			"e=export",
+			"q=quit",
+		}
 	}
 	return style.Dim.Render(strings.Join(hints, " · "))
 }

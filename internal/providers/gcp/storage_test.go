@@ -26,6 +26,7 @@ func TestBuildBucketResourcePublicAccessTruthTable(t *testing.T) {
 		{name: "inherited + IAM allUsers → public", pap: storage.PublicAccessPreventionInherited, publicIAM: true, iamKnown: true, want: true, wantState: "public"},
 		{name: "inherited + private IAM → not public (the M6 bug case)", pap: storage.PublicAccessPreventionInherited, publicIAM: false, iamKnown: true, want: false, wantState: "not_public"},
 		{name: "unknown + private IAM → not public", pap: storage.PublicAccessPreventionUnknown, publicIAM: false, iamKnown: true, want: false, wantState: "not_public"},
+		{name: "enforced + IAM unreadable → still not public", pap: storage.PublicAccessPreventionEnforced, publicIAM: false, iamKnown: false, want: false, wantState: "not_public"},
 		{name: "IAM unreadable → public access unknown", pap: storage.PublicAccessPreventionInherited, publicIAM: false, iamKnown: false, want: false, wantState: "unknown"},
 	}
 	for _, tc := range cases {

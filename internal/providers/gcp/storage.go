@@ -164,7 +164,7 @@ func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool,
 	// what the GCP console shows under "Public access".
 	publicAccess := iamKnown && publicIAM && b.PublicAccessPrevention != storage.PublicAccessPreventionEnforced
 	publicAccessState := "not_public"
-	if !iamKnown {
+	if !iamKnown && b.PublicAccessPrevention != storage.PublicAccessPreventionEnforced {
 		publicAccessState = "unknown"
 	} else if publicAccess {
 		publicAccessState = "public"

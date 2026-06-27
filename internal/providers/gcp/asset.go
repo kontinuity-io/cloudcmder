@@ -28,17 +28,17 @@ const enrichConcurrency = 4
 // architecture.md §"Discovery (asset.go)". Both Cloud Run Services and Cloud
 // Functions normalize to KindFunction; GCP uses the same backend for both.
 var assetTypeToKind = map[string]inventory.Kind{
-	"compute.googleapis.com/Instance":         inventory.KindVM,
-	"compute.googleapis.com/Disk":             inventory.KindDisk,
-	"compute.googleapis.com/Network":          inventory.KindNetwork,
-	"compute.googleapis.com/Subnetwork":       inventory.KindSubnet,
-	"compute.googleapis.com/Firewall":         inventory.KindFirewall,
-	"compute.googleapis.com/ForwardingRule":   inventory.KindLoadBalancer,
-	"sqladmin.googleapis.com/Instance":        inventory.KindDatabase,
-	"storage.googleapis.com/Bucket":           inventory.KindBucket,
-	"container.googleapis.com/Cluster":        inventory.KindCluster,
-	"run.googleapis.com/Service":              inventory.KindFunction,
-	"cloudfunctions.googleapis.com/Function":  inventory.KindFunction,
+	"compute.googleapis.com/Instance":        inventory.KindVM,
+	"compute.googleapis.com/Disk":            inventory.KindDisk,
+	"compute.googleapis.com/Network":         inventory.KindNetwork,
+	"compute.googleapis.com/Subnetwork":      inventory.KindSubnet,
+	"compute.googleapis.com/Firewall":        inventory.KindFirewall,
+	"compute.googleapis.com/ForwardingRule":  inventory.KindLoadBalancer,
+	"sqladmin.googleapis.com/Instance":       inventory.KindDatabase,
+	"storage.googleapis.com/Bucket":          inventory.KindBucket,
+	"container.googleapis.com/Cluster":       inventory.KindCluster,
+	"run.googleapis.com/Service":             inventory.KindFunction,
+	"cloudfunctions.googleapis.com/Function": inventory.KindFunction,
 	// --- Stub-only Kinds (CAI Phase 1 only; no Phase-2 enricher) ---------------
 	// All entries below are routed through searchAssetPage(graceful=true).
 	// Types not in CAI's searchable list silently return 0 rows.
@@ -410,7 +410,7 @@ func translateResult(scopeID string, res *assetpb.ResourceSearchResult) (invento
 	if !ok {
 		return inventory.Resource{}, false
 	}
-	id := lastSegment(res.GetName())
+	id := assetResourceID(res)
 	r := inventory.Resource{
 		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: kind, ID: id},
 		Kind:   kind,
@@ -424,6 +424,18 @@ func translateResult(scopeID string, res *assetpb.ResourceSearchResult) (invento
 		r.Detail = sd
 	}
 	return r, true
+}
+
+func assetResourceID(res *assetpb.ResourceSearchResult) string {
+	name := lastSegment(res.GetName())
+	switch res.GetAssetType() {
+	case "run.googleapis.com/Service":
+		return platformLocationQualifiedID("cloudrun", res.GetLocation(), name)
+	case "cloudfunctions.googleapis.com/Function":
+		return platformLocationQualifiedID("cloudfunctions", res.GetLocation(), name)
+	default:
+		return name
+	}
 }
 
 // lastSegment returns the substring after the final slash, the GCP

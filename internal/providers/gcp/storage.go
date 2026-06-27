@@ -116,17 +116,18 @@ func enrichBuckets(ctx context.Context, p *GCPProvider, scope inventory.Scope, c
 			})
 			return
 		}
-		// Per-bucket IAM check. If we can't read the policy (e.g., caller
-		// lacks storage.buckets.getIamPolicy on this bucket specifically),
-		// assume not-public to avoid false positives in the security view.
+		// Per-bucket IAM check. If we can't read the policy, preserve that
+		// degraded state so the security view does not collapse it to safe.
 		publicIAM, iamErr := bc.HasPublicIAM(ctx, attrs.Name)
+		iamKnown := true
 		if iamErr != nil {
-			slog.Warn("scan: bucket IAM unreadable; treating as not public",
+			slog.Warn("scan: bucket IAM unreadable; public access unknown",
 				"bucket", attrs.Name, "error", iamErr)
+			iamKnown = false
 			publicIAM = false
 		}
 		sendOrCancel(ctx, ch, inventory.ResourceOrErr{
-			Resource: buildBucketResource(scope.ID, attrs, publicIAM, metricsMap[attrs.Name], p.dumpNative),
+			Resource: buildBucketResource(scope.ID, attrs, publicIAM, iamKnown, metricsMap[attrs.Name], p.dumpNative),
 		})
 	}
 }
@@ -156,19 +157,26 @@ func loadBucketMetrics(ctx context.Context, p *GCPProvider, projectID string) ma
 	return m
 }
 
-func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool, m bucketMetrics, dumpNative bool) inventory.Resource {
+func buildBucketResource(scopeID string, b *storage.BucketAttrs, publicIAM bool, iamKnown bool, m bucketMetrics, dumpNative bool) inventory.Resource {
 	// A bucket is reachable from the public internet iff the IAM policy has
 	// an `allUsers`/`allAuthenticatedUsers` binding AND PublicAccessPrevention
 	// is not enforced (because enforcement overrides any IAM binding). Match
 	// what the GCP console shows under "Public access".
-	publicAccess := publicIAM && b.PublicAccessPrevention != storage.PublicAccessPreventionEnforced
+	publicAccess := iamKnown && publicIAM && b.PublicAccessPrevention != storage.PublicAccessPreventionEnforced
+	publicAccessState := "not_public"
+	if !iamKnown {
+		publicAccessState = "unknown"
+	} else if publicAccess {
+		publicAccessState = "public"
+	}
 	detail := inventory.BucketDetail{
-		Location:     b.Location,
-		StorageClass: b.StorageClass,
-		PublicAccess: publicAccess,
-		Versioning:   b.VersioningEnabled,
-		SizeBytes:    m.SizeBytes,
-		ObjectCount:  m.ObjectCount,
+		Location:          b.Location,
+		StorageClass:      b.StorageClass,
+		PublicAccess:      publicAccess,
+		PublicAccessState: publicAccessState,
+		Versioning:        b.VersioningEnabled,
+		SizeBytes:         m.SizeBytes,
+		ObjectCount:       m.ObjectCount,
 	}
 	return inventory.Resource{
 		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindBucket, ID: b.Name},

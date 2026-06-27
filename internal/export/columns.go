@@ -528,7 +528,7 @@ func bucketColumns() []ColumnDef {
 		{Header: "Name", Extract: nameOf},
 		{Header: "Location", Extract: bkField(func(d *inventory.BucketDetail) string { return d.Location })},
 		{Header: "StorageClass", Extract: bkField(func(d *inventory.BucketDetail) string { return d.StorageClass })},
-		{Header: "PublicAccess", Extract: bkField(func(d *inventory.BucketDetail) string { return boolStr(d.PublicAccess) })},
+		{Header: "PublicAccess", Extract: bkField(bucketPublicAccessText)},
 		{Header: "Versioning", Extract: bkField(func(d *inventory.BucketDetail) string { return boolStr(d.Versioning) })},
 		// Raw integers so Excel SUM / sort works without parsing display strings.
 		{Header: "SizeBytes", Extract: bkField(func(d *inventory.BucketDetail) string { return fmt.Sprintf("%d", d.SizeBytes) })},
@@ -544,6 +544,19 @@ func bkField(get func(*inventory.BucketDetail) string) func(inventory.Resource, 
 			return ""
 		}
 		return get(b)
+	}
+}
+
+func bucketPublicAccessText(d *inventory.BucketDetail) string {
+	switch d.PublicAccessState {
+	case "public":
+		return "yes"
+	case "not_public":
+		return "no"
+	case "unknown":
+		return "unknown"
+	default:
+		return boolStr(d.PublicAccess)
 	}
 }
 

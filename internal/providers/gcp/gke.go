@@ -89,11 +89,12 @@ func enrichClusters(ctx context.Context, p *GCPProvider, scope inventory.Scope, 
 }
 
 func buildClusterResource(scopeID string, c *containerpb.Cluster, dumpNative bool) inventory.Resource {
+	location := c.GetLocation()
 	detail := inventory.ClusterDetail{
-		Version:   c.GetCurrentMasterVersion(),
-		NodeCount: c.GetCurrentNodeCount(),
+		Version:    c.GetCurrentMasterVersion(),
+		NodeCount:  c.GetCurrentNodeCount(),
 		Serverless: c.GetAutopilot().GetEnabled(),
-		Location:  c.GetLocation(),
+		Location:   location,
 	}
 	if pools := c.GetNodePools(); len(pools) > 0 {
 		if cfg := pools[0].GetConfig(); cfg != nil {
@@ -103,10 +104,10 @@ func buildClusterResource(scopeID string, c *containerpb.Cluster, dumpNative boo
 		detail.Accelerators = nodePoolAccelerators(pools)
 	}
 	return inventory.Resource{
-		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindCluster, ID: c.GetName()},
+		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindCluster, ID: locationQualifiedID(location, c.GetName())},
 		Kind:   inventory.KindCluster,
 		Name:   c.GetName(),
-		Region: c.GetLocation(),
+		Region: location,
 		Status: c.GetStatus().String(),
 		Labels: c.GetResourceLabels(),
 		Detail: &detail,

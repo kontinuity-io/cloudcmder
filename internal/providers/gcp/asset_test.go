@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/asset/apiv1/assetpb"
+	"cloud.google.com/go/functions/apiv2/functionspb"
+	"cloud.google.com/go/run/apiv2/runpb"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
@@ -145,6 +147,48 @@ func TestTranslateResultDisplayNameFallback(t *testing.T) {
 	}
 	if r.Name != "no-display" {
 		t.Errorf("name = %q, want %q (last-segment fallback)", r.Name, "no-display")
+	}
+}
+
+func TestTranslateResultFunctionRefsMatchEnrichers(t *testing.T) {
+	tests := []struct {
+		name     string
+		asset    *assetpb.ResourceSearchResult
+		enriched inventory.Resource
+	}{
+		{
+			name: "cloud run",
+			asset: &assetpb.ResourceSearchResult{
+				Name:      "//run.googleapis.com/projects/p1/locations/us-central1/services/shared",
+				AssetType: "run.googleapis.com/Service",
+				Location:  "us-central1",
+			},
+			enriched: buildRunServiceResource("p1", &runpb.Service{
+				Name: "projects/p1/locations/us-central1/services/shared",
+			}, false),
+		},
+		{
+			name: "cloud functions",
+			asset: &assetpb.ResourceSearchResult{
+				Name:      "//cloudfunctions.googleapis.com/projects/p1/locations/europe-west1/functions/shared",
+				AssetType: "cloudfunctions.googleapis.com/Function",
+				Location:  "europe-west1",
+			},
+			enriched: buildCloudFunctionResource("p1", &functionspb.Function{
+				Name: "projects/p1/locations/europe-west1/functions/shared",
+			}, false),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stub, ok := translateResult("p1", tt.asset)
+			if !ok {
+				t.Fatal("translateResult ok = false, want true")
+			}
+			if stub.Ref.String() != tt.enriched.Ref.String() {
+				t.Fatalf("stub ref = %q, enriched ref = %q", stub.Ref.String(), tt.enriched.Ref.String())
+			}
+		})
 	}
 }
 

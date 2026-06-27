@@ -189,6 +189,7 @@ func enrichFunctions(ctx context.Context, p *GCPProvider, scope inventory.Scope,
 func buildRunServiceResource(scopeID string, s *runpb.Service, dumpNative bool) inventory.Resource {
 	name := lastSegment(s.GetName())
 	region := regionFromResourceName(s.GetName())
+	id := platformLocationQualifiedID("cloudrun", region, name)
 
 	detail := inventory.FunctionDetail{
 		Trigger: "HTTP",
@@ -212,7 +213,7 @@ func buildRunServiceResource(scopeID string, s *runpb.Service, dumpNative bool) 
 	}
 
 	return inventory.Resource{
-		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindFunction, ID: name},
+		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindFunction, ID: id},
 		Kind:   inventory.KindFunction,
 		Name:   name,
 		Region: region,
@@ -226,6 +227,7 @@ func buildRunServiceResource(scopeID string, s *runpb.Service, dumpNative bool) 
 func buildCloudFunctionResource(scopeID string, f *functionspb.Function, dumpNative bool) inventory.Resource {
 	name := lastSegment(f.GetName())
 	region := regionFromResourceName(f.GetName())
+	id := platformLocationQualifiedID("cloudfunctions", region, name)
 
 	detail := inventory.FunctionDetail{
 		Region: region,
@@ -245,7 +247,7 @@ func buildCloudFunctionResource(scopeID string, f *functionspb.Function, dumpNat
 	}
 
 	return inventory.Resource{
-		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindFunction, ID: name},
+		Ref:    inventory.ResourceRef{Provider: providerName, ScopeID: scopeID, Kind: inventory.KindFunction, ID: id},
 		Kind:   inventory.KindFunction,
 		Name:   name,
 		Region: region,
@@ -266,6 +268,20 @@ func regionFromResourceName(name string) string {
 		}
 	}
 	return ""
+}
+
+func locationQualifiedID(location, name string) string {
+	if location == "" {
+		return name
+	}
+	return location + "/" + name
+}
+
+func platformLocationQualifiedID(platform, location, name string) string {
+	if location == "" {
+		return platform + "/" + name
+	}
+	return platform + "/" + location + "/" + name
 }
 
 // parseMemory turns "512Mi" / "1Gi" / "256" into MiB.

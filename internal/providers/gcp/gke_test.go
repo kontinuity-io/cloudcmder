@@ -28,13 +28,36 @@ func TestBuildClusterResource(t *testing.T) {
 		},
 	}
 	r := buildClusterResource("p1", c, false)
-	if r.Ref.String() != "gcp:p1:Cluster:my-cluster" {
+	if r.Ref.String() != "gcp:p1:Cluster:us-central1/my-cluster" {
 		t.Errorf("ref = %s", r.Ref.String())
 	}
 	d := r.Detail.(*inventory.ClusterDetail)
 	if d.Version != "1.30.0-gke.100" || d.NodeCount != 3 ||
 		d.NodeMachine != "e2-medium" || d.NodeDiskGB != 100 || d.Serverless {
 		t.Errorf("detail = %+v", d)
+	}
+}
+
+func TestBuildClusterResourceRefIncludesLocation(t *testing.T) {
+	clusters := []*containerpb.Cluster{
+		{Name: "shared", Location: "us-central1"},
+		{Name: "shared", Location: "europe-west1"},
+	}
+	got := map[string]bool{}
+	for _, c := range clusters {
+		r := buildClusterResource("p1", c, false)
+		got[r.Ref.String()] = true
+	}
+	for _, want := range []string{
+		"gcp:p1:Cluster:us-central1/shared",
+		"gcp:p1:Cluster:europe-west1/shared",
+	} {
+		if !got[want] {
+			t.Fatalf("missing ref %q in %v", want, got)
+		}
+	}
+	if len(got) != 2 {
+		t.Fatalf("refs collided: %v", got)
 	}
 }
 

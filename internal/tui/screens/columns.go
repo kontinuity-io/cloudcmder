@@ -591,7 +591,7 @@ func bucketColumns() []ColumnDef {
 		}},
 		{Header: "PUBLIC", Width: 8, Extract: func(_ inventory.Resource, d any) string {
 			if bd, ok := d.(*inventory.BucketDetail); ok && bd != nil {
-				return boolStr(bd.PublicAccess)
+				return bucketPublicAccessText(bd)
 			}
 			return ""
 		}},
@@ -613,6 +613,19 @@ func bucketColumns() []ColumnDef {
 			}
 			return ""
 		}},
+	}
+}
+
+func bucketPublicAccessText(d *inventory.BucketDetail) string {
+	switch d.PublicAccessState {
+	case "public":
+		return "yes"
+	case "not_public":
+		return "no"
+	case "unknown":
+		return "unknown"
+	default:
+		return boolStr(d.PublicAccess)
 	}
 }
 

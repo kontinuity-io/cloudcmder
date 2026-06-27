@@ -73,6 +73,9 @@ func TestBuildRunServiceResource(t *testing.T) {
 		},
 	}
 	r := buildRunServiceResource("p1", s, false)
+	if r.Ref.String() != "gcp:p1:Function:cloudrun/us-central1/my-svc" {
+		t.Errorf("ref = %s", r.Ref.String())
+	}
 	d := r.Detail.(*inventory.FunctionDetail)
 	if d.MemoryMiB != 512 || d.CPUs != 1.0 || d.MaxInst != 100 {
 		t.Errorf("detail = %+v", d)
@@ -95,9 +98,47 @@ func TestBuildCloudFunctionResource(t *testing.T) {
 		},
 	}
 	r := buildCloudFunctionResource("p1", f, false)
+	if r.Ref.String() != "gcp:p1:Function:cloudfunctions/us-central1/my-fn" {
+		t.Errorf("ref = %s", r.Ref.String())
+	}
 	d := r.Detail.(*inventory.FunctionDetail)
 	if d.Runtime != "go122" || d.MemoryMiB != 256 || d.CPUs != 0.5 || d.MaxInst != 50 {
 		t.Errorf("detail = %+v", d)
+	}
+}
+
+func TestFunctionRefsIncludePlatformAndLocation(t *testing.T) {
+	resources := []inventory.Resource{
+		buildRunServiceResource("p1", &runpb.Service{
+			Name: "projects/p1/locations/us-central1/services/shared",
+		}, false),
+		buildRunServiceResource("p1", &runpb.Service{
+			Name: "projects/p1/locations/europe-west1/services/shared",
+		}, false),
+		buildCloudFunctionResource("p1", &functionspb.Function{
+			Name: "projects/p1/locations/us-central1/functions/shared",
+		}, false),
+		buildCloudFunctionResource("p1", &functionspb.Function{
+			Name: "projects/p1/locations/europe-west1/functions/shared",
+		}, false),
+	}
+
+	got := map[string]bool{}
+	for _, r := range resources {
+		got[r.Ref.String()] = true
+	}
+	for _, want := range []string{
+		"gcp:p1:Function:cloudrun/us-central1/shared",
+		"gcp:p1:Function:cloudrun/europe-west1/shared",
+		"gcp:p1:Function:cloudfunctions/us-central1/shared",
+		"gcp:p1:Function:cloudfunctions/europe-west1/shared",
+	} {
+		if !got[want] {
+			t.Fatalf("missing ref %q in %v", want, got)
+		}
+	}
+	if len(got) != len(resources) {
+		t.Fatalf("refs collided: %v", got)
 	}
 }
 

@@ -72,10 +72,11 @@ type DatabaseDetail struct {
 
 // BucketDetail describes an object-storage bucket.
 type BucketDetail struct {
-	Location     string
-	StorageClass string
-	PublicAccess bool
-	Versioning   bool
+	Location          string
+	StorageClass      string
+	PublicAccess      bool
+	PublicAccessState string // "public", "not_public", "unknown"; empty for legacy rows
+	Versioning        bool
 	// SizeBytes and ObjectCount come from the provider's monitoring API (the
 	// object-store API itself does not expose either). The metric is a daily
 	// aggregate so freshly created buckets show 0 for ~24h until first sample.

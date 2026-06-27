@@ -69,11 +69,11 @@ type Detail struct {
 	loadErr error
 	edges   []store.Edge
 
-	mode        DetailMode
-	modeKey     key.Binding
-	prevTabKey  key.Binding
-	nextTabKey  key.Binding
-	jumpTabKey  key.Binding
+	mode       DetailMode
+	modeKey    key.Binding
+	prevTabKey key.Binding
+	nextTabKey key.Binding
+	jumpTabKey key.Binding
 
 	graphKey key.Binding
 
@@ -95,12 +95,12 @@ func NewDetail(ctx context.Context, st *store.Store, run store.RunSummary, res i
 	vp.KeyMap.Right = key.NewBinding(key.WithDisabled())
 	return &Detail{
 		ctx: ctx, st: st, run: run, res: res, detail: detail, spin: s,
-		modeKey:    key.NewBinding(key.WithKeys("m")),
-		prevTabKey: key.NewBinding(key.WithKeys("shift+left")),
-		nextTabKey: key.NewBinding(key.WithKeys("shift+right")),
-		jumpTabKey: key.NewBinding(key.WithKeys("1", "2", "3", "4")),
-		graphKey:   key.NewBinding(key.WithKeys("g")),
-		vp:         vp,
+		modeKey:      key.NewBinding(key.WithKeys("m")),
+		prevTabKey:   key.NewBinding(key.WithKeys("shift+left")),
+		nextTabKey:   key.NewBinding(key.WithKeys("shift+right")),
+		jumpTabKey:   key.NewBinding(key.WithKeys("1", "2", "3", "4")),
+		graphKey:     key.NewBinding(key.WithKeys("g")),
+		vp:           vp,
 		contentDirty: true,
 	}
 }
@@ -478,7 +478,7 @@ func bucketDetailRows(_ inventory.Resource, detail any) []string {
 	rows := []string{
 		kvLine("Location", bd.Location),
 		kvLine("Class", bd.StorageClass),
-		kvLine("Public", boolStr(bd.PublicAccess)),
+		kvLine("Public", bucketPublicAccessText(bd)),
 		kvLine("Versioning", boolStr(bd.Versioning)),
 		kvLine("Size", formatBytes(bd.SizeBytes)),
 		kvLine("Objects", formatCount(bd.ObjectCount)),
